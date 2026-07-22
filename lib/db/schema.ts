@@ -168,6 +168,8 @@ export const event = pgTable(
       .default(sql`pg_catalog.gen_random_uuid()`)
       .primaryKey(),
     name: text("name").notNull(),
+    description: text("description").notNull(),
+    slug: text("slug").notNull(),
     status: text("status").default("draft").notNull(),
     eventTimeZone: text("event_time_zone").notNull(),
     startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
@@ -195,6 +197,7 @@ export const event = pgTable(
       .defaultNow()
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
   },
   (table) => [
     check(
@@ -202,6 +205,18 @@ export const event = pgTable(
       sql`${table.status} in ('draft', 'published', 'canceled')`,
     ),
     check("event_name_not_blank_check", sql`length(btrim(${table.name})) > 0`),
+    check(
+      "event_description_not_blank_check",
+      sql`length(btrim(${table.description})) > 0`,
+    ),
+    check(
+      "event_slug_format_check",
+      sql`${table.slug} ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$'`,
+    ),
+    check(
+      "event_publication_timestamp_check",
+      sql`${table.status} = 'draft' or ${table.publishedAt} is not null`,
+    ),
     check("event_capacity_positive_check", sql`${table.capacity} > 0`),
     check("event_schedule_check", sql`${table.startsAt} < ${table.endsAt}`),
     check(
@@ -213,6 +228,7 @@ export const event = pgTable(
       sql`${table.checkInOpensAt} < ${table.checkInClosesAt}`,
     ),
     index("event_starts_at_idx").on(table.startsAt),
+    uniqueIndex("event_slug_unique").on(table.slug),
   ],
 );
 

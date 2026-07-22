@@ -40,6 +40,8 @@ export async function createEventAction(
 
   const values = {
     name: formValue(formData, "name"),
+    description: formValue(formData, "description"),
+    slug: formValue(formData, "slug"),
     eventTimeZone: formValue(formData, "eventTimeZone"),
     startsAtLocal: formValue(formData, "startsAtLocal"),
     endsAtLocal: formValue(formData, "endsAtLocal"),

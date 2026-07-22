@@ -98,7 +98,9 @@ export default async function EventsPage() {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="truncate font-medium">{eventItem.name}</h2>
-                  <Badge variant="secondary">Draft Event</Badge>
+                  <Badge variant={eventItem.status === "draft" ? "secondary" : "default"}>
+                    {eventItem.status === "draft" ? "Draft Event" : "Published Event"}
+                  </Badge>
                   <Badge variant="outline">
                     {ROLE_LABELS[eventItem.role] ?? eventItem.role}
                   </Badge>
@@ -111,11 +113,14 @@ export default async function EventsPage() {
                   )}
                 </p>
               </div>
-              <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground sm:justify-end">
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground sm:justify-end">
                 <span className="inline-flex items-center gap-1.5">
                   <IconMapPin aria-hidden="true" />
                   {eventItem.venueName}
                 </span>
+                <Link href={`/events/${eventItem.id}`} className={buttonVariants({ variant: "outline", size: "sm" })}>
+                  Open Event
+                </Link>
                 <span className="inline-flex items-center gap-1.5">
                   <IconUsers aria-hidden="true" />
                   Capacity {eventItem.capacity.toLocaleString()}

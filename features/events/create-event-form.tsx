@@ -10,6 +10,7 @@ import {
   type CreateEventFormField,
   type CreateEventFormState,
 } from "@/app/(workspace)/events/new/actions";
+import { updateEventAction } from "@/app/(workspace)/events/[eventId]/actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -23,6 +24,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 const TIME_ZONE_SUGGESTIONS = [
@@ -67,11 +69,50 @@ function value(state: CreateEventFormState, field: CreateEventFormField) {
   return state.values?.[field];
 }
 
-export function CreateEventForm() {
-  const [state, formAction, isPending] = useActionState(
-    createEventAction,
-    initialCreateEventFormState,
+function subtractLocalMinutes(value: string, minutes: number) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
+  if (!match) return "";
+
+  const date = new Date(
+    Date.UTC(
+      Number(match[1]),
+      Number(match[2]) - 1,
+      Number(match[3]),
+      Number(match[4]),
+      Number(match[5]) - minutes,
+    ),
   );
+  return date.toISOString().slice(0, 16);
+}
+
+function setEmptyFormValue(
+  form: HTMLFormElement,
+  field: CreateEventFormField,
+  nextValue: string,
+) {
+  const input = form.elements.namedItem(field);
+  if (input instanceof HTMLInputElement && !input.value) input.value = nextValue;
+}
+
+export function CreateEventForm({
+  eventId,
+  initialValues,
+  slugImmutable = false,
+}: {
+  eventId?: string;
+  initialValues?: Record<CreateEventFormField, string>;
+  slugImmutable?: boolean;
+} = {}) {
+  const action = eventId
+    ? updateEventAction.bind(null, eventId)
+    : createEventAction;
+  const [state, formAction, isPending] = useActionState(
+    action,
+    initialValues
+      ? { ...initialCreateEventFormState, values: initialValues }
+      : initialCreateEventFormState,
+  );
+  const isEditing = Boolean(eventId);
 
   return (
     <form action={formAction} className="flex flex-col gap-8">
@@ -101,6 +142,41 @@ export function CreateEventForm() {
                 maxLength={160}
                 required
                 disabled={isPending}
+              />
+            </EventField>
+            <EventField
+              field="slug"
+              label="Event Slug"
+              state={state}
+              description="Used in the public link. You can change it until publication."
+            >
+              <Input
+                id="slug"
+                name="slug"
+                autoComplete="off"
+                defaultValue={value(state, "slug")}
+                aria-invalid={Boolean(state.fieldErrors?.slug)}
+                placeholder="annual-engineering-showcase"
+                minLength={3}
+                maxLength={80}
+                pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+                required
+                readOnly={slugImmutable}
+                disabled={isPending}
+              />
+            </EventField>
+            <EventField field="description" label="Description" state={state}>
+              <Textarea
+                id="description"
+                name="description"
+                defaultValue={value(state, "description")}
+                aria-invalid={Boolean(state.fieldErrors?.description)}
+                placeholder="Tell Attendees what to expect."
+                maxLength={4000}
+                rows={5}
+                required
+                disabled={isPending}
+                className="min-h-28"
               />
             </EventField>
             <EventField
@@ -134,6 +210,20 @@ export function CreateEventForm() {
                 aria-invalid={Boolean(state.fieldErrors?.startsAtLocal)}
                 required
                 disabled={isPending}
+                onChange={(changeEvent) => {
+                  const form = changeEvent.currentTarget.form;
+                  if (!form) return;
+                  setEmptyFormValue(
+                    form,
+                    "registrationClosesAtLocal",
+                    changeEvent.currentTarget.value,
+                  );
+                  setEmptyFormValue(
+                    form,
+                    "checkInOpensAtLocal",
+                    subtractLocalMinutes(changeEvent.currentTarget.value, 60),
+                  );
+                }}
               />
             </EventField>
             <EventField field="endsAtLocal" label="Ends" state={state}>
@@ -145,6 +235,16 @@ export function CreateEventForm() {
                 aria-invalid={Boolean(state.fieldErrors?.endsAtLocal)}
                 required
                 disabled={isPending}
+                onChange={(changeEvent) => {
+                  const form = changeEvent.currentTarget.form;
+                  if (form) {
+                    setEmptyFormValue(
+                      form,
+                      "checkInClosesAtLocal",
+                      changeEvent.currentTarget.value,
+                    );
+                  }
+                }}
               />
             </EventField>
           </FieldGroup>
@@ -291,7 +391,7 @@ export function CreateEventForm() {
 
       <div className="flex flex-col-reverse gap-3 border-t pt-6 sm:flex-row sm:items-center sm:justify-end">
         <Link
-          href="/events"
+          href={eventId ? `/events/${eventId}` : "/events"}
           className={cn(buttonVariants({ variant: "outline" }), "h-10")}
         >
           <IconArrowLeft data-icon="inline-start" />
@@ -301,18 +401,22 @@ export function CreateEventForm() {
           {isPending ? (
             <>
               <Spinner data-icon="inline-start" />
-              Creating Draft Event…
+              {isEditing ? "Saving Draft Event…" : "Creating Draft Event…"}
             </>
           ) : (
             <>
               <IconPlus data-icon="inline-start" />
-              Create Draft Event
+              {isEditing ? "Save Draft Event" : "Create Draft Event"}
             </>
           )}
         </Button>
       </div>
       <p className="sr-only" aria-live="polite">
-        {isPending ? "Creating the Draft Event and Event Owner assignment." : ""}
+        {isPending
+          ? isEditing
+            ? "Saving the Draft Event configuration."
+            : "Creating the Draft Event and Event Owner assignment."
+          : ""}
       </p>
     </form>
   );

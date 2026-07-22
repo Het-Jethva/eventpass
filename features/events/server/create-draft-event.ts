@@ -18,6 +18,20 @@ const localDateTime = z
 export const createDraftEventInputSchema = z
   .object({
     name: z.string().trim().min(1, "Enter an Event name.").max(160),
+    description: z
+      .string()
+      .trim()
+      .min(1, "Enter an Event description.")
+      .max(4_000),
+    slug: z
+      .string()
+      .trim()
+      .min(3, "Use at least 3 characters.")
+      .max(80)
+      .regex(
+        /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+        "Use lowercase letters, numbers, and single hyphens.",
+      ),
     eventTimeZone: z
       .string()
       .trim()
@@ -187,6 +201,8 @@ export async function createDraftEvent(
       .insert(event)
       .values({
         name: input.name,
+        description: input.description,
+        slug: input.slug,
         eventTimeZone: input.eventTimeZone,
         startsAt,
         endsAt,

@@ -1,15 +1,22 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
-import { and, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 
 import {
   admissionOffer,
   capacityHold,
   event,
   registration,
+  registrationAnswer,
+  registrationField,
+  registrationFieldChoice,
   registrationVerification,
   ticket,
 } from "../../../lib/db/schema";
+import {
+  validateRegistrationSubmission,
+  type PublicRegistrationField,
+} from "../../registration/registration-submission";
 import {
   reconcileWaitlistInTransaction,
   type AdmissionOfferMessage,
@@ -94,6 +101,42 @@ export type TicketView = {
   };
   ticketCode: string;
   ticketJws: string;
+};
+
+export type RegistrationManagementView = {
+  attendeeName: string;
+  email: string;
+  registrationStatus: string;
+  event: TicketView["event"] & {
+    registrationClosesAt: Date;
+    checkInOpensAt: Date;
+  };
+  ticket: {
+    status: string;
+    code: string;
+    signedPayload: string;
+  } | null;
+  fields: Array<
+    PublicRegistrationField & {
+      value: string | string[] | boolean | null;
+    }
+  >;
+  canEdit: boolean;
+  canReplaceOrCancel: boolean;
+};
+
+export type UpdateRegistrationResult =
+  | { outcome: "updated" }
+  | {
+      outcome: "invalid_answers";
+      fieldErrors: Record<string, string[]>;
+      values: { name: string; answers: Record<string, unknown> };
+    }
+  | { outcome: "invalid" | "closed" };
+
+export type TicketManagementResult = {
+  outcome: "sent" | "replaced" | "canceled" | "invalid" | "closed" | "inactive";
+  deliveryStatus?: "sent" | "failed";
 };
 
 export function digestBearerToken(token: string) {
@@ -567,6 +610,7 @@ export function createTicketApplicationService({
       .where(
         and(
           eq(registration.managementTokenDigest, digestBearerToken(managementToken)),
+          isNull(registration.managementTokenRevokedAt),
           eq(registration.status, "confirmed"),
         ),
       )
@@ -589,11 +633,438 @@ export function createTicketApplicationService({
       : null;
   }
 
+  async function getManagementView(
+    managementToken: string,
+  ): Promise<RegistrationManagementView | null> {
+    if (!isWellFormedCapability(managementToken)) return null;
+    const [record] = await database
+      .select({
+        registrationId: registration.id,
+        eventId: event.id,
+        attendeeName: registration.attendeeName,
+        email: registration.email,
+        registrationStatus: registration.status,
+        eventName: event.name,
+        eventSlug: event.slug,
+        eventTimeZone: event.eventTimeZone,
+        startsAt: event.startsAt,
+        endsAt: event.endsAt,
+        venueName: event.venueName,
+        venueAddress: event.venueAddress,
+        registrationClosesAt: event.registrationClosesAt,
+        checkInOpensAt: event.checkInOpensAt,
+      })
+      .from(registration)
+      .innerJoin(event, eq(event.id, registration.eventId))
+      .where(
+        and(
+          eq(registration.managementTokenDigest, digestBearerToken(managementToken)),
+          isNull(registration.managementTokenRevokedAt),
+          inArray(registration.status, ["confirmed", "canceled"]),
+        ),
+      )
+      .limit(1);
+    if (!record) return null;
+
+    const [latestTicket] = await database
+      .select({
+        status: ticket.status,
+        code: ticket.code,
+        signedPayload: ticket.signedPayload,
+      })
+      .from(ticket)
+      .where(eq(ticket.registrationId, record.registrationId))
+      .orderBy(desc(ticket.createdAt), desc(ticket.id))
+      .limit(1);
+
+    const fieldRows = await database
+      .select({
+        id: registrationField.id,
+        answerType: registrationField.answerType,
+        label: registrationField.label,
+        helpText: registrationField.helpText,
+        required: registrationField.required,
+        value: registrationAnswer.value,
+      })
+      .from(registrationField)
+      .leftJoin(
+        registrationAnswer,
+        and(
+          eq(registrationAnswer.fieldId, registrationField.id),
+          eq(registrationAnswer.registrationId, record.registrationId),
+        ),
+      )
+      .where(
+        and(
+          eq(registrationField.eventId, record.eventId),
+          eq(registrationField.archived, false),
+        ),
+      )
+      .orderBy(asc(registrationField.position), asc(registrationField.id));
+
+    const fieldIds = fieldRows.map(({ id }) => id);
+    const choiceRows = fieldIds.length
+      ? await database
+          .select({
+            id: registrationFieldChoice.id,
+            fieldId: registrationFieldChoice.fieldId,
+            label: registrationFieldChoice.label,
+          })
+          .from(registrationFieldChoice)
+          .where(
+            and(
+              inArray(registrationFieldChoice.fieldId, fieldIds),
+              eq(registrationFieldChoice.archived, false),
+            ),
+          )
+          .orderBy(asc(registrationFieldChoice.position), asc(registrationFieldChoice.id))
+      : [];
+    const viewedAt = now();
+    const fields = fieldRows.map((field) => ({
+      id: field.id,
+      answerType: field.answerType as PublicRegistrationField["answerType"],
+      label: field.label,
+      helpText: field.helpText,
+      required: field.required,
+      choices: choiceRows
+        .filter(({ fieldId }) => fieldId === field.id)
+        .map(({ id, label }) => ({ id, label })),
+      value: (field.value ?? null) as string | string[] | boolean | null,
+    }));
+    const currentTicket = latestTicket ?? null;
+    return {
+      attendeeName: record.attendeeName,
+      email: record.email,
+      registrationStatus: record.registrationStatus,
+      event: {
+        name: record.eventName,
+        slug: record.eventSlug,
+        eventTimeZone: record.eventTimeZone,
+        startsAt: record.startsAt,
+        endsAt: record.endsAt,
+        venueName: record.venueName,
+        venueAddress: record.venueAddress,
+        registrationClosesAt: record.registrationClosesAt,
+        checkInOpensAt: record.checkInOpensAt,
+      },
+      ticket: currentTicket,
+      fields,
+      canEdit:
+        record.registrationStatus === "confirmed" &&
+        record.registrationClosesAt > viewedAt,
+      canReplaceOrCancel:
+        record.registrationStatus === "confirmed" &&
+        currentTicket?.status === "active" &&
+        record.checkInOpensAt > viewedAt,
+    };
+  }
+
+  async function updateRegistration(
+    managementToken: string,
+    values: { name: string; answers: Record<string, unknown> },
+  ): Promise<UpdateRegistrationResult> {
+    if (!isWellFormedCapability(managementToken)) return { outcome: "invalid" };
+    const updatedAt = now();
+    return database.transaction(async (transaction) => {
+      const [managed] = await transaction
+        .select({
+          id: registration.id,
+          eventId: registration.eventId,
+          email: registration.email,
+          status: registration.status,
+          registrationClosesAt: event.registrationClosesAt,
+        })
+        .from(registration)
+        .innerJoin(event, eq(event.id, registration.eventId))
+        .where(
+          and(
+            eq(registration.managementTokenDigest, digestBearerToken(managementToken)),
+            isNull(registration.managementTokenRevokedAt),
+          ),
+        )
+        .for("update")
+        .limit(1);
+      if (!managed) return { outcome: "invalid" } as const;
+      if (
+        managed.status !== "confirmed" ||
+        managed.registrationClosesAt <= updatedAt
+      ) {
+        return { outcome: "closed" } as const;
+      }
+
+      const fieldRows = await transaction
+        .select({
+          id: registrationField.id,
+          answerType: registrationField.answerType,
+          label: registrationField.label,
+          helpText: registrationField.helpText,
+          required: registrationField.required,
+        })
+        .from(registrationField)
+        .where(
+          and(
+            eq(registrationField.eventId, managed.eventId),
+            eq(registrationField.archived, false),
+          ),
+        )
+        .orderBy(asc(registrationField.position), asc(registrationField.id));
+      const fieldIds = fieldRows.map(({ id }) => id);
+      const choices = fieldIds.length
+        ? await transaction
+            .select({
+              id: registrationFieldChoice.id,
+              fieldId: registrationFieldChoice.fieldId,
+              label: registrationFieldChoice.label,
+            })
+            .from(registrationFieldChoice)
+            .where(
+              and(
+                inArray(registrationFieldChoice.fieldId, fieldIds),
+                eq(registrationFieldChoice.archived, false),
+              ),
+            )
+            .orderBy(asc(registrationFieldChoice.position), asc(registrationFieldChoice.id))
+        : [];
+      const fields: PublicRegistrationField[] = fieldRows.map((field) => ({
+        ...field,
+        answerType: field.answerType as PublicRegistrationField["answerType"],
+        choices: choices
+          .filter(({ fieldId }) => fieldId === field.id)
+          .map(({ id, label }) => ({ id, label })),
+      }));
+      const validation = validateRegistrationSubmission(
+        { name: values.name, email: managed.email, answers: values.answers },
+        fields,
+      );
+      if (!validation.success) {
+        return {
+          outcome: "invalid_answers",
+          fieldErrors: validation.fieldErrors,
+          values: {
+            name: validation.values.name,
+            answers: validation.values.answers,
+          },
+        } as const;
+      }
+
+      await transaction
+        .update(registration)
+        .set({ attendeeName: validation.data.name, updatedAt })
+        .where(eq(registration.id, managed.id));
+      for (const [fieldId, value] of Object.entries(validation.data.answers)) {
+        await transaction
+          .insert(registrationAnswer)
+          .values({ registrationId: managed.id, fieldId, value })
+          .onConflictDoUpdate({
+            target: [registrationAnswer.registrationId, registrationAnswer.fieldId],
+            set: { value, updatedAt },
+          });
+      }
+      return { outcome: "updated" } as const;
+    });
+  }
+
+  async function resendTicket(managementToken: string): Promise<TicketManagementResult> {
+    const view = await getManagementView(managementToken);
+    if (!view) return { outcome: "invalid" };
+    if (view.registrationStatus !== "confirmed" || view.ticket?.status !== "active") {
+      return { outcome: "inactive" };
+    }
+    try {
+      await sendTicketEmail({
+        email: view.email,
+        attendeeName: view.attendeeName,
+        event: view.event,
+        ticketCode: view.ticket.code,
+        ticketJws: view.ticket.signedPayload,
+        managementToken,
+      });
+      return { outcome: "sent", deliveryStatus: "sent" };
+    } catch {
+      return { outcome: "sent", deliveryStatus: "failed" };
+    }
+  }
+
+  async function replaceTicket(managementToken: string): Promise<TicketManagementResult> {
+    if (!isWellFormedCapability(managementToken)) return { outcome: "invalid" };
+    const replacedAt = now();
+    const signingKey = getSigningKey();
+    let emailMessage: TicketEmail | null = null;
+    const result = await database.transaction(async (transaction) => {
+      const [managed] = await transaction
+        .select({
+          registrationId: registration.id,
+          registrationStatus: registration.status,
+          email: registration.email,
+          attendeeName: registration.attendeeName,
+          eventId: event.id,
+          eventName: event.name,
+          eventTimeZone: event.eventTimeZone,
+          startsAt: event.startsAt,
+          endsAt: event.endsAt,
+          venueName: event.venueName,
+          venueAddress: event.venueAddress,
+          checkInOpensAt: event.checkInOpensAt,
+        })
+        .from(registration)
+        .innerJoin(event, eq(event.id, registration.eventId))
+        .where(
+          and(
+            eq(registration.managementTokenDigest, digestBearerToken(managementToken)),
+            isNull(registration.managementTokenRevokedAt),
+          ),
+        )
+        .for("update")
+        .limit(1);
+      if (!managed) return { outcome: "invalid" } as const;
+      if (managed.registrationStatus !== "confirmed") {
+        return { outcome: "inactive" } as const;
+      }
+      if (managed.checkInOpensAt <= replacedAt) return { outcome: "closed" } as const;
+      const [activeTicket] = await transaction
+        .select({ id: ticket.id })
+        .from(ticket)
+        .where(
+          and(
+            eq(ticket.registrationId, managed.registrationId),
+            eq(ticket.status, "active"),
+          ),
+        )
+        .for("update")
+        .limit(1);
+      if (!activeTicket) return { outcome: "inactive" } as const;
+
+      let ticketCode: string | null = null;
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        const candidate = createTicketCode();
+        const [existing] = await transaction
+          .select({ id: ticket.id })
+          .from(ticket)
+          .where(and(eq(ticket.eventId, managed.eventId), eq(ticket.code, candidate)))
+          .limit(1);
+        if (!existing) {
+          ticketCode = candidate;
+          break;
+        }
+      }
+      if (!ticketCode) throw new Error("Could not allocate a unique Ticket Code.");
+      const ticketId = createTicketId();
+      const ticketJws = signTicket({ eventId: managed.eventId, ticketId }, signingKey);
+      await transaction
+        .update(ticket)
+        .set({ status: "replaced", invalidatedAt: replacedAt })
+        .where(and(eq(ticket.id, activeTicket.id), eq(ticket.status, "active")));
+      await transaction.insert(ticket).values({
+        id: ticketId,
+        eventId: managed.eventId,
+        registrationId: managed.registrationId,
+        code: ticketCode,
+        signedPayload: ticketJws,
+        signingKeyId: signingKey.id,
+      });
+      emailMessage = {
+        email: managed.email,
+        attendeeName: managed.attendeeName,
+        event: {
+          name: managed.eventName,
+          eventTimeZone: managed.eventTimeZone,
+          startsAt: managed.startsAt,
+          endsAt: managed.endsAt,
+          venueName: managed.venueName,
+          venueAddress: managed.venueAddress,
+        },
+        ticketCode,
+        ticketJws,
+        managementToken,
+      };
+      return { outcome: "replaced" } as const;
+    });
+    if (result.outcome !== "replaced" || !emailMessage) return result;
+    try {
+      await sendTicketEmail(emailMessage);
+      return { ...result, deliveryStatus: "sent" };
+    } catch {
+      return { ...result, deliveryStatus: "failed" };
+    }
+  }
+
+  async function cancelRegistration(
+    managementToken: string,
+  ): Promise<TicketManagementResult> {
+    if (!isWellFormedCapability(managementToken)) return { outcome: "invalid" };
+    const canceledAt = now();
+    let offerMessages: AdmissionOfferMessage[] = [];
+    const result = await database.transaction(async (transaction) => {
+      const [managed] = await transaction
+        .select({
+          registrationId: registration.id,
+          registrationStatus: registration.status,
+          eventId: event.id,
+          checkInOpensAt: event.checkInOpensAt,
+        })
+        .from(registration)
+        .innerJoin(event, eq(event.id, registration.eventId))
+        .where(
+          and(
+            eq(registration.managementTokenDigest, digestBearerToken(managementToken)),
+            isNull(registration.managementTokenRevokedAt),
+          ),
+        )
+        .for("update")
+        .limit(1);
+      if (!managed) return { outcome: "invalid" } as const;
+      if (managed.registrationStatus !== "confirmed") {
+        return { outcome: "inactive" } as const;
+      }
+      if (managed.checkInOpensAt <= canceledAt) return { outcome: "closed" } as const;
+      const invalidatedTickets = await transaction
+        .update(ticket)
+        .set({ status: "canceled", invalidatedAt: canceledAt })
+        .where(
+          and(
+            eq(ticket.registrationId, managed.registrationId),
+            eq(ticket.status, "active"),
+          ),
+        )
+        .returning({ id: ticket.id });
+      if (invalidatedTickets.length !== 1) return { outcome: "inactive" } as const;
+      await transaction
+        .update(registration)
+        .set({ status: "canceled", updatedAt: canceledAt })
+        .where(
+          and(
+            eq(registration.id, managed.registrationId),
+            eq(registration.status, "confirmed"),
+          ),
+        );
+      offerMessages = await reconcileWaitlistInTransaction({
+        transaction,
+        eventId: managed.eventId,
+        reconciledAt: canceledAt,
+        createOfferToken,
+      });
+      return { outcome: "canceled" } as const;
+    });
+    for (const message of offerMessages) {
+      try {
+        await sendAdmissionOfferEmail(message);
+      } catch {
+        // Cancellation remains committed independently from delivery outcomes.
+      }
+    }
+    return result;
+  }
+
   return {
     verifyRegistration,
     claimAdmissionOffer,
     getAdmissionOfferView,
     reconcileEventWaitlist,
     getTicketView,
+    getManagementView,
+    updateRegistration,
+    resendTicket,
+    replaceTicket,
+    cancelRegistration,
   };
 }

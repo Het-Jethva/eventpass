@@ -10,6 +10,8 @@ import {
   capacityHold,
   event,
   registration,
+  registrationAnswer,
+  registrationField,
   registrationVerification,
   ticket,
 } from "../../../lib/db/schema";
@@ -24,12 +26,15 @@ describeWithDatabase("Ticket application service", () => {
   const database = drizzle({ client });
   const eventIds: string[] = [];
   const offeredTokens: string[] = [];
+  const sentTicketCodes: string[] = [];
   let managementTokenSequence = 0;
   const service = createTicketApplicationService({
     database,
     now: () => new Date("2030-01-01T12:00:00.000Z"),
     getSigningKey: () => ({ id: "integration-key", privateKey }),
-    sendTicketEmail: async () => undefined,
+    sendTicketEmail: async ({ ticketCode }) => {
+      sentTicketCodes.push(ticketCode);
+    },
     sendAdmissionOfferEmail: async ({ token }) => {
       offeredTokens.push(token);
     },
@@ -101,6 +106,9 @@ describeWithDatabase("Ticket application service", () => {
         .where(inArray(registration.eventId, eventIds));
       const registrationIds = registrations.map(({ id }) => id);
       if (registrationIds.length > 0) {
+        await database
+          .delete(registrationAnswer)
+          .where(inArray(registrationAnswer.registrationId, registrationIds));
         await database.delete(ticket).where(inArray(ticket.registrationId, registrationIds));
         await database
           .delete(admissionOffer)
@@ -113,6 +121,7 @@ describeWithDatabase("Ticket application service", () => {
           .where(inArray(capacityHold.registrationId, registrationIds));
         await database.delete(registration).where(inArray(registration.id, registrationIds));
       }
+      await database.delete(registrationField).where(inArray(registrationField.eventId, eventIds));
       await database.delete(event).where(inArray(event.id, eventIds));
     }
     await client.end();
@@ -323,5 +332,127 @@ describeWithDatabase("Ticket application service", () => {
         ),
       );
     expect(active?.registrationId).toBe(queued[1]!.id);
+  });
+
+  it("updates attendee-authored details while keeping the verified email immutable", async () => {
+    const held = await createHeldRegistration();
+    const fieldId = randomUUID();
+    await database.insert(registrationField).values({
+      id: fieldId,
+      eventId: held.event.id,
+      answerType: "short_text",
+      label: "Accessibility note",
+      required: false,
+      position: 0,
+    });
+    const verified = await service.verifyRegistration(held.event.slug, held.verificationToken);
+    expect(verified.outcome).toBe("confirmed");
+    if (verified.outcome !== "confirmed") throw new Error("Expected confirmation.");
+
+    expect(
+      await service.updateRegistration(verified.managementToken, {
+        name: "Ada Byron",
+        answers: { [fieldId]: "Front-row access" },
+      }),
+    ).toEqual({ outcome: "updated" });
+    const [updated] = await database
+      .select({ name: registration.attendeeName, email: registration.email })
+      .from(registration)
+      .where(eq(registration.id, held.registrationId));
+    expect(updated).toEqual({ name: "Ada Byron", email: "ada@example.com" });
+    const [answer] = await database
+      .select({ value: registrationAnswer.value })
+      .from(registrationAnswer)
+      .where(
+        and(
+          eq(registrationAnswer.registrationId, held.registrationId),
+          eq(registrationAnswer.fieldId, fieldId),
+        ),
+      );
+    expect(answer?.value).toBe("Front-row access");
+  });
+
+  it("resends the existing Ticket and replaces it without reusing its identity", async () => {
+    const held = await createHeldRegistration();
+    const verified = await service.verifyRegistration(held.event.slug, held.verificationToken);
+    expect(verified.outcome).toBe("confirmed");
+    if (verified.outcome !== "confirmed") throw new Error("Expected confirmation.");
+    const [original] = await database
+      .select({ id: ticket.id, code: ticket.code })
+      .from(ticket)
+      .where(and(eq(ticket.registrationId, held.registrationId), eq(ticket.status, "active")));
+
+    expect(await service.resendTicket(verified.managementToken)).toEqual({
+      outcome: "sent",
+      deliveryStatus: "sent",
+    });
+    expect(sentTicketCodes.at(-1)).toBe(original!.code);
+    expect(await service.replaceTicket(verified.managementToken)).toEqual({
+      outcome: "replaced",
+      deliveryStatus: "sent",
+    });
+    const issued = await database
+      .select({ id: ticket.id, code: ticket.code, status: ticket.status })
+      .from(ticket)
+      .where(eq(ticket.registrationId, held.registrationId));
+    expect(issued).toHaveLength(2);
+    expect(issued.find(({ id }) => id === original!.id)?.status).toBe("replaced");
+    const replacement = issued.find(({ status }) => status === "active");
+    expect(replacement?.id).not.toBe(original!.id);
+    expect(replacement?.code).not.toBe(original!.code);
+  });
+
+  it("cancels before check-in, preserves history, and promotes the waitlist", async () => {
+    const held = await createHeldRegistration(undefined, 1);
+    const verified = await service.verifyRegistration(held.event.slug, held.verificationToken);
+    expect(verified.outcome).toBe("confirmed");
+    if (verified.outcome !== "confirmed") throw new Error("Expected confirmation.");
+    const waitlistEmail = `cancel-waitlist-${randomUUID()}@example.com`;
+    await database.insert(registration).values({
+      eventId: held.event.id,
+      attendeeName: "Next Attendee",
+      email: waitlistEmail,
+      normalizedEmail: waitlistEmail,
+      status: "waitlisted",
+      capacityOutcome: "waitlist",
+      verifiedAt: new Date("2030-01-01T11:00:00.000Z"),
+    });
+
+    expect(await service.cancelRegistration(verified.managementToken)).toEqual({
+      outcome: "canceled",
+    });
+    const [canceled] = await database
+      .select({ status: registration.status })
+      .from(registration)
+      .where(eq(registration.id, held.registrationId));
+    expect(canceled?.status).toBe("canceled");
+    const [historicalTicket] = await database
+      .select({ status: ticket.status })
+      .from(ticket)
+      .where(eq(ticket.registrationId, held.registrationId));
+    expect(historicalTicket?.status).toBe("canceled");
+    expect((await service.getManagementView(verified.managementToken))?.registrationStatus).toBe(
+      "canceled",
+    );
+    expect(offeredTokens.length).toBeGreaterThan(0);
+  });
+
+  it("stops honoring a revoked management capability", async () => {
+    const held = await createHeldRegistration();
+    const verified = await service.verifyRegistration(held.event.slug, held.verificationToken);
+    expect(verified.outcome).toBe("confirmed");
+    if (verified.outcome !== "confirmed") throw new Error("Expected confirmation.");
+    await database
+      .update(registration)
+      .set({ managementTokenRevokedAt: new Date("2030-01-01T12:01:00.000Z") })
+      .where(eq(registration.id, held.registrationId));
+
+    expect(await service.getManagementView(verified.managementToken)).toBeNull();
+    expect(
+      await service.updateRegistration(verified.managementToken, {
+        name: "Unauthorized change",
+        answers: {},
+      }),
+    ).toEqual({ outcome: "invalid" });
   });
 });

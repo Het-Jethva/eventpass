@@ -364,6 +364,9 @@ export const registration = pgTable(
     capacityOutcome: text("capacity_outcome").notNull(),
     source: text("source").default("attendee").notNull(),
     managementTokenDigest: text("management_token_digest"),
+    managementTokenRevokedAt: timestamp("management_token_revoked_at", {
+      withTimezone: true,
+    }),
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()

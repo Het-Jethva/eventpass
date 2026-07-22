@@ -17,6 +17,11 @@ const ticketApplication = createTicketApplicationService({
 
 export const verifyRegistration = ticketApplication.verifyRegistration;
 export const getTicketView = ticketApplication.getTicketView;
+export const getManagementView = ticketApplication.getManagementView;
+export const updateRegistration = ticketApplication.updateRegistration;
+export const resendTicket = ticketApplication.resendTicket;
+export const replaceTicket = ticketApplication.replaceTicket;
+export const cancelRegistration = ticketApplication.cancelRegistration;
 export const claimAdmissionOffer = ticketApplication.claimAdmissionOffer;
 export const getAdmissionOfferView = ticketApplication.getAdmissionOfferView;
 export const reconcileEventWaitlist = ticketApplication.reconcileEventWaitlist;

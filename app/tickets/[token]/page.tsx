@@ -7,6 +7,7 @@ import {
   IconMapPin,
   IconShieldCheck,
   IconTicket,
+  IconTicketOff,
 } from "@tabler/icons-react";
 import QRCode from "qrcode";
 
@@ -17,7 +18,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { formatTicketCode } from "@/features/tickets/ticket-code";
 import { PrintTicketButton } from "@/features/tickets/print-ticket-button";
-import { getTicketView } from "@/features/tickets/server/tickets";
+import { RegistrationManagementControls } from "@/features/tickets/registration-management-controls";
+import { getManagementView } from "@/features/tickets/server/tickets";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -42,15 +44,18 @@ export default async function TicketPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const [{ token }, query] = await Promise.all([params, searchParams]);
-  const ticket = await getTicketView(token);
-  if (!ticket) notFound();
+  const management = await getManagementView(token);
+  if (!management) notFound();
 
-  const qrDataUrl = await QRCode.toDataURL(ticket.ticketJws, {
-    errorCorrectionLevel: "M",
-    margin: 2,
-    width: 480,
-  });
-  const formattedCode = formatTicketCode(ticket.ticketCode);
+  const activeTicket = management.ticket?.status === "active" ? management.ticket : null;
+  const qrDataUrl = activeTicket
+    ? await QRCode.toDataURL(activeTicket.signedPayload, {
+        errorCorrectionLevel: "M",
+        margin: 2,
+        width: 480,
+      })
+    : null;
+  const formattedCode = activeTicket ? formatTicketCode(activeTicket.code) : null;
   const deliveryFailed = query.delivery === "failed";
 
   return (
@@ -75,16 +80,20 @@ export default async function TicketPage({
           <header className="flex flex-col gap-4 border-b p-6 sm:flex-row sm:items-start sm:justify-between sm:p-8">
             <div className="flex max-w-2xl flex-col gap-2">
               <Badge variant="secondary" className="w-fit">
-                <IconShieldCheck aria-hidden="true" data-icon="inline-start" />
-                Registration confirmed
+                {management.registrationStatus === "confirmed" ? (
+                  <IconShieldCheck aria-hidden="true" data-icon="inline-start" />
+                ) : (
+                  <IconTicketOff aria-hidden="true" data-icon="inline-start" />
+                )}
+                Registration {management.registrationStatus}
               </Badge>
               <h1 className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
-                {ticket.event.name}
+                {management.event.name}
               </h1>
-              <p className="text-muted-foreground">Ticket for {ticket.attendeeName}</p>
+              <p className="text-muted-foreground">Ticket for {management.attendeeName}</p>
             </div>
             <div className="flex gap-2 print:hidden">
-              <PrintTicketButton />
+              {activeTicket ? <PrintTicketButton /> : null}
             </div>
           </header>
 
@@ -97,12 +106,12 @@ export default async function TicketPage({
                   <dt className="font-medium">Schedule</dt>
                   <dd className="text-muted-foreground">
                     {formatEventRange(
-                      ticket.event.startsAt,
-                      ticket.event.endsAt,
-                      ticket.event.eventTimeZone,
+                      management.event.startsAt,
+                      management.event.endsAt,
+                      management.event.eventTimeZone,
                     )}
                     <span className="mt-1 block text-sm">
-                      Event Time Zone: {ticket.event.eventTimeZone}
+                      Event Time Zone: {management.event.eventTimeZone}
                     </span>
                   </dd>
                 </div>
@@ -110,8 +119,8 @@ export default async function TicketPage({
                   <IconMapPin aria-hidden="true" className="mt-0.5" />
                   <dt className="font-medium">Venue</dt>
                   <dd className="text-muted-foreground">
-                    <span className="block text-foreground">{ticket.event.venueName}</span>
-                    {ticket.event.venueAddress}
+                    <span className="block text-foreground">{management.event.venueName}</span>
+                    {management.event.venueAddress}
                   </dd>
                 </div>
               </dl>
@@ -126,37 +135,74 @@ export default async function TicketPage({
               </Alert>
 
               <Link
-                href={`/e/${ticket.event.slug}`}
+                href={`/e/${management.event.slug}`}
                 className={cn(buttonVariants({ variant: "outline" }), "mt-6 w-fit print:hidden")}
               >
                 View Event
               </Link>
+
+              {activeTicket ? (
+                <div className="mt-10 border-t pt-8">
+                  <RegistrationManagementControls
+                    token={token}
+                    attendeeName={management.attendeeName}
+                    email={management.email}
+                    fields={management.fields}
+                    canEdit={management.canEdit}
+                    canReplaceOrCancel={management.canReplaceOrCancel}
+                  />
+                </div>
+              ) : (
+                <Alert variant="destructive" className="mt-8 print:hidden">
+                  <IconTicketOff aria-hidden="true" />
+                  <AlertTitle>Ticket {management.ticket?.status ?? "inactive"}</AlertTitle>
+                  <AlertDescription>
+                    This Registration and Ticket remain in history, but the Ticket cannot be used for admission.
+                  </AlertDescription>
+                </Alert>
+              )}
             </section>
 
             <section className="flex flex-col items-center border-t bg-muted/30 p-6 text-center lg:border-t-0 lg:border-l sm:p-8 print:border-l">
-              <IconTicket aria-hidden="true" className="size-7" />
-              <h2 className="mt-3 text-lg font-semibold">Present at check-in</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Show the QR representation or read out the Ticket Code.
-              </p>
-              <div className="mt-5 rounded-xl bg-white p-3">
-                <Image
-                  src={qrDataUrl}
-                  alt={`QR representation of Ticket ${formattedCode}`}
-                  width={320}
-                  height={320}
-                  unoptimized
-                  priority
-                />
-              </div>
-              <Separator className="my-6" />
-              <p className="text-sm font-medium text-muted-foreground">Ticket Code</p>
-              <p className="mt-2 font-mono text-2xl font-semibold tracking-[0.12em]" aria-label={ticket.ticketCode}>
-                {formattedCode}
-              </p>
-              <p className="mt-3 text-xs leading-5 text-muted-foreground">
-                Single entry · Valid only for this Event
-              </p>
+              {activeTicket && qrDataUrl && formattedCode ? (
+                <>
+                  <IconTicket aria-hidden="true" className="size-7" />
+                  <Badge variant="secondary" className="mt-3">
+                    <IconShieldCheck aria-hidden="true" data-icon="inline-start" />
+                    Ticket active
+                  </Badge>
+                  <h2 className="mt-3 text-lg font-semibold">Present at check-in</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Show the QR representation or read out the Ticket Code.
+                  </p>
+                  <div className="mt-5 rounded-xl bg-white p-3">
+                    <Image
+                      src={qrDataUrl}
+                      alt={`QR representation of Ticket ${formattedCode}`}
+                      width={320}
+                      height={320}
+                      unoptimized
+                      priority
+                    />
+                  </div>
+                  <Separator className="my-6" />
+                  <p className="text-sm font-medium text-muted-foreground">Ticket Code</p>
+                  <p className="mt-2 font-mono text-2xl font-semibold tracking-[0.12em]" aria-label={activeTicket.code}>
+                    {formattedCode}
+                  </p>
+                  <p className="mt-3 text-xs leading-5 text-muted-foreground">
+                    Single entry · Valid only for this Event
+                  </p>
+                </>
+              ) : (
+                <>
+                  <IconTicketOff aria-hidden="true" className="size-8" />
+                  <h2 className="mt-3 text-lg font-semibold">Ticket inactive</h2>
+                  <p className="mt-2 max-w-xs text-sm text-muted-foreground">
+                    The previous Ticket is retained in history and cannot be presented for admission.
+                  </p>
+                </>
+              )}
             </section>
           </div>
         </article>

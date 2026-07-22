@@ -1,0 +1,1 @@
+ALTER TABLE "registration" ADD COLUMN "management_token_revoked_at" timestamp with time zone;

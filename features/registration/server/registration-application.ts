@@ -23,6 +23,7 @@ type RegistrationDatabase = typeof import("../../../lib/db").db;
 type VerificationEmail = {
   email: string;
   eventName: string;
+  eventSlug: string;
   token: string;
 };
 
@@ -292,6 +293,7 @@ export function createRegistrationApplicationService({
         emailMessage = {
           email: validation.data.email,
           eventName: publishedEvent.name,
+          eventSlug,
           token,
         };
         return {

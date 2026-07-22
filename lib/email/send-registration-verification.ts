@@ -25,10 +25,12 @@ function escapeHtml(value: string) {
 export async function sendRegistrationVerification({
   email,
   eventName,
+  eventSlug,
   token,
 }: {
   email: string;
   eventName: string;
+  eventSlug: string;
   token: string;
 }) {
   const apiKey = process.env.RESEND_API_KEY;
@@ -36,7 +38,7 @@ export async function sendRegistrationVerification({
   if (!apiKey) throw new Error("RESEND_API_KEY is required to send verification emails.");
   if (!applicationUrl) throw new Error("NEXT_PUBLIC_APP_URL is required to create verification links.");
 
-  const verificationUrl = new URL("/verify-registration", applicationUrl);
+  const verificationUrl = new URL(`/e/${encodeURIComponent(eventSlug)}/verify`, applicationUrl);
   verificationUrl.searchParams.set("token", token);
   const resend = new Resend(apiKey);
   const [delivery] = await db

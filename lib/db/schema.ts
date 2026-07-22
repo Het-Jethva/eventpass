@@ -363,6 +363,7 @@ export const registration = pgTable(
     status: text("status").default("unconfirmed").notNull(),
     capacityOutcome: text("capacity_outcome").notNull(),
     source: text("source").default("attendee").notNull(),
+    managementTokenDigest: text("management_token_digest"),
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
@@ -396,7 +397,47 @@ export const registration = pgTable(
     uniqueIndex("registration_active_event_email_unique")
       .on(table.eventId, table.normalizedEmail)
       .where(sql`${table.status} in ('unconfirmed', 'confirmed', 'waitlisted')`),
+    uniqueIndex("registration_management_token_digest_unique")
+      .on(table.managementTokenDigest)
+      .where(sql`${table.managementTokenDigest} is not null`),
     index("registration_event_status_idx").on(table.eventId, table.status),
+  ],
+);
+
+export const ticket = pgTable(
+  "ticket",
+  {
+    id: uuid("id").primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => event.id, { onDelete: "restrict" }),
+    registrationId: uuid("registration_id")
+      .notNull()
+      .references(() => registration.id, { onDelete: "restrict" }),
+    code: text("code").notNull(),
+    signedPayload: text("signed_payload").notNull(),
+    signingKeyId: text("signing_key_id").notNull(),
+    status: text("status").default("active").notNull(),
+    invalidatedAt: timestamp("invalidated_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    check("ticket_code_format_check", sql`${table.code} ~ '^[0-9A-HJKMNP-TV-Z]{10}$'`),
+    check(
+      "ticket_status_check",
+      sql`${table.status} in ('active', 'replaced', 'canceled')`,
+    ),
+    check(
+      "ticket_invalidation_check",
+      sql`(${table.status} = 'active' and ${table.invalidatedAt} is null) or (${table.status} <> 'active' and ${table.invalidatedAt} is not null)`,
+    ),
+    uniqueIndex("ticket_event_code_unique").on(table.eventId, table.code),
+    uniqueIndex("ticket_active_registration_unique")
+      .on(table.registrationId)
+      .where(sql`${table.status} = 'active'`),
+    index("ticket_event_status_idx").on(table.eventId, table.status),
   ],
 );
 
@@ -526,6 +567,7 @@ export const eventRelations = relations(event, ({ many }) => ({
   staff: many(eventStaff),
   registrationFields: many(registrationField),
   registrations: many(registration),
+  tickets: many(ticket),
 }));
 
 export const eventStaffRelations = relations(eventStaff, ({ one }) => ({
@@ -570,6 +612,18 @@ export const registrationRelations = relations(registration, ({ one, many }) => 
   capacityHolds: many(capacityHold),
   admissionOffers: many(admissionOffer),
   verificationCapabilities: many(registrationVerification),
+  tickets: many(ticket),
+}));
+
+export const ticketRelations = relations(ticket, ({ one }) => ({
+  event: one(event, {
+    fields: [ticket.eventId],
+    references: [event.id],
+  }),
+  registration: one(registration, {
+    fields: [ticket.registrationId],
+    references: [registration.id],
+  }),
 }));
 
 export const registrationAnswerRelations = relations(

@@ -265,6 +265,88 @@ export const eventStaff = pgTable(
   ],
 );
 
+export const registrationField = pgTable(
+  "registration_field",
+  {
+    id: uuid("id").primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => event.id, { onDelete: "restrict" }),
+    answerType: text("answer_type").notNull(),
+    label: text("label").notNull(),
+    helpText: text("help_text"),
+    required: boolean("required").default(false).notNull(),
+    archived: boolean("archived").default(false).notNull(),
+    position: integer("position").notNull(),
+    responseCount: integer("response_count").default(0).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "registration_field_answer_type_check",
+      sql`${table.answerType} in ('short_text', 'long_text', 'single_choice', 'multiple_choice', 'acknowledgment')`,
+    ),
+    check(
+      "registration_field_label_not_blank_check",
+      sql`length(btrim(${table.label})) > 0`,
+    ),
+    check(
+      "registration_field_position_nonnegative_check",
+      sql`${table.position} >= 0`,
+    ),
+    check(
+      "registration_field_response_count_nonnegative_check",
+      sql`${table.responseCount} >= 0`,
+    ),
+    index("registration_field_event_position_idx").on(
+      table.eventId,
+      table.position,
+      table.id,
+    ),
+  ],
+);
+
+export const registrationFieldChoice = pgTable(
+  "registration_field_choice",
+  {
+    id: uuid("id").primaryKey(),
+    fieldId: uuid("field_id")
+      .notNull()
+      .references(() => registrationField.id, { onDelete: "restrict" }),
+    label: text("label").notNull(),
+    position: integer("position").notNull(),
+    archived: boolean("archived").default(false).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "registration_field_choice_label_not_blank_check",
+      sql`length(btrim(${table.label})) > 0`,
+    ),
+    check(
+      "registration_field_choice_position_nonnegative_check",
+      sql`${table.position} >= 0`,
+    ),
+    index("registration_field_choice_field_position_idx").on(
+      table.fieldId,
+      table.position,
+      table.id,
+    ),
+  ],
+);
+
 export const userRelations = relations(user, ({ many }) => ({
   sessions: many(session),
   accounts: many(account),
@@ -287,6 +369,7 @@ export const accountRelations = relations(account, ({ one }) => ({
 
 export const eventRelations = relations(event, ({ many }) => ({
   staff: many(eventStaff),
+  registrationFields: many(registrationField),
 }));
 
 export const eventStaffRelations = relations(eventStaff, ({ one }) => ({
@@ -299,3 +382,24 @@ export const eventStaffRelations = relations(eventStaff, ({ one }) => ({
     references: [user.id],
   }),
 }));
+
+export const registrationFieldRelations = relations(
+  registrationField,
+  ({ one, many }) => ({
+    event: one(event, {
+      fields: [registrationField.eventId],
+      references: [event.id],
+    }),
+    choices: many(registrationFieldChoice),
+  }),
+);
+
+export const registrationFieldChoiceRelations = relations(
+  registrationFieldChoice,
+  ({ one }) => ({
+    field: one(registrationField, {
+      fields: [registrationFieldChoice.fieldId],
+      references: [registrationField.id],
+    }),
+  }),
+);

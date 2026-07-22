@@ -1,9 +1,14 @@
 import "server-only";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { event, eventStaff } from "@/lib/db/schema";
+import {
+  event,
+  eventStaff,
+  registrationField,
+  registrationFieldChoice,
+} from "@/lib/db/schema";
 
 export class DraftEventCannotBeDeletedError extends Error {}
 
@@ -29,8 +34,26 @@ export async function deleteDraftEvent(eventId: string, actorUserId: string) {
       );
     }
 
-    // Registration records begin in ticket #5. Restrictive foreign keys will make
-    // this delete fail once durable Event history exists.
+    const draftFields = await transaction
+      .select({ id: registrationField.id })
+      .from(registrationField)
+      .where(eq(registrationField.eventId, eventId));
+    if (draftFields.length > 0) {
+      await transaction
+        .delete(registrationFieldChoice)
+        .where(
+          inArray(
+            registrationFieldChoice.fieldId,
+            draftFields.map((field) => field.id),
+          ),
+        );
+      await transaction
+        .delete(registrationField)
+        .where(eq(registrationField.eventId, eventId));
+    }
+
+    // Durable Registration records begin in issue #6. Their restrictive foreign
+    // keys will make this delete fail once the Draft is no longer empty.
     await transaction.delete(eventStaff).where(eq(eventStaff.eventId, eventId));
     await transaction
       .delete(event)

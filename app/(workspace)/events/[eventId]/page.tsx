@@ -8,6 +8,7 @@ import {
   IconEye,
   IconMapPin,
   IconPencil,
+  IconForms,
   IconSend,
   IconUsers,
 } from "@tabler/icons-react";
@@ -74,6 +75,13 @@ export default async function EventOverviewPage({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Link
+              href={`/events/${event.id}/form`}
+              className={buttonVariants({ variant: "outline" })}
+            >
+              <IconForms data-icon="inline-start" />
+              Registration form
+            </Link>
             <Link
               href={`/events/${event.id}/preview`}
               className={buttonVariants({ variant: "outline" })}

@@ -266,6 +266,117 @@ export const eventStaff = pgTable(
   ],
 );
 
+export const staffInvitation = pgTable(
+  "staff_invitation",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => event.id, { onDelete: "restrict" }),
+    invitedByUserId: uuid("invited_by_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    normalizedEmail: text("normalized_email").notNull(),
+    role: text("role").notNull(),
+    tokenDigest: text("token_digest").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "staff_invitation_role_check",
+      sql`${table.role} in ('organizer', 'check_in_volunteer')`,
+    ),
+    check(
+      "staff_invitation_email_normalized_check",
+      sql`${table.normalizedEmail} = lower(btrim(${table.normalizedEmail}))`,
+    ),
+    check(
+      "staff_invitation_terminal_state_check",
+      sql`not (${table.consumedAt} is not null and ${table.revokedAt} is not null)`,
+    ),
+    uniqueIndex("staff_invitation_token_digest_unique").on(table.tokenDigest),
+    uniqueIndex("staff_invitation_active_event_email_unique")
+      .on(table.eventId, table.normalizedEmail)
+      .where(sql`${table.consumedAt} is null and ${table.revokedAt} is null`),
+    index("staff_invitation_event_idx").on(table.eventId, table.createdAt),
+  ],
+);
+
+export const ownershipTransfer = pgTable(
+  "ownership_transfer",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => event.id, { onDelete: "restrict" }),
+    proposedByUserId: uuid("proposed_by_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    proposedOwnerUserId: uuid("proposed_owner_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "ownership_transfer_terminal_state_check",
+      sql`not (${table.acceptedAt} is not null and ${table.revokedAt} is not null)`,
+    ),
+    uniqueIndex("ownership_transfer_active_event_unique")
+      .on(table.eventId)
+      .where(sql`${table.acceptedAt} is null and ${table.revokedAt} is null`),
+    index("ownership_transfer_target_idx").on(
+      table.proposedOwnerUserId,
+      table.expiresAt,
+    ),
+  ],
+);
+
+export const auditEntry = pgTable(
+  "audit_entry",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => event.id, { onDelete: "restrict" }),
+    actorUserId: uuid("actor_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    action: text("action").notNull(),
+    targetType: text("target_type").notNull(),
+    targetId: uuid("target_id").notNull(),
+    reason: text("reason"),
+    metadata: jsonb("metadata").default({}).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    check("audit_entry_action_not_blank_check", sql`length(btrim(${table.action})) > 0`),
+    check(
+      "audit_entry_target_type_not_blank_check",
+      sql`length(btrim(${table.targetType})) > 0`,
+    ),
+    index("audit_entry_event_created_at_idx").on(table.eventId, table.createdAt),
+  ],
+);
+
 export const registrationField = pgTable(
   "registration_field",
   {
@@ -575,6 +686,9 @@ export const accountRelations = relations(account, ({ one }) => ({
 
 export const eventRelations = relations(event, ({ many }) => ({
   staff: many(eventStaff),
+  staffInvitations: many(staffInvitation),
+  ownershipTransfers: many(ownershipTransfer),
+  auditEntries: many(auditEntry),
   registrationFields: many(registrationField),
   registrations: many(registration),
   tickets: many(ticket),
@@ -587,6 +701,48 @@ export const eventStaffRelations = relations(eventStaff, ({ one }) => ({
   }),
   user: one(user, {
     fields: [eventStaff.userId],
+    references: [user.id],
+  }),
+}));
+
+export const staffInvitationRelations = relations(staffInvitation, ({ one }) => ({
+  event: one(event, {
+    fields: [staffInvitation.eventId],
+    references: [event.id],
+  }),
+  invitedBy: one(user, {
+    fields: [staffInvitation.invitedByUserId],
+    references: [user.id],
+  }),
+}));
+
+export const ownershipTransferRelations = relations(
+  ownershipTransfer,
+  ({ one }) => ({
+    event: one(event, {
+      fields: [ownershipTransfer.eventId],
+      references: [event.id],
+    }),
+    proposedBy: one(user, {
+      fields: [ownershipTransfer.proposedByUserId],
+      references: [user.id],
+      relationName: "ownershipTransferProposer",
+    }),
+    proposedOwner: one(user, {
+      fields: [ownershipTransfer.proposedOwnerUserId],
+      references: [user.id],
+      relationName: "ownershipTransferTarget",
+    }),
+  }),
+);
+
+export const auditEntryRelations = relations(auditEntry, ({ one }) => ({
+  event: one(event, {
+    fields: [auditEntry.eventId],
+    references: [event.id],
+  }),
+  actor: one(user, {
+    fields: [auditEntry.actorUserId],
     references: [user.id],
   }),
 }));

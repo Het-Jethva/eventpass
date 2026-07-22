@@ -25,7 +25,7 @@ function isRateLimitError(error: unknown) {
   );
 }
 
-export function SignInForm() {
+export function SignInForm({ callbackURL = "/events" }: { callbackURL?: string }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [website, setWebsite] = useState("");
@@ -38,7 +38,7 @@ export function SignInForm() {
 
     startTransition(async () => {
       try {
-        await staffIdentityClient.requestMagicLink(email, website);
+        await staffIdentityClient.requestMagicLink(email, website, callbackURL);
         router.push("/sign-in/check-email");
       } catch (requestError) {
         setError(

@@ -5,11 +5,19 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { SignInForm } from "@/features/staff-identity/sign-in-form";
 
 type SignInPageProps = {
-  searchParams: Promise<{ error?: string | string[] }>;
+  searchParams: Promise<{
+    error?: string | string[];
+    callbackUrl?: string | string[];
+  }>;
 };
 
 export default async function SignInPage({ searchParams }: SignInPageProps) {
-  const { error } = await searchParams;
+  const { error, callbackUrl } = await searchParams;
+  const requestedCallback = Array.isArray(callbackUrl) ? callbackUrl[0] : callbackUrl;
+  const safeCallback =
+    requestedCallback?.startsWith("/") && !requestedCallback.startsWith("//")
+      ? requestedCallback
+      : "/events";
   const hasInvalidLink = Array.isArray(error)
     ? error.includes("invalid-link") || error.includes("INVALID_TOKEN")
     : error === "invalid-link" || error === "INVALID_TOKEN";
@@ -50,7 +58,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
           </Alert>
         ) : null}
 
-        <SignInForm />
+        <SignInForm callbackURL={safeCallback} />
 
         <p className="text-center text-xs leading-5 text-muted-foreground">
           By continuing, you confirm that you are authorized to access an

@@ -64,6 +64,13 @@
       "when": 1784732286177,
       "tag": "0008_blue_whistler",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1784732740142,
+      "tag": "0009_slimy_silk_fever",
+      "breakpoints": true
     }
   ]
 }

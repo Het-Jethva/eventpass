@@ -12,9 +12,9 @@ export const authClient = createAuthClient({
 });
 
 export const staffIdentityClient = {
-  async requestMagicLink(email: string, website: string) {
+  async requestMagicLink(email: string, website: string, callbackURL = "/events") {
     const { error } = await authClient.signIn.magicLink({
-      callbackURL: "/events",
+      callbackURL,
       email: normalizeStaffEmail(email),
       errorCallbackURL: "/sign-in?error=invalid-link",
       fetchOptions: {

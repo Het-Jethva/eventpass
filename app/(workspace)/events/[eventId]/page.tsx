@@ -11,6 +11,7 @@ import {
   IconForms,
   IconSend,
   IconUsers,
+  IconUserShield,
 } from "@tabler/icons-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -75,6 +76,13 @@ export default async function EventOverviewPage({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Link
+              href={`/events/${event.id}/staff`}
+              className={buttonVariants({ variant: "outline" })}
+            >
+              <IconUserShield data-icon="inline-start" />
+              Event Staff
+            </Link>
             <Link
               href={`/events/${event.id}/form`}
               className={buttonVariants({ variant: "outline" })}

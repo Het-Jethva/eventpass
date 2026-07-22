@@ -8,6 +8,7 @@ import {
   integer,
   uuid,
   index,
+  uniqueIndex,
   check,
 } from "drizzle-orm/pg-core";
 
@@ -160,9 +161,98 @@ export const emailDelivery = pgTable(
   ],
 );
 
+export const event = pgTable(
+  "event",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    name: text("name").notNull(),
+    status: text("status").default("draft").notNull(),
+    eventTimeZone: text("event_time_zone").notNull(),
+    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+    endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+    venueName: text("venue_name").notNull(),
+    venueAddress: text("venue_address").notNull(),
+    venueMapUrl: text("venue_map_url"),
+    capacity: integer("capacity").notNull(),
+    registrationOpensAt: timestamp("registration_opens_at", {
+      withTimezone: true,
+    }).notNull(),
+    registrationClosesAt: timestamp("registration_closes_at", {
+      withTimezone: true,
+    }).notNull(),
+    checkInOpensAt: timestamp("check_in_opens_at", {
+      withTimezone: true,
+    }).notNull(),
+    checkInClosesAt: timestamp("check_in_closes_at", {
+      withTimezone: true,
+    }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "event_status_check",
+      sql`${table.status} in ('draft', 'published', 'canceled')`,
+    ),
+    check("event_name_not_blank_check", sql`length(btrim(${table.name})) > 0`),
+    check("event_capacity_positive_check", sql`${table.capacity} > 0`),
+    check("event_schedule_check", sql`${table.startsAt} < ${table.endsAt}`),
+    check(
+      "event_registration_window_check",
+      sql`${table.registrationOpensAt} < ${table.registrationClosesAt}`,
+    ),
+    check(
+      "event_check_in_window_check",
+      sql`${table.checkInOpensAt} < ${table.checkInClosesAt}`,
+    ),
+    index("event_starts_at_idx").on(table.startsAt),
+  ],
+);
+
+export const eventStaff = pgTable(
+  "event_staff",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => event.id, { onDelete: "restrict" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    role: text("role").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "event_staff_role_check",
+      sql`${table.role} in ('owner', 'organizer', 'check_in_volunteer')`,
+    ),
+    uniqueIndex("event_staff_event_user_unique").on(
+      table.eventId,
+      table.userId,
+    ),
+    uniqueIndex("event_staff_single_owner_unique")
+      .on(table.eventId)
+      .where(sql`${table.role} = 'owner'`),
+    index("event_staff_user_id_idx").on(table.userId),
+  ],
+);
+
 export const userRelations = relations(user, ({ many }) => ({
   sessions: many(session),
   accounts: many(account),
+  eventAssignments: many(eventStaff),
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({
@@ -175,6 +265,21 @@ export const sessionRelations = relations(session, ({ one }) => ({
 export const accountRelations = relations(account, ({ one }) => ({
   user: one(user, {
     fields: [account.userId],
+    references: [user.id],
+  }),
+}));
+
+export const eventRelations = relations(event, ({ many }) => ({
+  staff: many(eventStaff),
+}));
+
+export const eventStaffRelations = relations(eventStaff, ({ one }) => ({
+  event: one(event, {
+    fields: [eventStaff.eventId],
+    references: [event.id],
+  }),
+  user: one(user, {
+    fields: [eventStaff.userId],
     references: [user.id],
   }),
 }));

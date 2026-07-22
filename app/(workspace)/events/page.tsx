@@ -1,35 +1,130 @@
-import { IconCalendarEvent } from "@tabler/icons-react";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import {
+  IconCalendarEvent,
+  IconMapPin,
+  IconPlus,
+  IconUsers,
+} from "@tabler/icons-react";
 
+import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { listStaffEvents } from "@/features/events/server/list-staff-events";
+import { getActiveStaffSession } from "@/lib/staff-session";
 
-export default function EventsPage() {
+export const metadata: Metadata = {
+  title: "Events",
+};
+
+const ROLE_LABELS: Record<string, string> = {
+  owner: "Event Owner",
+  organizer: "Organizer",
+  check_in_volunteer: "Check-in Volunteer",
+};
+
+function formatSchedule(startsAt: Date, endsAt: Date, timeZone: string) {
+  const formatter = new Intl.DateTimeFormat("en", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone,
+    timeZoneName: "short",
+  });
+
+  return formatter.formatRange(startsAt, endsAt);
+}
+
+export default async function EventsPage() {
+  const staffSession = await getActiveStaffSession();
+
+  if (!staffSession) {
+    redirect("/sign-in");
+  }
+
+  const events = await listStaffEvents(staffSession.user.id);
+
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold tracking-tight">Events</h1>
-        <p className="text-sm text-muted-foreground">
-          Events you own or staff will appear here.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight">Events</h1>
+          <p className="text-sm text-muted-foreground">
+            Events where you are assigned as Event Staff.
+          </p>
+        </div>
+        <Link href="/events/new" className={buttonVariants()}>
+          <IconPlus data-icon="inline-start" />
+          Create Event
+        </Link>
       </div>
 
-      <Empty className="min-h-80 border bg-background">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <IconCalendarEvent aria-hidden="true" />
-          </EmptyMedia>
-          <EmptyTitle>No Events yet</EmptyTitle>
-          <EmptyDescription>
-            Your staff access is ready. Events assigned to this email address
-            will be available in this workspace.
-          </EmptyDescription>
-        </EmptyHeader>
-      </Empty>
+      {events.length === 0 ? (
+        <Empty className="min-h-80 border bg-background">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <IconCalendarEvent aria-hidden="true" />
+            </EmptyMedia>
+            <EmptyTitle>No Events yet</EmptyTitle>
+            <EmptyDescription>
+              Create a Draft Event to configure registration, staffing, and
+              check-in before anything becomes visible to Attendees.
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Link href="/events/new" className={buttonVariants()}>
+              <IconPlus data-icon="inline-start" />
+              Create your first Event
+            </Link>
+          </EmptyContent>
+        </Empty>
+      ) : (
+        <ul className="divide-y overflow-hidden rounded-2xl border bg-background">
+          {events.map((eventItem) => (
+            <li
+              key={eventItem.id}
+              className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="truncate font-medium">{eventItem.name}</h2>
+                  <Badge variant="secondary">Draft Event</Badge>
+                  <Badge variant="outline">
+                    {ROLE_LABELS[eventItem.role] ?? eventItem.role}
+                  </Badge>
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {formatSchedule(
+                    eventItem.startsAt,
+                    eventItem.endsAt,
+                    eventItem.eventTimeZone,
+                  )}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground sm:justify-end">
+                <span className="inline-flex items-center gap-1.5">
+                  <IconMapPin aria-hidden="true" />
+                  {eventItem.venueName}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <IconUsers aria-hidden="true" />
+                  Capacity {eventItem.capacity.toLocaleString()}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </main>
   );
 }

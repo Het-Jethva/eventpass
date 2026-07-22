@@ -15,6 +15,13 @@
       "when": 1784706766419,
       "tag": "0001_flawless_blue_shield",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784726325922,
+      "tag": "0002_strong_elektra",
+      "breakpoints": true
     }
   ]
 }

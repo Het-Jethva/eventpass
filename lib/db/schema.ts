@@ -6,6 +6,7 @@ import {
   timestamp,
   boolean,
   integer,
+  jsonb,
   uuid,
   index,
   uniqueIndex,
@@ -347,6 +348,160 @@ export const registrationFieldChoice = pgTable(
   ],
 );
 
+export const registration = pgTable(
+  "registration",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => event.id, { onDelete: "restrict" }),
+    attendeeName: text("attendee_name").notNull(),
+    email: text("email").notNull(),
+    normalizedEmail: text("normalized_email").notNull(),
+    status: text("status").default("unconfirmed").notNull(),
+    capacityOutcome: text("capacity_outcome").notNull(),
+    source: text("source").default("attendee").notNull(),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "registration_status_check",
+      sql`${table.status} in ('unconfirmed', 'confirmed', 'waitlisted', 'expired', 'canceled')`,
+    ),
+    check(
+      "registration_capacity_outcome_check",
+      sql`${table.capacityOutcome} in ('capacity_hold', 'waitlist')`,
+    ),
+    check(
+      "registration_source_check",
+      sql`${table.source} in ('attendee', 'imported')`,
+    ),
+    check(
+      "registration_attendee_name_not_blank_check",
+      sql`length(btrim(${table.attendeeName})) > 0`,
+    ),
+    check(
+      "registration_normalized_email_check",
+      sql`${table.normalizedEmail} = lower(btrim(${table.normalizedEmail}))`,
+    ),
+    uniqueIndex("registration_active_event_email_unique")
+      .on(table.eventId, table.normalizedEmail)
+      .where(sql`${table.status} in ('unconfirmed', 'confirmed', 'waitlisted')`),
+    index("registration_event_status_idx").on(table.eventId, table.status),
+  ],
+);
+
+export const registrationAnswer = pgTable(
+  "registration_answer",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    registrationId: uuid("registration_id")
+      .notNull()
+      .references(() => registration.id, { onDelete: "restrict" }),
+    fieldId: uuid("field_id")
+      .notNull()
+      .references(() => registrationField.id, { onDelete: "restrict" }),
+    value: jsonb("value").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("registration_answer_registration_field_unique").on(
+      table.registrationId,
+      table.fieldId,
+    ),
+    index("registration_answer_field_idx").on(table.fieldId),
+  ],
+);
+
+export const capacityHold = pgTable(
+  "capacity_hold",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    registrationId: uuid("registration_id")
+      .notNull()
+      .references(() => registration.id, { onDelete: "restrict" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("capacity_hold_registration_unique").on(table.registrationId),
+    index("capacity_hold_active_idx").on(table.expiresAt, table.claimedAt),
+  ],
+);
+
+export const admissionOffer = pgTable(
+  "admission_offer",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    registrationId: uuid("registration_id")
+      .notNull()
+      .references(() => registration.id, { onDelete: "restrict" }),
+    status: text("status").default("active").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "admission_offer_status_check",
+      sql`${table.status} in ('active', 'claimed', 'expired')`,
+    ),
+    uniqueIndex("admission_offer_active_registration_unique")
+      .on(table.registrationId)
+      .where(sql`${table.status} = 'active'`),
+    index("admission_offer_active_idx").on(table.status, table.expiresAt),
+  ],
+);
+
+export const registrationVerification = pgTable(
+  "registration_verification",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    registrationId: uuid("registration_id")
+      .notNull()
+      .references(() => registration.id, { onDelete: "restrict" }),
+    tokenDigest: text("token_digest").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("registration_verification_token_digest_unique").on(
+      table.tokenDigest,
+    ),
+    index("registration_verification_registration_idx").on(table.registrationId),
+  ],
+);
+
 export const userRelations = relations(user, ({ many }) => ({
   sessions: many(session),
   accounts: many(account),
@@ -370,6 +525,7 @@ export const accountRelations = relations(account, ({ one }) => ({
 export const eventRelations = relations(event, ({ many }) => ({
   staff: many(eventStaff),
   registrationFields: many(registrationField),
+  registrations: many(registration),
 }));
 
 export const eventStaffRelations = relations(eventStaff, ({ one }) => ({
@@ -391,6 +547,7 @@ export const registrationFieldRelations = relations(
       references: [event.id],
     }),
     choices: many(registrationFieldChoice),
+    answers: many(registrationAnswer),
   }),
 );
 
@@ -400,6 +557,55 @@ export const registrationFieldChoiceRelations = relations(
     field: one(registrationField, {
       fields: [registrationFieldChoice.fieldId],
       references: [registrationField.id],
+    }),
+  }),
+);
+
+export const registrationRelations = relations(registration, ({ one, many }) => ({
+  event: one(event, {
+    fields: [registration.eventId],
+    references: [event.id],
+  }),
+  answers: many(registrationAnswer),
+  capacityHolds: many(capacityHold),
+  admissionOffers: many(admissionOffer),
+  verificationCapabilities: many(registrationVerification),
+}));
+
+export const registrationAnswerRelations = relations(
+  registrationAnswer,
+  ({ one }) => ({
+    registration: one(registration, {
+      fields: [registrationAnswer.registrationId],
+      references: [registration.id],
+    }),
+    field: one(registrationField, {
+      fields: [registrationAnswer.fieldId],
+      references: [registrationField.id],
+    }),
+  }),
+);
+
+export const capacityHoldRelations = relations(capacityHold, ({ one }) => ({
+  registration: one(registration, {
+    fields: [capacityHold.registrationId],
+    references: [registration.id],
+  }),
+}));
+
+export const admissionOfferRelations = relations(admissionOffer, ({ one }) => ({
+  registration: one(registration, {
+    fields: [admissionOffer.registrationId],
+    references: [registration.id],
+  }),
+}));
+
+export const registrationVerificationRelations = relations(
+  registrationVerification,
+  ({ one }) => ({
+    registration: one(registration, {
+      fields: [registrationVerification.registrationId],
+      references: [registration.id],
     }),
   }),
 );

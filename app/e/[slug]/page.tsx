@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 
 import { EventPublicDetails } from "@/features/events/event-public-details";
 import { getPublishedEvent } from "@/features/events/server/get-event";
+import { AttendeeRegistrationForm } from "@/features/registration/attendee-registration-form";
+import { getPublicRegistrationForm } from "@/features/registration/server/get-public-registration-form";
 
 export async function generateMetadata({
   params,
@@ -29,5 +31,23 @@ export default async function PublicEventPage({
     notFound();
   }
 
-  return <EventPublicDetails event={event} />;
+  const fields = await getPublicRegistrationForm(event.id);
+  const now = new Date();
+  const registrationIsOpen =
+    now >= event.registrationOpensAt && now < event.registrationClosesAt;
+
+  return (
+    <EventPublicDetails
+      event={event}
+      registration={
+        registrationIsOpen ? (
+          <AttendeeRegistrationForm slug={slug} fields={fields} />
+        ) : (
+          <p className="text-sm leading-6 text-muted-foreground">
+            Registration is not currently open for this Event.
+          </p>
+        )
+      }
+    />
+  );
 }

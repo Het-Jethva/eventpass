@@ -40,7 +40,13 @@ function formatMoment(moment: Date, timeZone: string) {
   }).format(moment);
 }
 
-export function EventPublicDetails({ event }: { event: PublicEventDetails }) {
+export function EventPublicDetails({
+  event,
+  registration,
+}: {
+  event: PublicEventDetails;
+  registration?: React.ReactNode;
+}) {
   return (
     <div className="flex min-h-svh flex-col bg-muted/20">
       <header className="border-b bg-background">
@@ -48,7 +54,7 @@ export function EventPublicDetails({ event }: { event: PublicEventDetails }) {
           <EventPassMark />
         </div>
       </header>
-      <main className="mx-auto grid w-full max-w-5xl flex-1 gap-10 px-4 py-10 sm:px-6 sm:py-14 lg:grid-cols-[minmax(0,1fr)_18rem] lg:gap-14">
+      <main className="mx-auto grid w-full max-w-6xl flex-1 gap-10 px-4 py-10 sm:px-6 sm:py-14 lg:grid-cols-[minmax(0,0.85fr)_minmax(22rem,1fr)] lg:gap-14">
         <div className="min-w-0">
           <p className="mb-3 text-sm font-medium text-muted-foreground">
             In-person Event
@@ -94,7 +100,7 @@ export function EventPublicDetails({ event }: { event: PublicEventDetails }) {
         </div>
 
         <aside className="h-fit rounded-2xl border bg-background p-5 sm:p-6">
-          <h2 className="font-medium">Registration</h2>
+          <h2 className="text-xl font-semibold tracking-tight">Registration</h2>
           <div className="mt-5 flex gap-3">
             <IconClock aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
             <div>
@@ -115,10 +121,7 @@ export function EventPublicDetails({ event }: { event: PublicEventDetails }) {
               </p>
             </div>
           </div>
-          <p className="mt-5 border-t pt-5 text-sm leading-6 text-muted-foreground">
-            Registration will be available from this page when the Organizer
-            enables the registration form.
-          </p>
+          {registration ? <div className="mt-6 border-t pt-6">{registration}</div> : null}
         </aside>
       </main>
     </div>

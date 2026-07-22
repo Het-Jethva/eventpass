@@ -501,8 +501,10 @@ export const admissionOffer = pgTable(
     registrationId: uuid("registration_id")
       .notNull()
       .references(() => registration.id, { onDelete: "restrict" }),
+    tokenDigest: text("token_digest").notNull(),
     status: text("status").default("active").notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -515,7 +517,12 @@ export const admissionOffer = pgTable(
     uniqueIndex("admission_offer_active_registration_unique")
       .on(table.registrationId)
       .where(sql`${table.status} = 'active'`),
+    uniqueIndex("admission_offer_token_digest_unique").on(table.tokenDigest),
     index("admission_offer_active_idx").on(table.status, table.expiresAt),
+    check(
+      "admission_offer_claimed_at_check",
+      sql`(${table.status} = 'claimed' and ${table.claimedAt} is not null) or (${table.status} <> 'claimed' and ${table.claimedAt} is null)`,
+    ),
   ],
 );
 

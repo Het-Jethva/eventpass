@@ -6,6 +6,7 @@ import { drizzle } from "drizzle-orm/neon-serverless";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
+  admissionOffer,
   capacityHold,
   event,
   registration,
@@ -22,17 +23,24 @@ describeWithDatabase("Ticket application service", () => {
   const client = new Pool({ connectionString: testDatabaseUrl! });
   const database = drizzle({ client });
   const eventIds: string[] = [];
+  const offeredTokens: string[] = [];
   let managementTokenSequence = 0;
   const service = createTicketApplicationService({
     database,
     now: () => new Date("2030-01-01T12:00:00.000Z"),
     getSigningKey: () => ({ id: "integration-key", privateKey }),
     sendTicketEmail: async () => undefined,
+    sendAdmissionOfferEmail: async ({ token }) => {
+      offeredTokens.push(token);
+    },
     createManagementToken: () =>
       randomBytes(32 + (managementTokenSequence++ % 2)).toString("base64url"),
   });
 
-  async function createHeldRegistration(expiresAt = new Date("2030-01-01T12:15:00.000Z")) {
+  async function createHeldRegistration(
+    expiresAt = new Date("2030-01-01T12:15:00.000Z"),
+    capacity = 5,
+  ) {
     const [createdEvent] = await database
       .insert(event)
       .values({
@@ -45,7 +53,7 @@ describeWithDatabase("Ticket application service", () => {
         endsAt: new Date("2030-01-02T14:00:00.000Z"),
         venueName: "Test Venue",
         venueAddress: "Test address",
-        capacity: 5,
+        capacity,
         registrationOpensAt: new Date("2029-12-01T00:00:00.000Z"),
         registrationClosesAt: new Date("2030-01-02T12:00:00.000Z"),
         checkInOpensAt: new Date("2030-01-02T11:00:00.000Z"),
@@ -95,6 +103,9 @@ describeWithDatabase("Ticket application service", () => {
       if (registrationIds.length > 0) {
         await database.delete(ticket).where(inArray(ticket.registrationId, registrationIds));
         await database
+          .delete(admissionOffer)
+          .where(inArray(admissionOffer.registrationId, registrationIds));
+        await database
           .delete(registrationVerification)
           .where(inArray(registrationVerification.registrationId, registrationIds));
         await database
@@ -108,7 +119,7 @@ describeWithDatabase("Ticket application service", () => {
   });
 
   it("claims an unexpired Capacity Hold exactly once and issues one active Ticket", async () => {
-    const held = await createHeldRegistration();
+    const held = await createHeldRegistration(undefined, 1);
 
     const first = await service.verifyRegistration(held.event.slug, held.verificationToken);
     const second = await service.verifyRegistration(held.event.slug, held.verificationToken);
@@ -146,7 +157,7 @@ describeWithDatabase("Ticket application service", () => {
   });
 
   it("rejects malformed and Event-mismatched capabilities safely", async () => {
-    const held = await createHeldRegistration();
+    const held = await createHeldRegistration(undefined, 1);
     const other = await createHeldRegistration();
 
     expect(await service.verifyRegistration(held.event.slug, "not-a-token")).toEqual({
@@ -155,5 +166,162 @@ describeWithDatabase("Ticket application service", () => {
     expect(await service.verifyRegistration(other.event.slug, held.verificationToken)).toEqual({
       outcome: "mismatched",
     });
+  });
+
+  it("establishes waitlist priority only after successful email verification", async () => {
+    const held = await createHeldRegistration(undefined, 1);
+    await service.verifyRegistration(held.event.slug, held.verificationToken);
+    const [pending] = await database
+      .insert(registration)
+      .values({
+        eventId: held.event.id,
+        attendeeName: "Verified Waitlist Entry",
+        email: "verified-waitlist@example.com",
+        normalizedEmail: "verified-waitlist@example.com",
+        capacityOutcome: "waitlist",
+      })
+      .returning({ id: registration.id });
+    const token = randomBytes(32).toString("base64url");
+    await database.insert(registrationVerification).values({
+      registrationId: pending!.id,
+      tokenDigest: digestBearerToken(token),
+      expiresAt: new Date("2030-01-01T12:15:00.000Z"),
+    });
+
+    expect(await service.verifyRegistration(held.event.slug, token)).toEqual({
+      outcome: "waitlisted",
+    });
+    const [verified] = await database
+      .select({ status: registration.status, verifiedAt: registration.verifiedAt })
+      .from(registration)
+      .where(eq(registration.id, pending!.id));
+    expect(verified).toEqual({
+      status: "waitlisted",
+      verifiedAt: new Date("2030-01-01T12:00:00.000Z"),
+    });
+  });
+
+  it("promotes verified waitlist entries FIFO and claims an offer exactly once", async () => {
+    const held = await createHeldRegistration(undefined, 1);
+    await service.verifyRegistration(held.event.slug, held.verificationToken);
+    const waitlisted = await database
+      .insert(registration)
+      .values([
+        {
+          eventId: held.event.id,
+          attendeeName: "First Waitlisted",
+          email: "first-waitlisted@example.com",
+          normalizedEmail: "first-waitlisted@example.com",
+          status: "waitlisted",
+          capacityOutcome: "waitlist",
+          verifiedAt: new Date("2030-01-01T12:01:00.000Z"),
+        },
+        {
+          eventId: held.event.id,
+          attendeeName: "Second Waitlisted",
+          email: "second-waitlisted@example.com",
+          normalizedEmail: "second-waitlisted@example.com",
+          status: "waitlisted",
+          capacityOutcome: "waitlist",
+          verifiedAt: new Date("2030-01-01T12:02:00.000Z"),
+        },
+      ])
+      .returning({ id: registration.id });
+
+    await database.update(event).set({ capacity: 2 }).where(eq(event.id, held.event.id));
+    expect(await service.reconcileEventWaitlist(held.event.id)).toEqual({ promoted: 1 });
+    const [firstOffer] = await database
+      .select({ registrationId: admissionOffer.registrationId, expiresAt: admissionOffer.expiresAt })
+      .from(admissionOffer)
+      .where(
+        and(
+          eq(admissionOffer.status, "active"),
+          inArray(admissionOffer.registrationId, waitlisted.map(({ id }) => id)),
+        ),
+      );
+    expect(firstOffer?.registrationId).toBe(waitlisted[0]!.id);
+    expect(firstOffer?.expiresAt).toEqual(new Date("2030-01-02T00:00:00.000Z"));
+
+    const token = offeredTokens.at(-1)!;
+    expect((await service.claimAdmissionOffer(token)).outcome).toBe("confirmed");
+    expect(await service.claimAdmissionOffer(token)).toEqual({ outcome: "consumed" });
+    expect(
+      await database.select().from(ticket).where(eq(ticket.registrationId, waitlisted[0]!.id)),
+    ).toHaveLength(1);
+
+    await database
+      .update(registration)
+      .set({ status: "canceled" })
+      .where(eq(registration.id, waitlisted[0]!.id));
+    expect(await service.reconcileEventWaitlist(held.event.id)).toEqual({ promoted: 1 });
+    const activeOffers = await database
+      .select({ registrationId: admissionOffer.registrationId })
+      .from(admissionOffer)
+      .where(
+        and(
+          eq(admissionOffer.status, "active"),
+          inArray(admissionOffer.registrationId, waitlisted.map(({ id }) => id)),
+        ),
+      );
+    expect(activeOffers).toEqual([{ registrationId: waitlisted[1]!.id }]);
+  });
+
+  it("expires an ignored offer and promotes the next verified entry", async () => {
+    const held = await createHeldRegistration(undefined, 1);
+    await service.verifyRegistration(held.event.slug, held.verificationToken);
+    const earlierEmail = `earlier-${randomUUID()}@example.com`;
+    const laterEmail = `later-${randomUUID()}@example.com`;
+    const queued = await database
+      .insert(registration)
+      .values([
+        {
+          eventId: held.event.id,
+          attendeeName: "Earlier Entry",
+          email: earlierEmail,
+          normalizedEmail: earlierEmail,
+          status: "waitlisted",
+          capacityOutcome: "waitlist",
+          verifiedAt: new Date("2030-01-01T10:00:00.000Z"),
+        },
+        {
+          eventId: held.event.id,
+          attendeeName: "Later Entry",
+          email: laterEmail,
+          normalizedEmail: laterEmail,
+          status: "waitlisted",
+          capacityOutcome: "waitlist",
+          verifiedAt: new Date("2030-01-01T11:00:00.000Z"),
+        },
+      ])
+      .returning({ id: registration.id });
+    await database.update(event).set({ capacity: 2 }).where(eq(event.id, held.event.id));
+
+    let currentTime = new Date("2030-01-01T12:00:00.000Z");
+    const expiringService = createTicketApplicationService({
+      database,
+      now: () => currentTime,
+      getSigningKey: () => ({ id: "integration-key", privateKey }),
+      sendTicketEmail: async () => undefined,
+      sendAdmissionOfferEmail: async () => undefined,
+    });
+    expect(await expiringService.reconcileEventWaitlist(held.event.id)).toEqual({ promoted: 1 });
+    currentTime = new Date("2030-01-02T00:00:01.000Z");
+    expect(await expiringService.reconcileEventWaitlist(held.event.id)).toEqual({ promoted: 1 });
+
+    const statuses = await database
+      .select({ id: registration.id, status: registration.status })
+      .from(registration)
+      .where(inArray(registration.id, queued.map(({ id }) => id)));
+    expect(statuses.find(({ id }) => id === queued[0]!.id)?.status).toBe("expired");
+    const [active] = await database
+      .select({ registrationId: admissionOffer.registrationId })
+      .from(admissionOffer)
+      .where(
+        and(
+          eq(admissionOffer.status, "active"),
+          inArray(admissionOffer.registrationId, queued.map(({ id }) => id)),
+        ),
+      );
+    expect(active?.registrationId).toBe(queued[1]!.id);
   });
 });

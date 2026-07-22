@@ -19,6 +19,12 @@ export async function GET(
     return NextResponse.redirect(ticketUrl, 303);
   }
 
+  if (result.outcome === "waitlisted" || result.outcome === "offered") {
+    const resultUrl = new URL(`/e/${encodeURIComponent(slug)}/verification-result`, request.url);
+    resultUrl.searchParams.set("outcome", result.outcome);
+    return NextResponse.redirect(resultUrl, 303);
+  }
+
   const resultUrl = new URL(`/e/${encodeURIComponent(slug)}/verification-result`, request.url);
   resultUrl.searchParams.set("outcome", result.outcome);
   return NextResponse.redirect(resultUrl, 303);

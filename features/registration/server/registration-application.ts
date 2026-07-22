@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 
-import { and, asc, eq, inArray, or, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 
 import {
   validateRegistrationSubmission,
@@ -17,6 +17,10 @@ import {
   registrationFieldChoice,
   registrationVerification,
 } from "../../../lib/db/schema";
+import {
+  reconcileWaitlistInTransaction,
+  type AdmissionOfferMessage,
+} from "./waitlist-reconciliation";
 
 type RegistrationDatabase = typeof import("../../../lib/db").db;
 
@@ -30,8 +34,10 @@ type VerificationEmail = {
 type RegistrationApplicationDependencies = {
   database: RegistrationDatabase;
   sendVerificationEmail: (message: VerificationEmail) => Promise<void>;
+  sendAdmissionOfferEmail?: (message: AdmissionOfferMessage) => Promise<void>;
   now?: () => Date;
   createToken?: () => string;
+  createOfferToken?: () => string;
 };
 
 export type RegistrationSubmissionResult =
@@ -69,8 +75,10 @@ function isUniqueViolation(error: unknown) {
 export function createRegistrationApplicationService({
   database,
   sendVerificationEmail,
+  sendAdmissionOfferEmail = async () => undefined,
   now = () => new Date(),
   createToken = () => randomBytes(32).toString("base64url"),
+  createOfferToken,
 }: RegistrationApplicationDependencies) {
   async function findActiveRegistration(eventId: string, normalizedEmail: string) {
     const [active] = await database
@@ -94,6 +102,7 @@ export function createRegistrationApplicationService({
     const submittedAt = now();
     const token = createToken();
     let emailMessage: VerificationEmail | null = null;
+    let offerMessages: AdmissionOfferMessage[] = [];
 
     let result: RegistrationSubmissionResult;
     try {
@@ -119,29 +128,12 @@ export function createRegistrationApplicationService({
           return { outcome: "registration_closed" };
         }
 
-        await transaction
-          .update(registration)
-          .set({ status: "expired", updatedAt: submittedAt })
-          .where(
-            and(
-              eq(registration.eventId, publishedEvent.id),
-              eq(registration.status, "unconfirmed"),
-              or(
-                sql`exists (
-                  select 1 from ${capacityHold}
-                  where ${capacityHold.registrationId} = ${registration.id}
-                    and ${capacityHold.claimedAt} is null
-                    and ${capacityHold.expiresAt} <= ${submittedAt}
-                )`,
-                sql`exists (
-                  select 1 from ${registrationVerification}
-                  where ${registrationVerification.registrationId} = ${registration.id}
-                    and ${registrationVerification.consumedAt} is null
-                    and ${registrationVerification.expiresAt} <= ${submittedAt}
-                )`,
-              ),
-            ),
-          );
+        offerMessages = await reconcileWaitlistInTransaction({
+          transaction,
+          eventId: publishedEvent.id,
+          reconciledAt: submittedAt,
+          createOfferToken,
+        });
 
         const fieldRows = await transaction
           .select({
@@ -319,6 +311,13 @@ export function createRegistrationApplicationService({
       return { outcome: "existing_registration", ...existing };
     }
 
+    for (const message of offerMessages) {
+      try {
+        await sendAdmissionOfferEmail(message);
+      } catch {
+        // Domain state is committed independently from delivery outcomes.
+      }
+    }
     if (!emailMessage || !("deliveryStatus" in result)) return result;
     try {
       await sendVerificationEmail(emailMessage);

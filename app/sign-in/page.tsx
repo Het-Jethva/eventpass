@@ -13,6 +13,9 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
   const hasInvalidLink = Array.isArray(error)
     ? error.includes("invalid-link") || error.includes("INVALID_TOKEN")
     : error === "invalid-link" || error === "INVALID_TOKEN";
+  const isRateLimited = Array.isArray(error)
+    ? error.includes("rate-limited")
+    : error === "rate-limited";
 
   return (
     <PublicAuthShell>
@@ -33,6 +36,16 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
             <AlertDescription>
               It may have expired or already been used. Request a fresh link
               below.
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
+        {isRateLimited ? (
+          <Alert variant="destructive">
+            <IconAlertCircle aria-hidden="true" />
+            <AlertTitle>Too many sign-in attempts</AlertTitle>
+            <AlertDescription>
+              Wait a minute, then open your sign-in link again.
             </AlertDescription>
           </Alert>
         ) : null}

@@ -28,6 +28,7 @@ function isRateLimitError(error: unknown) {
 export function SignInForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
+  const [website, setWebsite] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -37,7 +38,7 @@ export function SignInForm() {
 
     startTransition(async () => {
       try {
-        await staffIdentityClient.requestMagicLink(email);
+        await staffIdentityClient.requestMagicLink(email, website);
         router.push("/sign-in/check-email");
       } catch (requestError) {
         setError(
@@ -51,6 +52,18 @@ export function SignInForm() {
 
   return (
     <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
+      <div className="sr-only" aria-hidden="true">
+        <label htmlFor="website">Website</label>
+        <input
+          id="website"
+          name="website"
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+          value={website}
+          onChange={(event) => setWebsite(event.target.value)}
+        />
+      </div>
       {error ? (
         <Alert variant="destructive">
           <IconAlertCircle aria-hidden="true" />

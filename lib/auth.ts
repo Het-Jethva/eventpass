@@ -1,5 +1,6 @@
 import "server-only";
 
+import { createHash, randomBytes } from "node:crypto";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";
@@ -9,7 +10,17 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
-import { sendStaffMagicLink } from "@/lib/email/send-staff-magic-link";
+import {
+  sendStaffMagicLink,
+  StaffMagicLinkDeliveryError,
+} from "@/lib/email/send-staff-magic-link";
+
+const MAGIC_LINK_SECONDS = 60 * 15;
+const MAX_MAGIC_LINK_DELIVERIES = 3;
+
+function hashMagicLinkToken(token: string) {
+  return createHash("sha256").update(token).digest("base64url");
+}
 
 export const auth = betterAuth({
   appName: "EventPass",
@@ -34,16 +45,7 @@ export const auth = betterAuth({
   verification: {
     storeIdentifier: "hashed",
   },
-  rateLimit: {
-    enabled: true,
-    storage: "database",
-    customRules: {
-      "/sign-in/magic-link": {
-        window: 60,
-        max: 3,
-      },
-    },
-  },
+  rateLimit: { enabled: false },
   advanced: {
     database: {
       generateId: "uuid",
@@ -61,7 +63,7 @@ export const auth = betterAuth({
 
           if (staffUser?.suspended) {
             throw new APIError("FORBIDDEN", {
-              message: "This staff account is suspended.",
+              message: "This staff user is suspended.",
             });
           }
 
@@ -72,10 +74,46 @@ export const auth = betterAuth({
   },
   plugins: [
     magicLink({
-      expiresIn: 60 * 15,
+      expiresIn: MAGIC_LINK_SECONDS,
       storeToken: "hashed",
-      sendMagicLink: async ({ email, url }) => {
-        await sendStaffMagicLink(email, url);
+      sendMagicLink: async ({ email, token, url }, context) => {
+        let currentToken = token;
+        let currentUrl = url;
+
+        for (let attempt = 1; attempt <= MAX_MAGIC_LINK_DELIVERIES; attempt += 1) {
+          try {
+            await sendStaffMagicLink(email, currentUrl);
+            return;
+          } catch (error) {
+            if (
+              !(error instanceof StaffMagicLinkDeliveryError) ||
+              !error.retryable ||
+              !context ||
+              attempt === MAX_MAGIC_LINK_DELIVERIES
+            ) {
+              throw error;
+            }
+
+            const identifier = hashMagicLinkToken(currentToken);
+            const verification =
+              await context.context.internalAdapter.findVerificationValue(identifier);
+
+            if (!verification) {
+              throw error;
+            }
+
+            await context.context.internalAdapter.deleteVerificationByIdentifier(identifier);
+            currentToken = randomBytes(32).toString("base64url");
+            await context.context.internalAdapter.createVerificationValue({
+              expiresAt: new Date(Date.now() + MAGIC_LINK_SECONDS * 1_000),
+              identifier: hashMagicLinkToken(currentToken),
+              value: verification.value,
+            });
+            const nextUrl = new URL(currentUrl);
+            nextUrl.searchParams.set("token", currentToken);
+            currentUrl = nextUrl.toString();
+          }
+        }
       },
     }),
     nextCookies(),

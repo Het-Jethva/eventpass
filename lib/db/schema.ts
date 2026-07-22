@@ -8,6 +8,7 @@ import {
   integer,
   uuid,
   index,
+  check,
 } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
@@ -99,6 +100,65 @@ export const rateLimit = pgTable("rate_limit", {
   count: integer("count").notNull(),
   lastRequest: bigint("last_request", { mode: "number" }).notNull(),
 });
+
+export const authenticationAttempt = pgTable(
+  "authentication_attempt",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    emailKey: text("email_key").notNull(),
+    ipKey: text("ip_key").notNull(),
+    attemptedAt: timestamp("attempted_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("authentication_attempt_email_key_attempted_at_idx").on(
+      table.emailKey,
+      table.attemptedAt,
+    ),
+    index("authentication_attempt_ip_key_attempted_at_idx").on(
+      table.ipKey,
+      table.attemptedAt,
+    ),
+    index("authentication_attempt_attempted_at_idx").on(table.attemptedAt),
+  ],
+);
+
+export const emailDelivery = pgTable(
+  "email_delivery",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    template: text("template").notNull(),
+    recipient: text("recipient").notNull(),
+    provider: text("provider").notNull(),
+    providerMessageId: text("provider_message_id").unique(),
+    outcome: text("outcome").notNull(),
+    failureKind: text("failure_kind"),
+    attemptCount: integer("attempt_count").default(0).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "email_delivery_outcome_check",
+      sql`${table.outcome} in ('pending', 'submitted', 'sent', 'delivered', 'transient_failure', 'permanent_failure')`,
+    ),
+    check(
+      "email_delivery_failure_kind_check",
+      sql`${table.failureKind} is null or ${table.failureKind} in ('transient', 'permanent')`,
+    ),
+    check("email_delivery_provider_check", sql`${table.provider} in ('resend')`),
+  ],
+);
 
 export const userRelations = relations(user, ({ many }) => ({
   sessions: many(session),

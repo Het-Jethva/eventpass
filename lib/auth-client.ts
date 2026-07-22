@@ -4,30 +4,27 @@ import {
   magicLinkClient,
 } from "better-auth/client/plugins";
 
-import { createStaffIdentityService } from "@/features/staff-identity/staff-identity-service";
+import { normalizeStaffEmail } from "@/features/staff-identity/normalize-staff-email";
 import type { auth } from "@/lib/auth";
 
 export const authClient = createAuthClient({
   plugins: [inferAdditionalFields<typeof auth>(), magicLinkClient()],
 });
 
-export const staffIdentityClient = createStaffIdentityService({
-  async requestMagicLink(request) {
-    const { error } = await authClient.signIn.magicLink(request);
+export const staffIdentityClient = {
+  async requestMagicLink(email: string, website: string) {
+    const { error } = await authClient.signIn.magicLink({
+      callbackURL: "/events",
+      email: normalizeStaffEmail(email),
+      errorCallbackURL: "/sign-in?error=invalid-link",
+      fetchOptions: {
+        body: { website },
+      },
+    });
 
     if (error) {
       throw error;
     }
-  },
-  async getSession() {
-    const { data } = await authClient.getSession();
-    return data;
-  },
-  async revokeCurrentSession() {
-    const { error } = await authClient.signOut();
 
-    if (error) {
-      throw error;
-    }
   },
-});
+};

@@ -8,6 +8,7 @@ import {
   IconEye,
   IconMapPin,
   IconPencil,
+  IconScan,
   IconForms,
   IconSend,
   IconUsers,
@@ -66,7 +67,9 @@ export default async function EventOverviewPage({
         <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-semibold tracking-tight">{event.name}</h1>
+              <h1 className="text-2xl font-semibold tracking-tight">
+                {event.name}
+              </h1>
               <Badge variant={isDraft ? "secondary" : "default"}>
                 {isDraft ? "Draft Event" : "Published Event"}
               </Badge>
@@ -76,6 +79,12 @@ export default async function EventOverviewPage({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            {!isDraft ? (
+              <Link href={`/scanner/${event.id}`} className={buttonVariants()}>
+                <IconScan data-icon="inline-start" />
+                Open scanner
+              </Link>
+            ) : null}
             <Link
               href={`/events/${event.id}/staff`}
               className={buttonVariants({ variant: "outline" })}
@@ -119,9 +128,14 @@ export default async function EventOverviewPage({
         </div>
       </div>
 
-      <section className="divide-y rounded-2xl border bg-background" aria-labelledby="configuration-heading">
+      <section
+        className="divide-y rounded-2xl border bg-background"
+        aria-labelledby="configuration-heading"
+      >
         <div className="p-5 sm:p-6">
-          <h2 id="configuration-heading" className="font-medium">Event configuration</h2>
+          <h2 id="configuration-heading" className="font-medium">
+            Event configuration
+          </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             The attendee-facing schedule, Venue, and admission limits.
           </p>
@@ -129,15 +143,32 @@ export default async function EventOverviewPage({
         <dl className="grid gap-6 p-5 sm:grid-cols-2 sm:p-6">
           <div className="flex gap-3">
             <IconCalendarEvent aria-hidden="true" className="mt-0.5 size-5" />
-            <div><dt className="text-sm font-medium">Schedule</dt><dd className="mt-1 text-sm leading-6 text-muted-foreground">{formatRange(event.startsAt, event.endsAt, event.eventTimeZone)}</dd></div>
+            <div>
+              <dt className="text-sm font-medium">Schedule</dt>
+              <dd className="mt-1 text-sm leading-6 text-muted-foreground">
+                {formatRange(event.startsAt, event.endsAt, event.eventTimeZone)}
+              </dd>
+            </div>
           </div>
           <div className="flex gap-3">
             <IconMapPin aria-hidden="true" className="mt-0.5 size-5" />
-            <div><dt className="text-sm font-medium">Venue</dt><dd className="mt-1 text-sm leading-6 text-muted-foreground">{event.venueName}<br />{event.venueAddress}</dd></div>
+            <div>
+              <dt className="text-sm font-medium">Venue</dt>
+              <dd className="mt-1 text-sm leading-6 text-muted-foreground">
+                {event.venueName}
+                <br />
+                {event.venueAddress}
+              </dd>
+            </div>
           </div>
           <div className="flex gap-3">
             <IconUsers aria-hidden="true" className="mt-0.5 size-5" />
-            <div><dt className="text-sm font-medium">Event Capacity</dt><dd className="mt-1 text-sm text-muted-foreground">{event.capacity.toLocaleString()} Attendees</dd></div>
+            <div>
+              <dt className="text-sm font-medium">Event Capacity</dt>
+              <dd className="mt-1 text-sm text-muted-foreground">
+                {event.capacity.toLocaleString()} Attendees
+              </dd>
+            </div>
           </div>
         </dl>
       </section>
@@ -147,12 +178,14 @@ export default async function EventOverviewPage({
           <div>
             <h2 className="font-medium">Publish this Event</h2>
             <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-              Publishing makes the Event link-accessible and freezes its Event Slug.
-              It will not be added to a public discovery index.
+              Publishing makes the Event link-accessible and freezes its Event
+              Slug. It will not be added to a public discovery index.
             </p>
           </div>
           <form action={publishEventAction.bind(null, event.id)}>
-            <button className={cn(buttonVariants({ size: "lg" }), "w-full sm:w-auto")}>
+            <button
+              className={cn(buttonVariants({ size: "lg" }), "w-full sm:w-auto")}
+            >
               <IconSend data-icon="inline-start" />
               Publish Event
             </button>
@@ -182,7 +215,8 @@ export default async function EventOverviewPage({
           <div>
             <h2 className="font-medium">Delete Draft Event</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Only the Event Owner can permanently delete this empty Draft Event.
+              Only the Event Owner can permanently delete this empty Draft
+              Event.
             </p>
           </div>
           <DeleteEventControl

@@ -21,7 +21,9 @@ export const user = pgTable("user", {
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").default(false).notNull(),
   image: text("image"),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .defaultNow()
     .$onUpdate(() => /* @__PURE__ */ new Date())
@@ -37,7 +39,9 @@ export const session = pgTable(
       .primaryKey(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     token: text("token").notNull().unique(),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
@@ -64,11 +68,17 @@ export const account = pgTable(
     accessToken: text("access_token"),
     refreshToken: text("refresh_token"),
     idToken: text("id_token"),
-    accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }),
-    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { withTimezone: true }),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", {
+      withTimezone: true,
+    }),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", {
+      withTimezone: true,
+    }),
     scope: text("scope"),
     password: text("password"),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
@@ -85,7 +95,9 @@ export const verification = pgTable(
     identifier: text("identifier").notNull(),
     value: text("value").notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => /* @__PURE__ */ new Date())
@@ -158,7 +170,10 @@ export const emailDelivery = pgTable(
       "email_delivery_failure_kind_check",
       sql`${table.failureKind} is null or ${table.failureKind} in ('transient', 'permanent')`,
     ),
-    check("email_delivery_provider_check", sql`${table.provider} in ('resend')`),
+    check(
+      "email_delivery_provider_check",
+      sql`${table.provider} in ('resend')`,
+    ),
   ],
 );
 
@@ -368,12 +383,18 @@ export const auditEntry = pgTable(
       .notNull(),
   },
   (table) => [
-    check("audit_entry_action_not_blank_check", sql`length(btrim(${table.action})) > 0`),
+    check(
+      "audit_entry_action_not_blank_check",
+      sql`length(btrim(${table.action})) > 0`,
+    ),
     check(
       "audit_entry_target_type_not_blank_check",
       sql`length(btrim(${table.targetType})) > 0`,
     ),
-    index("audit_entry_event_created_at_idx").on(table.eventId, table.createdAt),
+    index("audit_entry_event_created_at_idx").on(
+      table.eventId,
+      table.createdAt,
+    ),
   ],
 );
 
@@ -510,7 +531,9 @@ export const registration = pgTable(
     ),
     uniqueIndex("registration_active_event_email_unique")
       .on(table.eventId, table.normalizedEmail)
-      .where(sql`${table.status} in ('unconfirmed', 'confirmed', 'waitlisted')`),
+      .where(
+        sql`${table.status} in ('unconfirmed', 'confirmed', 'waitlisted')`,
+      ),
     uniqueIndex("registration_management_token_digest_unique")
       .on(table.managementTokenDigest)
       .where(sql`${table.managementTokenDigest} is not null`),
@@ -538,7 +561,10 @@ export const ticket = pgTable(
       .notNull(),
   },
   (table) => [
-    check("ticket_code_format_check", sql`${table.code} ~ '^[0-9A-HJKMNP-TV-Z]{10}$'`),
+    check(
+      "ticket_code_format_check",
+      sql`${table.code} ~ '^[0-9A-HJKMNP-TV-Z]{10}$'`,
+    ),
     check(
       "ticket_status_check",
       sql`${table.status} in ('active', 'replaced', 'canceled')`,
@@ -552,6 +578,83 @@ export const ticket = pgTable(
       .on(table.registrationId)
       .where(sql`${table.status} = 'active'`),
     index("ticket_event_status_idx").on(table.eventId, table.status),
+  ],
+);
+
+export const checkIn = pgTable(
+  "check_in",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => event.id, { onDelete: "restrict" }),
+    ticketId: uuid("ticket_id")
+      .notNull()
+      .references(() => ticket.id, { onDelete: "restrict" }),
+    actorUserId: uuid("actor_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    checkedInAt: timestamp("checked_in_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    invalidatedAt: timestamp("invalidated_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("check_in_active_ticket_unique")
+      .on(table.ticketId)
+      .where(sql`${table.invalidatedAt} is null`),
+    index("check_in_event_checked_in_at_idx").on(
+      table.eventId,
+      table.checkedInAt,
+    ),
+  ],
+);
+
+export const scanAttempt = pgTable(
+  "scan_attempt",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => event.id, { onDelete: "restrict" }),
+    ticketId: uuid("ticket_id").references(() => ticket.id, {
+      onDelete: "restrict",
+    }),
+    checkInId: uuid("check_in_id").references(() => checkIn.id, {
+      onDelete: "restrict",
+    }),
+    actorUserId: uuid("actor_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    inputDigest: text("input_digest").notNull(),
+    inputMethod: text("input_method").notNull(),
+    outcome: text("outcome").notNull(),
+    attemptedAt: timestamp("attempted_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "scan_attempt_input_method_check",
+      sql`${table.inputMethod} in ('camera', 'manual')`,
+    ),
+    check(
+      "scan_attempt_outcome_check",
+      sql`${table.outcome} in ('accepted', 'duplicate', 'invalid', 'unknown', 'canceled', 'replaced', 'expired', 'outside_window')`,
+    ),
+    check(
+      "scan_attempt_check_in_outcome_check",
+      sql`(${table.outcome} = 'accepted' and ${table.checkInId} is not null) or (${table.outcome} <> 'accepted' and ${table.checkInId} is null)`,
+    ),
+    index("scan_attempt_event_attempted_at_idx").on(
+      table.eventId,
+      table.attemptedAt,
+    ),
+    index("scan_attempt_ticket_idx").on(table.ticketId),
   ],
 );
 
@@ -660,7 +763,9 @@ export const registrationVerification = pgTable(
     uniqueIndex("registration_verification_token_digest_unique").on(
       table.tokenDigest,
     ),
-    index("registration_verification_registration_idx").on(table.registrationId),
+    index("registration_verification_registration_idx").on(
+      table.registrationId,
+    ),
   ],
 );
 
@@ -668,6 +773,8 @@ export const userRelations = relations(user, ({ many }) => ({
   sessions: many(session),
   accounts: many(account),
   eventAssignments: many(eventStaff),
+  checkIns: many(checkIn),
+  scanAttempts: many(scanAttempt),
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({
@@ -692,6 +799,8 @@ export const eventRelations = relations(event, ({ many }) => ({
   registrationFields: many(registrationField),
   registrations: many(registration),
   tickets: many(ticket),
+  checkIns: many(checkIn),
+  scanAttempts: many(scanAttempt),
 }));
 
 export const eventStaffRelations = relations(eventStaff, ({ one }) => ({
@@ -705,16 +814,19 @@ export const eventStaffRelations = relations(eventStaff, ({ one }) => ({
   }),
 }));
 
-export const staffInvitationRelations = relations(staffInvitation, ({ one }) => ({
-  event: one(event, {
-    fields: [staffInvitation.eventId],
-    references: [event.id],
+export const staffInvitationRelations = relations(
+  staffInvitation,
+  ({ one }) => ({
+    event: one(event, {
+      fields: [staffInvitation.eventId],
+      references: [event.id],
+    }),
+    invitedBy: one(user, {
+      fields: [staffInvitation.invitedByUserId],
+      references: [user.id],
+    }),
   }),
-  invitedBy: one(user, {
-    fields: [staffInvitation.invitedByUserId],
-    references: [user.id],
-  }),
-}));
+);
 
 export const ownershipTransferRelations = relations(
   ownershipTransfer,
@@ -769,19 +881,22 @@ export const registrationFieldChoiceRelations = relations(
   }),
 );
 
-export const registrationRelations = relations(registration, ({ one, many }) => ({
-  event: one(event, {
-    fields: [registration.eventId],
-    references: [event.id],
+export const registrationRelations = relations(
+  registration,
+  ({ one, many }) => ({
+    event: one(event, {
+      fields: [registration.eventId],
+      references: [event.id],
+    }),
+    answers: many(registrationAnswer),
+    capacityHolds: many(capacityHold),
+    admissionOffers: many(admissionOffer),
+    verificationCapabilities: many(registrationVerification),
+    tickets: many(ticket),
   }),
-  answers: many(registrationAnswer),
-  capacityHolds: many(capacityHold),
-  admissionOffers: many(admissionOffer),
-  verificationCapabilities: many(registrationVerification),
-  tickets: many(ticket),
-}));
+);
 
-export const ticketRelations = relations(ticket, ({ one }) => ({
+export const ticketRelations = relations(ticket, ({ one, many }) => ({
   event: one(event, {
     fields: [ticket.eventId],
     references: [event.id],
@@ -789,6 +904,43 @@ export const ticketRelations = relations(ticket, ({ one }) => ({
   registration: one(registration, {
     fields: [ticket.registrationId],
     references: [registration.id],
+  }),
+  checkIns: many(checkIn),
+  scanAttempts: many(scanAttempt),
+}));
+
+export const checkInRelations = relations(checkIn, ({ one, many }) => ({
+  event: one(event, {
+    fields: [checkIn.eventId],
+    references: [event.id],
+  }),
+  ticket: one(ticket, {
+    fields: [checkIn.ticketId],
+    references: [ticket.id],
+  }),
+  actor: one(user, {
+    fields: [checkIn.actorUserId],
+    references: [user.id],
+  }),
+  scanAttempts: many(scanAttempt),
+}));
+
+export const scanAttemptRelations = relations(scanAttempt, ({ one }) => ({
+  event: one(event, {
+    fields: [scanAttempt.eventId],
+    references: [event.id],
+  }),
+  ticket: one(ticket, {
+    fields: [scanAttempt.ticketId],
+    references: [ticket.id],
+  }),
+  checkIn: one(checkIn, {
+    fields: [scanAttempt.checkInId],
+    references: [checkIn.id],
+  }),
+  actor: one(user, {
+    fields: [scanAttempt.actorUserId],
+    references: [user.id],
   }),
 }));
 

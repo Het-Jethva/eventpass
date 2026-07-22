@@ -1,0 +1,414 @@
+"use client";
+
+import { FormEvent, startTransition, useEffect, useRef, useState } from "react";
+import {
+  IconAlertTriangle,
+  IconCalendarCancel,
+  IconCamera,
+  IconCircleCheck,
+  IconClockExclamation,
+  IconClockX,
+  IconCopyCheck,
+  IconHelpHexagon,
+  IconKeyboard,
+  IconLock,
+  IconRefresh,
+  IconScan,
+  IconVolume,
+  IconVolumeOff,
+  type Icon,
+} from "@tabler/icons-react";
+
+import { scanTicketAction } from "@/app/scanner/[eventId]/actions";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
+import type {
+  AdmissionOutcome,
+  AdmissionResult,
+} from "@/features/admission/server/admission-application";
+import { cn } from "@/lib/utils";
+
+type ScannerControls = { stop: () => void };
+
+const outcomePresentation: Record<
+  AdmissionOutcome,
+  { title: string; description: string; icon: Icon; destructive: boolean }
+> = {
+  accepted: {
+    title: "Checked in",
+    description:
+      "Admission recorded. The Ticket cannot be used again while this Check-in is active.",
+    icon: IconCircleCheck,
+    destructive: false,
+  },
+  duplicate: {
+    title: "Already checked in",
+    description:
+      "This Ticket already has an active Check-in. This attempt was recorded as a duplicate.",
+    icon: IconCopyCheck,
+    destructive: false,
+  },
+  invalid: {
+    title: "Invalid Ticket",
+    description:
+      "The QR representation or Ticket Code is malformed or its signature is not valid.",
+    icon: IconAlertTriangle,
+    destructive: true,
+  },
+  unknown: {
+    title: "Ticket not found",
+    description:
+      "No Ticket for this Event matches that QR representation or Ticket Code.",
+    icon: IconHelpHexagon,
+    destructive: true,
+  },
+  canceled: {
+    title: "Ticket canceled",
+    description: "This Ticket or Event was canceled and cannot be admitted.",
+    icon: IconCalendarCancel,
+    destructive: true,
+  },
+  replaced: {
+    title: "Ticket replaced",
+    description:
+      "A newer Ticket was issued for this Registration. Ask the Attendee for the replacement.",
+    icon: IconRefresh,
+    destructive: true,
+  },
+  expired: {
+    title: "Check-in closed",
+    description:
+      "The Check-in Window has ended, so this Ticket is no longer admissible.",
+    icon: IconClockX,
+    destructive: true,
+  },
+  outside_window: {
+    title: "Check-in not open",
+    description:
+      "This Ticket is valid, but the Check-in Window has not opened yet.",
+    icon: IconClockExclamation,
+    destructive: true,
+  },
+  unauthorized: {
+    title: "Scanner access unavailable",
+    description:
+      "Your current staff access does not authorize admission for this Event.",
+    icon: IconLock,
+    destructive: true,
+  },
+};
+
+function announceFeedback(outcome: AdmissionOutcome, enabled: boolean) {
+  if (!enabled || typeof window === "undefined") return;
+  try {
+    navigator.vibrate?.(outcome === "accepted" ? 90 : [80, 60, 80]);
+    const AudioContextConstructor = window.AudioContext;
+    if (!AudioContextConstructor) return;
+    const context = new AudioContextConstructor();
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.frequency.value = outcome === "accepted" ? 880 : 220;
+    gain.gain.setValueAtTime(0.08, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.12);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + 0.12);
+    oscillator.addEventListener("ended", () => void context.close());
+  } catch {
+    // Admission feedback remains complete through visible text and icon states.
+  }
+}
+
+export function ScannerWorkspace({
+  eventId,
+  eventStatus,
+  checkInWindow,
+}: {
+  eventId: string;
+  eventStatus: string;
+  checkInWindow: string;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const controlsRef = useRef<ScannerControls | null>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
+  const submittingRef = useRef(false);
+  const [manualCode, setManualCode] = useState("");
+  const [result, setResult] = useState<AdmissionResult | null>(null);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [isPending, setIsPending] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [feedbackEnabled, setFeedbackEnabled] = useState(true);
+
+  useEffect(() => () => controlsRef.current?.stop(), []);
+
+  useEffect(() => {
+    if (result || actionError) resultRef.current?.focus();
+  }, [actionError, result]);
+
+  async function submitInput(input: string, inputMethod: "camera" | "manual") {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    setIsPending(true);
+    setActionError(null);
+    setResult(null);
+    try {
+      const nextResult = await scanTicketAction({
+        eventId,
+        input,
+        inputMethod,
+      });
+      setResult(nextResult);
+      announceFeedback(nextResult.outcome, feedbackEnabled);
+      if (inputMethod === "manual") setManualCode("");
+    } catch {
+      setActionError(
+        "The Ticket could not be checked. Confirm this device is online, then try again.",
+      );
+    } finally {
+      submittingRef.current = false;
+      setIsPending(false);
+    }
+  }
+
+  async function startCamera() {
+    setCameraError(null);
+    setActionError(null);
+    setResult(null);
+    try {
+      const { BrowserQRCodeReader } = await import("@zxing/browser");
+      const reader = new BrowserQRCodeReader();
+      const controls = await reader.decodeFromConstraints(
+        { video: { facingMode: { ideal: "environment" } }, audio: false },
+        videoRef.current ?? undefined,
+        (decoded) => {
+          if (!decoded || submittingRef.current) return;
+          controlsRef.current?.stop();
+          controlsRef.current = null;
+          setCameraActive(false);
+          startTransition(() => void submitInput(decoded.getText(), "camera"));
+        },
+      );
+      controlsRef.current = controls;
+      setCameraActive(true);
+    } catch {
+      controlsRef.current?.stop();
+      controlsRef.current = null;
+      setCameraActive(false);
+      setCameraError(
+        "Camera scanning is unavailable or permission was denied. Enter the Ticket Code below instead.",
+      );
+    }
+  }
+
+  function stopCamera() {
+    controlsRef.current?.stop();
+    controlsRef.current = null;
+    setCameraActive(false);
+  }
+
+  function handleManualSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const value = manualCode.trim();
+    if (!value) return;
+    startTransition(() => void submitInput(value, "manual"));
+  }
+
+  const presentation = result ? outcomePresentation[result.outcome] : null;
+  const ResultIcon = presentation?.icon ?? IconScan;
+
+  return (
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
+      <section className="flex flex-wrap items-start justify-between gap-4 border-b pb-5">
+        <div>
+          <h1 className="text-xl font-semibold text-balance">Scan Tickets</h1>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            Decisions are authoritative while this device is online. Check-in
+            Window: {checkInWindow}.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge
+            variant={eventStatus === "canceled" ? "destructive" : "secondary"}
+          >
+            {eventStatus === "canceled" ? "Event canceled" : "Online"}
+          </Badge>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-lg"
+            onClick={() => setFeedbackEnabled((enabled) => !enabled)}
+            aria-label={`${feedbackEnabled ? "Disable" : "Enable"} sound and vibration feedback`}
+            aria-pressed={feedbackEnabled}
+          >
+            {feedbackEnabled ? <IconVolume /> : <IconVolumeOff />}
+          </Button>
+        </div>
+      </section>
+
+      {presentation && result ? (
+        <Alert
+          ref={resultRef}
+          tabIndex={-1}
+          variant={presentation.destructive ? "destructive" : "default"}
+          className={cn(
+            "min-h-32 items-start p-5",
+            !presentation.destructive && "border-foreground",
+          )}
+          aria-live="assertive"
+        >
+          <ResultIcon aria-hidden="true" className="mt-0.5 size-7" />
+          <AlertTitle className="text-lg">{presentation.title}</AlertTitle>
+          <AlertDescription className="mt-1 text-base">
+            {result.attendeeName ? (
+              <strong className="text-foreground">
+                {result.attendeeName}.{" "}
+              </strong>
+            ) : null}
+            {presentation.description}
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      {actionError ? (
+        <Alert
+          ref={resultRef}
+          tabIndex={-1}
+          variant="destructive"
+          aria-live="assertive"
+        >
+          <IconAlertTriangle />
+          <AlertTitle>Check-in unavailable</AlertTitle>
+          <AlertDescription>{actionError}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      <section aria-labelledby="camera-heading" className="flex flex-col gap-4">
+        <div>
+          <h2 id="camera-heading" className="font-medium">
+            Camera
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Point the rear camera at the Ticket QR representation.
+          </p>
+        </div>
+        <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border bg-muted">
+          <video
+            ref={videoRef}
+            muted
+            playsInline
+            className={cn(
+              "size-full object-cover",
+              !cameraActive && "invisible",
+            )}
+            aria-label="Live camera preview"
+          />
+          {!cameraActive ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
+              <IconCamera
+                aria-hidden="true"
+                className="size-10 text-muted-foreground"
+              />
+              <p className="max-w-sm text-sm text-muted-foreground">
+                Camera access starts only when you choose Start camera.
+              </p>
+            </div>
+          ) : null}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            size="lg"
+            className="min-h-11"
+            onClick={startCamera}
+            disabled={cameraActive || isPending}
+          >
+            <IconCamera data-icon="inline-start" />
+            {result ? "Scan next Ticket" : "Start camera"}
+          </Button>
+          {cameraActive ? (
+            <Button
+              type="button"
+              size="lg"
+              variant="outline"
+              className="min-h-11"
+              onClick={stopCamera}
+            >
+              Stop camera
+            </Button>
+          ) : null}
+        </div>
+        {cameraError ? (
+          <Alert variant="destructive">
+            <IconAlertTriangle />
+            <AlertTitle>Use the manual fallback</AlertTitle>
+            <AlertDescription>{cameraError}</AlertDescription>
+          </Alert>
+        ) : null}
+      </section>
+
+      <section aria-labelledby="manual-heading" className="border-t pt-6">
+        <div className="mb-4">
+          <h2
+            id="manual-heading"
+            className="flex items-center gap-2 font-medium"
+          >
+            <IconKeyboard aria-hidden="true" className="size-5" />
+            Enter Ticket Code
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Always available when a camera is unsupported, unavailable, or
+            inconvenient.
+          </p>
+        </div>
+        <form onSubmit={handleManualSubmit} noValidate>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="ticket-code">Ticket Code</FieldLabel>
+              <Input
+                id="ticket-code"
+                name="ticketCode"
+                value={manualCode}
+                onChange={(event) =>
+                  setManualCode(event.target.value.toUpperCase())
+                }
+                placeholder="01234-56789"
+                autoComplete="off"
+                autoCapitalize="characters"
+                spellCheck={false}
+                maxLength={12}
+                className="min-h-11 font-mono tracking-wider"
+              />
+              <FieldDescription>
+                Ten Crockford Base32 characters. The separator is optional.
+              </FieldDescription>
+            </Field>
+            <Button
+              type="submit"
+              size="lg"
+              className="min-h-11 sm:self-start"
+              disabled={!manualCode.trim() || isPending}
+            >
+              {isPending ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <IconScan data-icon="inline-start" />
+              )}
+              {isPending ? "Checking Ticket…" : "Check Ticket"}
+            </Button>
+          </FieldGroup>
+        </form>
+      </section>
+    </div>
+  );
+}

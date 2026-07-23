@@ -118,23 +118,25 @@ export async function reconcileWaitlistInTransaction({
   const [usage] = await transaction
     .select({
       confirmed: sql<number>`(
-        select count(*)::int from ${registration}
-        where ${registration.eventId} = ${eventId}
-          and ${registration.status} = 'confirmed'
+        select count(*)::int from ${registration} as confirmed_registration
+        where confirmed_registration.event_id = ${eventId}
+          and confirmed_registration.status = 'confirmed'
       )`,
       holds: sql<number>`(
-        select count(*)::int from ${capacityHold}
-        inner join ${registration} on ${registration.id} = ${capacityHold.registrationId}
-        where ${registration.eventId} = ${eventId}
-          and ${capacityHold.claimedAt} is null
-          and ${capacityHold.expiresAt} > ${reconciledAt}
+        select count(*)::int from ${capacityHold} as active_hold
+        inner join ${registration} as held_registration
+          on held_registration.id = active_hold.registration_id
+        where held_registration.event_id = ${eventId}
+          and active_hold.claimed_at is null
+          and active_hold.expires_at > ${reconciledAt}
       )`,
       offers: sql<number>`(
-        select count(*)::int from ${admissionOffer}
-        inner join ${registration} on ${registration.id} = ${admissionOffer.registrationId}
-        where ${registration.eventId} = ${eventId}
-          and ${admissionOffer.status} = 'active'
-          and ${admissionOffer.expiresAt} > ${reconciledAt}
+        select count(*)::int from ${admissionOffer} as active_offer
+        inner join ${registration} as offered_registration
+          on offered_registration.id = active_offer.registration_id
+        where offered_registration.event_id = ${eventId}
+          and active_offer.status = 'active'
+          and active_offer.expires_at > ${reconciledAt}
       )`,
     })
     .from(event)

@@ -36,6 +36,7 @@ import type {
   AdmissionResult,
 } from "@/features/admission/server/admission-application";
 import { cn } from "@/lib/utils";
+import { ScannerPreparation } from "./scanner-preparation";
 
 type ScannerControls = { stop: () => void };
 
@@ -255,6 +256,8 @@ export function ScannerWorkspace({
           </Button>
         </div>
       </section>
+
+      <ScannerPreparation eventId={eventId} />
 
       {presentation && result ? (
         <Alert

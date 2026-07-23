@@ -41,7 +41,7 @@ export default async function ScannerPage({
           <IconScan aria-hidden="true" className="size-6 shrink-0" />
           <div className="min-w-0">
             <p className="truncate font-medium">{scannerEvent.name}</p>
-            <p className="text-sm text-muted-foreground">Online scanner</p>
+            <p className="text-sm text-muted-foreground">Scanner workspace</p>
           </div>
         </div>
       </header>

@@ -213,7 +213,9 @@ export function createOfflineScannerStore(
           }
         }
         await database.pendingScanAttempts.bulkDelete(
-          results.map((result) => result.id),
+          results
+            .filter((result) => result.outcome !== "conflict")
+            .map((result) => result.id),
         );
       },
     );

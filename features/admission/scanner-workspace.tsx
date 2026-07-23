@@ -183,12 +183,39 @@ export function ScannerWorkspace({
     try {
       const synchronized = await synchronizePendingAttempts(eventId);
       if (synchronized.acknowledged > 0) {
+        const conflicts = synchronized.reconciledOutcomes.filter(
+          (outcome) => outcome === "conflict",
+        ).length;
+        const lostConflicts = synchronized.reconciledOutcomes.filter(
+          (outcome) => outcome === "duplicate",
+        ).length;
+        const acceptedConflicts = synchronized.reconciledOutcomes.filter(
+          (outcome) => outcome === "accepted",
+        ).length;
+        const resolutionParts = [];
+        if (conflicts > 0) {
+          resolutionParts.push(
+            `${conflicts} provisional acceptance${conflicts === 1 ? " requires" : "s require"} Organizer review and ${conflicts === 1 ? "is" : "are"} not globally final`,
+          );
+        }
+        if (lostConflicts > 0) {
+          resolutionParts.push(
+            `${lostConflicts} provisional acceptance${lostConflicts === 1 ? " did" : "s did"} not become the authoritative Check-in`,
+          );
+        }
+        if (acceptedConflicts > 0) {
+          resolutionParts.push(
+            `${acceptedConflicts} provisional acceptance${acceptedConflicts === 1 ? " is" : "s are"} now authoritative`,
+          );
+        }
+        const resolution =
+          resolutionParts.length > 0
+            ? ` ${resolutionParts.join("; ")}.`
+            : synchronized.changed > 0
+              ? ` ${synchronized.changed} reconciled with authoritative server state.`
+              : "";
         setSyncMessage(
-          `${synchronized.acknowledged} Scan Attempt${synchronized.acknowledged === 1 ? "" : "s"} synchronized${
-            synchronized.changed > 0
-              ? `; ${synchronized.changed} reconciled with newer server state`
-              : ""
-          }.`,
+          `${synchronized.acknowledged} Scan Attempt${synchronized.acknowledged === 1 ? "" : "s"} synchronized.${resolution}`,
         );
       }
       await refreshPendingCount();

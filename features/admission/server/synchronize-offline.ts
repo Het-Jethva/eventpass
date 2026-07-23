@@ -12,3 +12,7 @@ const offlineSynchronization = createOfflineSynchronizationService({
 
 export const synchronizeOfflineAttempts =
   offlineSynchronization.synchronizeOfflineAttempts;
+export const listCheckInConflicts =
+  offlineSynchronization.listCheckInConflicts;
+export const resolveCheckInConflict =
+  offlineSynchronization.resolveCheckInConflict;

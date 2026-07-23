@@ -141,4 +141,37 @@ describe("Offline scanner store", () => {
       existingCheckInState: "checked_in",
     });
   });
+
+  it("keeps a conflicted provisional attempt pending until its final reconciled outcome arrives", async () => {
+    const store = createStore();
+    const eventSnapshot = snapshot(randomUUID(), "Conflict retry test");
+    const ticketId = randomUUID();
+    await store.cacheSnapshot(eventSnapshot);
+    const attemptId = randomUUID();
+    await store.savePendingScanAttempt({
+      id: attemptId,
+      eventId: eventSnapshot.event.id,
+      ticketId,
+      inputDigest: "b".repeat(64),
+      inputMethod: "camera",
+      capturedOutcome: "provisional",
+      deviceRecordedAt: "2030-01-02T10:05:00.000Z",
+      serverTimeAnchor: eventSnapshot.serverTimeAnchor,
+      monotonicElapsedMs: 2_100_000,
+      timestampConfidence: "low",
+      signedTicket: "signed.ticket.value",
+      authorization: eventSnapshot.authorization,
+      scannerDeviceId: eventSnapshot.scannerDevice.id,
+    });
+
+    await store.acknowledgeScanAttempts(eventSnapshot.event.id, [
+      { id: attemptId, ticketId, outcome: "conflict" },
+    ]);
+    expect(await store.countPendingScanAttempts(eventSnapshot.event.id)).toBe(1);
+
+    await store.acknowledgeScanAttempts(eventSnapshot.event.id, [
+      { id: attemptId, ticketId, outcome: "duplicate" },
+    ]);
+    expect(await store.countPendingScanAttempts(eventSnapshot.event.id)).toBe(0);
+  });
 });

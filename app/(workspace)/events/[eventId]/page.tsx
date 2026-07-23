@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import {
   IconArrowLeft,
   IconCalendarEvent,
+  IconClockQuestion,
   IconExternalLink,
   IconEye,
   IconMapPin,
@@ -85,6 +86,13 @@ export default async function EventOverviewPage({
                 Open scanner
               </Link>
             ) : null}
+            <Link
+              href={`/events/${event.id}/check-in`}
+              className={buttonVariants({ variant: "outline" })}
+            >
+              <IconClockQuestion data-icon="inline-start" />
+              Check-in conflicts
+            </Link>
             <Link
               href={`/events/${event.id}/staff`}
               className={buttonVariants({ variant: "outline" })}

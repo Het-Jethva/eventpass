@@ -654,7 +654,7 @@ export const scanAttempt = pgTable(
     ),
     check(
       "scan_attempt_outcome_check",
-      sql`${table.outcome} in ('accepted', 'duplicate', 'invalid', 'unknown', 'canceled', 'replaced', 'expired', 'outside_window')`,
+      sql`${table.outcome} in ('accepted', 'duplicate', 'invalid', 'unknown', 'canceled', 'replaced', 'expired', 'outside_window', 'conflict')`,
     ),
     check(
       "scan_attempt_check_in_outcome_check",
@@ -669,6 +669,52 @@ export const scanAttempt = pgTable(
       table.attemptedAt,
     ),
     index("scan_attempt_ticket_idx").on(table.ticketId),
+  ],
+);
+
+export const checkInConflict = pgTable(
+  "check_in_conflict",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => event.id, { onDelete: "restrict" }),
+    ticketId: uuid("ticket_id")
+      .notNull()
+      .references(() => ticket.id, { onDelete: "restrict" }),
+    status: text("status").default("unresolved").notNull(),
+    authoritativeScanAttemptId: uuid("authoritative_scan_attempt_id").references(
+      () => scanAttempt.id,
+      { onDelete: "restrict" },
+    ),
+    resolvedByUserId: uuid("resolved_by_user_id").references(() => user.id, {
+      onDelete: "restrict",
+    }),
+    resolutionReason: text("resolution_reason"),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "check_in_conflict_status_check",
+      sql`${table.status} in ('unresolved', 'resolved_auto', 'resolved_manual')`,
+    ),
+    check(
+      "check_in_conflict_resolution_check",
+      sql`(${table.status} = 'unresolved' and ${table.authoritativeScanAttemptId} is null and ${table.resolvedByUserId} is null and ${table.resolutionReason} is null and ${table.resolvedAt} is null) or (${table.status} = 'resolved_auto' and ${table.authoritativeScanAttemptId} is not null and ${table.resolvedByUserId} is null and ${table.resolutionReason} is null and ${table.resolvedAt} is not null) or (${table.status} = 'resolved_manual' and ${table.authoritativeScanAttemptId} is not null and ${table.resolvedByUserId} is not null and length(btrim(${table.resolutionReason})) > 0 and ${table.resolvedAt} is not null)`,
+    ),
+    uniqueIndex("check_in_conflict_unresolved_ticket_unique")
+      .on(table.ticketId)
+      .where(sql`${table.status} = 'unresolved'`),
+    index("check_in_conflict_event_status_idx").on(
+      table.eventId,
+      table.status,
+      table.createdAt,
+    ),
   ],
 );
 
@@ -815,6 +861,7 @@ export const eventRelations = relations(event, ({ many }) => ({
   tickets: many(ticket),
   checkIns: many(checkIn),
   scanAttempts: many(scanAttempt),
+  checkInConflicts: many(checkInConflict),
 }));
 
 export const eventStaffRelations = relations(eventStaff, ({ one }) => ({
@@ -921,6 +968,7 @@ export const ticketRelations = relations(ticket, ({ one, many }) => ({
   }),
   checkIns: many(checkIn),
   scanAttempts: many(scanAttempt),
+  checkInConflicts: many(checkInConflict),
 }));
 
 export const checkInRelations = relations(checkIn, ({ one, many }) => ({
@@ -957,6 +1005,28 @@ export const scanAttemptRelations = relations(scanAttempt, ({ one }) => ({
     references: [user.id],
   }),
 }));
+
+export const checkInConflictRelations = relations(
+  checkInConflict,
+  ({ one }) => ({
+    event: one(event, {
+      fields: [checkInConflict.eventId],
+      references: [event.id],
+    }),
+    ticket: one(ticket, {
+      fields: [checkInConflict.ticketId],
+      references: [ticket.id],
+    }),
+    authoritativeScanAttempt: one(scanAttempt, {
+      fields: [checkInConflict.authoritativeScanAttemptId],
+      references: [scanAttempt.id],
+    }),
+    resolvedBy: one(user, {
+      fields: [checkInConflict.resolvedByUserId],
+      references: [user.id],
+    }),
+  }),
+);
 
 export const registrationAnswerRelations = relations(
   registrationAnswer,

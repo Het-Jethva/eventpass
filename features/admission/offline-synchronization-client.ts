@@ -16,10 +16,17 @@ type SynchronizationResponse =
 
 export async function synchronizePendingAttempts(eventId: string) {
   const pending = await offlineScannerStore.listPendingScanAttempts(eventId);
-  if (pending.length === 0) return { acknowledged: 0, changed: 0 };
+  if (pending.length === 0) {
+    return {
+      acknowledged: 0,
+      changed: 0,
+      reconciledOutcomes: [] as string[],
+    };
+  }
 
   let acknowledged = 0;
   let changed = 0;
+  const reconciledOutcomes: string[] = [];
   const authorizations = new Map<string, typeof pending>();
   for (const attempt of pending) {
     const batch = authorizations.get(attempt.authorization) ?? [];
@@ -45,7 +52,12 @@ export async function synchronizePendingAttempts(eventId: string) {
       );
       acknowledged += result.results.length;
       changed += result.results.filter((item) => item.changed).length;
+      reconciledOutcomes.push(
+        ...result.results
+          .filter((item) => item.changed)
+          .map((item) => item.outcome),
+      );
     }
   }
-  return { acknowledged, changed };
+  return { acknowledged, changed, reconciledOutcomes };
 }

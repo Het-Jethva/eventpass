@@ -612,6 +612,44 @@ export const checkIn = pgTable(
   ],
 );
 
+export const checkInReversal = pgTable(
+  "check_in_reversal",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => event.id, { onDelete: "restrict" }),
+    checkInId: uuid("check_in_id")
+      .notNull()
+      .references(() => checkIn.id, { onDelete: "restrict" }),
+    actorUserId: uuid("actor_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    kind: text("kind").notNull(),
+    reason: text("reason").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "check_in_reversal_kind_check",
+      sql`${table.kind} in ('quick', 'organizer')`,
+    ),
+    check(
+      "check_in_reversal_reason_not_blank_check",
+      sql`length(btrim(${table.reason})) > 0`,
+    ),
+    uniqueIndex("check_in_reversal_check_in_unique").on(table.checkInId),
+    index("check_in_reversal_event_created_at_idx").on(
+      table.eventId,
+      table.createdAt,
+    ),
+  ],
+);
+
 export const scanAttempt = pgTable(
   "scan_attempt",
   {
@@ -860,6 +898,7 @@ export const eventRelations = relations(event, ({ many }) => ({
   registrations: many(registration),
   tickets: many(ticket),
   checkIns: many(checkIn),
+  checkInReversals: many(checkInReversal),
   scanAttempts: many(scanAttempt),
   checkInConflicts: many(checkInConflict),
 }));
@@ -985,7 +1024,26 @@ export const checkInRelations = relations(checkIn, ({ one, many }) => ({
     references: [user.id],
   }),
   scanAttempts: many(scanAttempt),
+  reversals: many(checkInReversal),
 }));
+
+export const checkInReversalRelations = relations(
+  checkInReversal,
+  ({ one }) => ({
+    event: one(event, {
+      fields: [checkInReversal.eventId],
+      references: [event.id],
+    }),
+    checkIn: one(checkIn, {
+      fields: [checkInReversal.checkInId],
+      references: [checkIn.id],
+    }),
+    actor: one(user, {
+      fields: [checkInReversal.actorUserId],
+      references: [user.id],
+    }),
+  }),
+);
 
 export const scanAttemptRelations = relations(scanAttempt, ({ one }) => ({
   event: one(event, {

@@ -91,7 +91,7 @@ export default async function EventOverviewPage({
               className={buttonVariants({ variant: "outline" })}
             >
               <IconClockQuestion data-icon="inline-start" />
-              Check-in conflicts
+              Check-in operations
             </Link>
             <Link
               href={`/events/${event.id}/staff`}

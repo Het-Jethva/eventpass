@@ -3,6 +3,7 @@ import { createHash, type KeyObject } from "node:crypto";
 import { and, eq, isNull } from "drizzle-orm";
 
 import {
+  auditEntry,
   checkIn,
   event,
   eventStaff,
@@ -38,6 +39,7 @@ export type AdmissionResult = {
   outcome: AdmissionOutcome;
   attendeeName?: string;
   checkedInAt?: Date;
+  checkInId?: string;
 };
 
 export type AdmissionInput = {
@@ -46,6 +48,7 @@ export type AdmissionInput = {
   clientAttemptId: string;
   input: string;
   inputMethod: "camera" | "manual";
+  overrideReason?: string;
 };
 
 function digestInput(input: string) {
@@ -68,6 +71,7 @@ export function createAdmissionApplicationService({
     clientAttemptId,
     input,
     inputMethod,
+    overrideReason,
   }: AdmissionInput): Promise<AdmissionResult> {
     const attemptedAt = now();
     const inputDigest = digestInput(input);
@@ -79,6 +83,7 @@ export function createAdmissionApplicationService({
           status: event.status,
           checkInOpensAt: event.checkInOpensAt,
           checkInClosesAt: event.checkInClosesAt,
+          role: eventStaff.role,
         })
         .from(event)
         .innerJoin(
@@ -173,9 +178,27 @@ export function createAdmissionApplicationService({
         rejection = "canceled";
       } else if (presentedTicket.status === "replaced") {
         rejection = "replaced";
-      } else if (attemptedAt >= authorizedEvent.checkInClosesAt) {
+      }
+
+      const outsideCheckInWindow =
+        attemptedAt < authorizedEvent.checkInOpensAt ||
+        attemptedAt >= authorizedEvent.checkInClosesAt;
+      const normalizedOverrideReason = overrideReason?.trim() ?? "";
+      const canOverrideWindow =
+        normalizedOverrideReason.length > 0 &&
+        (authorizedEvent.role === "owner" ||
+          authorizedEvent.role === "organizer");
+      if (
+        !rejection &&
+        attemptedAt >= authorizedEvent.checkInClosesAt &&
+        !canOverrideWindow
+      ) {
         rejection = "expired";
-      } else if (attemptedAt < authorizedEvent.checkInOpensAt) {
+      } else if (
+        !rejection &&
+        attemptedAt < authorizedEvent.checkInOpensAt &&
+        !canOverrideWindow
+      ) {
         rejection = "outside_window";
       }
 
@@ -244,9 +267,21 @@ export function createAdmissionApplicationService({
         outcome: "accepted",
         attemptedAt,
       });
+      if (outsideCheckInWindow) {
+        await transaction.insert(auditEntry).values({
+          eventId,
+          actorUserId,
+          action: "check_in.outside_window_override",
+          targetType: "check_in",
+          targetId: createdCheckIn!.id,
+          reason: normalizedOverrideReason,
+          metadata: { ticketId: presentedTicket.id, attemptedAt },
+        });
+      }
       return {
         outcome: "accepted",
         attendeeName: presentedTicket.attendeeName,
+        checkInId: createdCheckIn!.id,
         checkedInAt: createdCheckIn!.checkedInAt,
       };
     });

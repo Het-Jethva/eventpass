@@ -20,11 +20,16 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { getOrganizerEvent } from "@/features/events/server/get-event";
 import { listCheckInConflicts } from "@/features/admission/server/synchronize-offline";
+import { listActiveCheckIns } from "@/features/admission/server/check-in-corrections";
+import { ReasonedCheckInAction } from "@/features/admission/reasoned-check-in-action";
 import { getActiveStaffSession } from "@/lib/staff-session";
 
-import { resolveCheckInConflictAction } from "./actions";
+import {
+  resolveCheckInConflictAction,
+  reverseOrganizerCheckInAction,
+} from "./actions";
 
-export const metadata: Metadata = { title: "Check-in Conflicts" };
+export const metadata: Metadata = { title: "Check-in operations" };
 
 function formatAttemptTime(value: Date, timeZone: string) {
   return new Intl.DateTimeFormat("en", {
@@ -49,9 +54,10 @@ export default async function CheckInConflictsPage({
   ]);
   if (!session) redirect("/sign-in");
 
-  const [event, conflicts] = await Promise.all([
+  const [event, conflicts, activeCheckIns] = await Promise.all([
     getOrganizerEvent(eventId, session.user.id),
     listCheckInConflicts({ eventId, actorUserId: session.user.id }),
+    listActiveCheckIns({ eventId, actorUserId: session.user.id }),
   ]);
   if (!event) notFound();
 
@@ -68,7 +74,7 @@ export default async function CheckInConflictsPage({
         <div className="mt-5 flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-semibold tracking-tight">
-              Check-in Conflicts
+              Check-in operations
             </h1>
             <Badge variant={conflicts.length > 0 ? "destructive" : "secondary"}>
               {conflicts.length} unresolved
@@ -96,6 +102,58 @@ export default async function CheckInConflictsPage({
           <AlertDescription>{query.notice}</AlertDescription>
         </Alert>
       ) : null}
+
+      <section aria-labelledby="active-check-ins-heading">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 id="active-check-ins-heading" className="font-medium">
+              Active Check-ins
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Organizer corrections preserve the original Check-in and every
+              Scan Attempt while making the Ticket admissible again.
+            </p>
+          </div>
+          <Badge variant="secondary">{activeCheckIns.length} active</Badge>
+        </div>
+        {activeCheckIns.length === 0 ? (
+          <div className="border-y bg-background px-5 py-8 text-center text-sm text-muted-foreground">
+            No active Check-ins.
+          </div>
+        ) : (
+          <div className="divide-y rounded-2xl border bg-background">
+            {activeCheckIns.map((activeCheckIn) => (
+              <div
+                key={activeCheckIn.id}
+                className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div>
+                  <h3 className="font-medium">{activeCheckIn.attendeeName}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Checked in by {activeCheckIn.actorName} at{" "}
+                    {formatAttemptTime(
+                      activeCheckIn.checkedInAt,
+                      event.eventTimeZone,
+                    )}
+                  </p>
+                </div>
+                <ReasonedCheckInAction
+                  label="Reverse Check-in"
+                  title={`Reverse ${activeCheckIn.attendeeName}'s Check-in?`}
+                  description="This invalidates the active Check-in without deleting its history. The Ticket can be admitted again."
+                  reasonDescription="The correction and reason are retained in the immutable Audit Entry."
+                  variant="destructive"
+                  action={reverseOrganizerCheckInAction.bind(
+                    null,
+                    eventId,
+                    activeCheckIn.id,
+                  )}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       {conflicts.length === 0 ? (
         <section className="border-y bg-background px-5 py-10 text-center sm:px-6">

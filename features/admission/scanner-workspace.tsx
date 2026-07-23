@@ -20,7 +20,10 @@ import {
   type Icon,
 } from "@tabler/icons-react";
 
-import { scanTicketAction } from "@/app/scanner/[eventId]/actions";
+import {
+  quickReverseCheckInAction,
+  scanTicketAction,
+} from "@/app/scanner/[eventId]/actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,6 +44,7 @@ import { admitOffline } from "./offline-scan";
 import { offlineScannerStore } from "./offline-snapshot-store";
 import { synchronizePendingAttempts } from "./offline-synchronization-client";
 import { ScannerPreparation } from "./scanner-preparation";
+import { ReasonedCheckInAction } from "./reasoned-check-in-action";
 
 type ScannerControls = { stop: () => void };
 
@@ -145,10 +149,12 @@ function announceFeedback(outcome: AdmissionOutcome, enabled: boolean) {
 export function ScannerWorkspace({
   eventId,
   eventStatus,
+  actorRole,
   checkInWindow,
 }: {
   eventId: string;
   eventStatus: string;
+  actorRole: string;
   checkInWindow: string;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -166,6 +172,10 @@ export function ScannerWorkspace({
   const [pendingAttemptCount, setPendingAttemptCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [lastInput, setLastInput] = useState<{
+    value: string;
+    method: "camera" | "manual";
+  } | null>(null);
 
   useEffect(() => () => controlsRef.current?.stop(), []);
 
@@ -252,8 +262,12 @@ export function ScannerWorkspace({
     if (result || actionError) resultRef.current?.focus();
   }, [actionError, result]);
 
-  async function submitInput(input: string, inputMethod: "camera" | "manual") {
-    if (submittingRef.current) return;
+  async function submitInput(
+    input: string,
+    inputMethod: "camera" | "manual",
+    overrideReason?: string,
+  ) {
+    if (submittingRef.current) return null;
     submittingRef.current = true;
     setIsPending(true);
     setActionError(null);
@@ -267,21 +281,26 @@ export function ScannerWorkspace({
             clientAttemptId: crypto.randomUUID(),
             input,
             inputMethod,
+            overrideReason,
           });
         } catch {
+          if (overrideReason) throw new Error("Online access is required for an override.");
           nextResult = await admitOffline({ eventId, input, inputMethod });
         }
       } else {
         nextResult = await admitOffline({ eventId, input, inputMethod });
       }
       setResult(nextResult);
+      setLastInput({ value: input, method: inputMethod });
       announceFeedback(nextResult.outcome, feedbackEnabled);
       await refreshPendingCount();
       if (inputMethod === "manual") setManualCode("");
+      return nextResult;
     } catch {
       setActionError(
         "The Ticket could not be checked. Confirm this device is online, then try again.",
       );
+      return null;
     } finally {
       submittingRef.current = false;
       setIsPending(false);
@@ -398,27 +417,81 @@ export function ScannerWorkspace({
       ) : null}
 
       {presentation && result ? (
-        <Alert
-          ref={resultRef}
-          tabIndex={-1}
-          variant={presentation.destructive ? "destructive" : "default"}
-          className={cn(
-            "min-h-32 items-start p-5",
-            !presentation.destructive && "border-foreground",
-          )}
-          aria-live="assertive"
-        >
-          <ResultIcon aria-hidden="true" className="mt-0.5 size-7" />
-          <AlertTitle className="text-lg">{presentation.title}</AlertTitle>
-          <AlertDescription className="mt-1 text-base">
-            {result.attendeeName ? (
-              <strong className="text-foreground">
-                {result.attendeeName}.{" "}
-              </strong>
-            ) : null}
-            {presentation.description}
-          </AlertDescription>
-        </Alert>
+        <div className="flex flex-col gap-3">
+          <Alert
+            ref={resultRef}
+            tabIndex={-1}
+            variant={presentation.destructive ? "destructive" : "default"}
+            className={cn(
+              "min-h-32 items-start p-5",
+              !presentation.destructive && "border-foreground",
+            )}
+            aria-live="assertive"
+          >
+            <ResultIcon aria-hidden="true" className="mt-0.5 size-7" />
+            <AlertTitle className="text-lg">{presentation.title}</AlertTitle>
+            <AlertDescription className="mt-1 text-base">
+              {result.attendeeName ? (
+                <strong className="text-foreground">
+                  {result.attendeeName}.{" "}
+                </strong>
+              ) : null}
+              {presentation.description}
+            </AlertDescription>
+          </Alert>
+          {result.outcome === "accepted" && result.checkInId ? (
+            <ReasonedCheckInAction
+              label={
+                actorRole === "check_in_volunteer"
+                  ? "Quick Reversal"
+                  : "Reverse Check-in"
+              }
+              title="Make this Ticket admissible again?"
+              description="This invalidates the active Check-in without deleting the Check-in or Scan Attempt. The Ticket can then be admitted again."
+              reasonDescription="The correction and reason are retained in the immutable Audit Entry."
+              variant="destructive"
+              action={async (reason) => {
+                const reversed = await quickReverseCheckInAction({
+                  eventId,
+                  checkInId: result.checkInId!,
+                  reason,
+                });
+                return reversed.outcome === "reversed"
+                  ? { outcome: "reversed" as const }
+                  : reversed;
+              }}
+              onCompleted={() => {
+                setResult(null);
+                setSyncMessage("Check-in reversed. The Ticket is admissible again.");
+              }}
+            />
+          ) : null}
+          {(result.outcome === "outside_window" ||
+            result.outcome === "expired") &&
+          actorRole !== "check_in_volunteer" &&
+          lastInput ? (
+            <ReasonedCheckInAction
+              label="Admit with override"
+              title="Admit outside the Check-in Window?"
+              description="This creates an authoritative Check-in outside the configured window. Use it only for an accountable operational exception."
+              reasonDescription="Only Organizers can override the window. The reason is retained in the immutable Audit Entry."
+              action={async (reason) => {
+                const override = await submitInput(
+                  lastInput.value,
+                  lastInput.method,
+                  reason,
+                );
+                return override?.outcome === "accepted"
+                  ? { outcome: "completed" as const }
+                  : {
+                      outcome: "error" as const,
+                      message:
+                        "The override was not accepted. Confirm your Organizer access and connectivity.",
+                    };
+              }}
+            />
+          ) : null}
+        </div>
       ) : null}
 
       {actionError ? (

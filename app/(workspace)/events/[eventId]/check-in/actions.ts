@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { resolveCheckInConflict } from "@/features/admission/server/synchronize-offline";
+import { reverseCheckIn } from "@/features/admission/server/check-in-corrections";
 import { getActiveStaffSession } from "@/lib/staff-session";
 
 const resolutionSchema = z.object({
@@ -16,6 +17,12 @@ const resolutionSchema = z.object({
     .trim()
     .min(1, "Explain why this Scan Attempt should be authoritative.")
     .max(500, "Keep the resolution reason under 500 characters."),
+});
+
+const reversalSchema = z.object({
+  eventId: z.uuid(),
+  checkInId: z.uuid(),
+  reason: z.string().trim().min(1).max(500),
 });
 
 function conflictPath(eventId: string, query?: URLSearchParams) {
@@ -80,4 +87,39 @@ export async function resolveCheckInConflictAction(
       new URLSearchParams({ notice: "Check-in Conflict resolved." }),
     ),
   );
+}
+
+export async function reverseOrganizerCheckInAction(
+  eventId: string,
+  checkInId: string,
+  reason: string,
+) {
+  const session = await getActiveStaffSession();
+  if (!session) {
+    return {
+      outcome: "error" as const,
+      message: "Sign in again to reverse this Check-in.",
+    };
+  }
+  const parsed = reversalSchema.safeParse({ eventId, checkInId, reason });
+  if (!parsed.success) {
+    return {
+      outcome: "error" as const,
+      message: "Provide a concise reversal reason.",
+    };
+  }
+  try {
+    await reverseCheckIn({ ...parsed.data, actorUserId: session.user.id });
+  } catch (error) {
+    return {
+      outcome: "error" as const,
+      message:
+        error instanceof Error
+          ? error.message
+          : "This Check-in could not be reversed.",
+    };
+  }
+  revalidatePath(`/events/${eventId}/check-in`);
+  revalidatePath(`/events/${eventId}`);
+  return { outcome: "reversed" as const };
 }

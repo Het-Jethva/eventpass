@@ -92,6 +92,13 @@
       "when": 1784782620254,
       "tag": "0012_brave_lethal_legion",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1784783527320,
+      "tag": "0013_plain_maverick",
+      "breakpoints": true
     }
   ]
 }

@@ -6,6 +6,7 @@ import { EventPassMark } from "@/components/eventpass-mark";
 import { Badge } from "@/components/ui/badge";
 import { isPlatformAdmin } from "@/features/admin/admin-policy";
 import { SignOutButton } from "@/features/staff-identity/sign-out-button";
+import { ThemeSwitcher } from "@/components/theme-switcher";
 import { getActiveStaffSession } from "@/lib/staff-session";
 
 import { signOutAction } from "./actions";
@@ -43,6 +44,7 @@ export default async function WorkspaceLayout({
             )}
           </nav>
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
+            <ThemeSwitcher />
             <Badge
               variant="secondary"
               className="hidden max-w-52 sm:inline-flex"

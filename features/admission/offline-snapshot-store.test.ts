@@ -174,4 +174,69 @@ describe("Offline scanner store", () => {
     ]);
     expect(await store.countPendingScanAttempts(eventSnapshot.event.id)).toBe(0);
   });
+
+  it("purges cached Event data only after check-in closes and all pending attempts are acknowledged", async () => {
+    const store = createStore();
+    const eventSnapshot = snapshot(randomUUID(), "Purge test event");
+    const checkInClosesAt = "2030-01-02T14:00:00.000Z";
+    eventSnapshot.event.checkInClosesAt = checkInClosesAt;
+    await store.cacheSnapshot(eventSnapshot);
+
+    const attemptId = randomUUID();
+    await store.savePendingScanAttempt({
+      id: attemptId,
+      eventId: eventSnapshot.event.id,
+      ticketId: randomUUID(),
+      inputDigest: "c".repeat(64),
+      inputMethod: "manual",
+      capturedOutcome: "provisional",
+      deviceRecordedAt: "2030-01-02T10:05:00.000Z",
+      serverTimeAnchor: eventSnapshot.serverTimeAnchor,
+      monotonicElapsedMs: 2_100_000,
+      timestampConfidence: "high",
+      signedTicket: "signed.ticket.value",
+      authorization: eventSnapshot.authorization,
+      scannerDeviceId: eventSnapshot.scannerDevice.id,
+    });
+
+    // Case 1: Check-in open, attempts pending -> should NOT purge
+    let purged = await store.purgeEventIfClosedAndAcknowledged(
+      eventSnapshot.event.id,
+      checkInClosesAt,
+      new Date("2030-01-02T12:00:00.000Z"),
+    );
+    expect(purged).toBe(false);
+    expect(await store.getCachedSnapshot()).toEqual(eventSnapshot);
+
+    // Case 2: Check-in closed, but attempts STILL pending -> should NOT purge
+    purged = await store.purgeEventIfClosedAndAcknowledged(
+      eventSnapshot.event.id,
+      checkInClosesAt,
+      new Date("2030-01-02T15:00:00.000Z"),
+    );
+    expect(purged).toBe(false);
+    expect(await store.getCachedSnapshot()).toEqual(eventSnapshot);
+
+    // Acknowledge the attempt
+    await store.acknowledgeScanAttempts(eventSnapshot.event.id, [
+      { id: attemptId, ticketId: null, outcome: "accepted" },
+    ]);
+
+    // Case 3: Check-in open, 0 pending attempts -> should NOT purge
+    purged = await store.purgeEventIfClosedAndAcknowledged(
+      eventSnapshot.event.id,
+      checkInClosesAt,
+      new Date("2030-01-02T12:00:00.000Z"),
+    );
+    expect(purged).toBe(false);
+
+    // Case 4: Check-in closed AND 0 pending attempts -> SHOULD purge
+    purged = await store.purgeEventIfClosedAndAcknowledged(
+      eventSnapshot.event.id,
+      checkInClosesAt,
+      new Date("2030-01-02T15:00:00.000Z"),
+    );
+    expect(purged).toBe(true);
+    expect(await store.getCachedSnapshot()).toBeNull();
+  });
 });

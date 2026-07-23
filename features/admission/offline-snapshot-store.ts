@@ -221,6 +221,27 @@ export function createOfflineScannerStore(
     );
   }
 
+  async function countAllPendingScanAttempts() {
+    return database.pendingScanAttempts.count();
+  }
+
+  async function purgeEventIfClosedAndAcknowledged(
+    eventId: string,
+    checkInClosesAt: string,
+    now = new Date(),
+  ) {
+    const isClosed = now.getTime() >= new Date(checkInClosesAt).getTime();
+    const pendingCount = await countPendingScanAttempts(eventId);
+    if (isClosed && pendingCount === 0) {
+      const cached = await database.snapshots.get(eventId);
+      if (cached) {
+        await database.snapshots.delete(eventId);
+        return true;
+      }
+    }
+    return false;
+  }
+
   function close() {
     database.close();
   }
@@ -232,6 +253,8 @@ export function createOfflineScannerStore(
     cacheSnapshot,
     captureAttemptTiming,
     countPendingScanAttempts,
+    countAllPendingScanAttempts,
+    purgeEventIfClosedAndAcknowledged,
     savePendingScanAttempt,
     hasLocallyAcceptedTicket,
     listPendingScanAttempts,

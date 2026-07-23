@@ -45,6 +45,7 @@ import { offlineScannerStore } from "./offline-snapshot-store";
 import { synchronizePendingAttempts } from "./offline-synchronization-client";
 import { ScannerPreparation } from "./scanner-preparation";
 import { ReasonedCheckInAction } from "./reasoned-check-in-action";
+import { PwaUpdateManager } from "./pwa-update-manager";
 
 type ScannerControls = { stop: () => void };
 
@@ -229,6 +230,18 @@ export function ScannerWorkspace({
         );
       }
       await refreshPendingCount();
+      const cached = await offlineScannerStore.getCachedSnapshot();
+      if (cached && cached.event.id === eventId) {
+        const purged = await offlineScannerStore.purgeEventIfClosedAndAcknowledged(
+          eventId,
+          cached.event.checkInClosesAt,
+        );
+        if (purged) {
+          setSyncMessage(
+            "Check-in closed and all attempts acknowledged: cached Event data purged.",
+          );
+        }
+      }
     } catch {
       setSyncMessage(
         "Pending Scan Attempts remain safely stored. Retry when connectivity is stable.",
@@ -381,6 +394,8 @@ export function ScannerWorkspace({
           </Button>
         </div>
       </section>
+
+      <PwaUpdateManager />
 
       <ScannerPreparation eventId={eventId} />
 

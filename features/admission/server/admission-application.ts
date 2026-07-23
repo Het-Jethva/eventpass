@@ -24,6 +24,7 @@ type AdmissionApplicationDependencies = {
 
 export type AdmissionOutcome =
   | "accepted"
+  | "provisional"
   | "duplicate"
   | "invalid"
   | "unknown"
@@ -42,6 +43,7 @@ export type AdmissionResult = {
 export type AdmissionInput = {
   eventId: string;
   actorUserId: string;
+  clientAttemptId: string;
   input: string;
   inputMethod: "camera" | "manual";
 };
@@ -63,6 +65,7 @@ export function createAdmissionApplicationService({
   async function admitOnline({
     eventId,
     actorUserId,
+    clientAttemptId,
     input,
     inputMethod,
   }: AdmissionInput): Promise<AdmissionResult> {
@@ -98,6 +101,7 @@ export function createAdmissionApplicationService({
         (!verification.valid || verification.payload.eventId !== eventId)
       ) {
         await transaction.insert(scanAttempt).values({
+          id: clientAttemptId,
           eventId,
           actorUserId,
           inputDigest,
@@ -130,6 +134,7 @@ export function createAdmissionApplicationService({
 
       if (!presentedTicket) {
         await transaction.insert(scanAttempt).values({
+          id: clientAttemptId,
           eventId,
           actorUserId,
           inputDigest,
@@ -176,6 +181,7 @@ export function createAdmissionApplicationService({
 
       if (rejection) {
         await transaction.insert(scanAttempt).values({
+          id: clientAttemptId,
           eventId,
           ticketId: presentedTicket.id,
           actorUserId,
@@ -202,6 +208,7 @@ export function createAdmissionApplicationService({
         .limit(1);
       if (existingCheckIn) {
         await transaction.insert(scanAttempt).values({
+          id: clientAttemptId,
           eventId,
           ticketId: presentedTicket.id,
           actorUserId,
@@ -227,6 +234,7 @@ export function createAdmissionApplicationService({
         })
         .returning({ id: checkIn.id, checkedInAt: checkIn.checkedInAt });
       await transaction.insert(scanAttempt).values({
+        id: clientAttemptId,
         eventId,
         ticketId: presentedTicket.id,
         checkInId: createdCheckIn!.id,

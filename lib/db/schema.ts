@@ -630,17 +630,27 @@ export const scanAttempt = pgTable(
     actorUserId: uuid("actor_user_id")
       .notNull()
       .references(() => user.id, { onDelete: "restrict" }),
+    scannerDeviceId: uuid("scanner_device_id"),
     inputDigest: text("input_digest").notNull(),
     inputMethod: text("input_method").notNull(),
+    source: text("source").default("online").notNull(),
     outcome: text("outcome").notNull(),
     attemptedAt: timestamp("attempted_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
+    rawDeviceTime: timestamp("raw_device_time", { withTimezone: true }),
+    serverTimeAnchor: timestamp("server_time_anchor", { withTimezone: true }),
+    monotonicElapsedMs: bigint("monotonic_elapsed_ms", { mode: "number" }),
+    timestampConfidence: text("timestamp_confidence"),
   },
   (table) => [
     check(
       "scan_attempt_input_method_check",
       sql`${table.inputMethod} in ('camera', 'manual')`,
+    ),
+    check(
+      "scan_attempt_source_check",
+      sql`${table.source} in ('online', 'offline')`,
     ),
     check(
       "scan_attempt_outcome_check",
@@ -649,6 +659,10 @@ export const scanAttempt = pgTable(
     check(
       "scan_attempt_check_in_outcome_check",
       sql`(${table.outcome} = 'accepted' and ${table.checkInId} is not null) or (${table.outcome} <> 'accepted' and ${table.checkInId} is null)`,
+    ),
+    check(
+      "scan_attempt_offline_timing_check",
+      sql`(${table.source} = 'online' and ${table.scannerDeviceId} is null and ${table.rawDeviceTime} is null and ${table.serverTimeAnchor} is null and ${table.monotonicElapsedMs} is null and ${table.timestampConfidence} is null) or (${table.source} = 'offline' and ${table.scannerDeviceId} is not null and ${table.rawDeviceTime} is not null and ${table.serverTimeAnchor} is not null and ${table.monotonicElapsedMs} >= 0 and ${table.timestampConfidence} in ('high', 'low'))`,
     ),
     index("scan_attempt_event_attempted_at_idx").on(
       table.eventId,

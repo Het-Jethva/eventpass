@@ -74,7 +74,17 @@ describe("Offline scanner store", () => {
     await store.savePendingScanAttempt({
       id: randomUUID(),
       eventId: first.event.id,
-      recordedAt: "2030-01-02T10:05:00.000Z",
+      ticketId: randomUUID(),
+      inputDigest: "digest",
+      inputMethod: "camera",
+      capturedOutcome: "provisional",
+      deviceRecordedAt: "2030-01-02T10:05:00.000Z",
+      serverTimeAnchor: "2030-01-02T09:30:00.000Z",
+      monotonicElapsedMs: 2_100_000,
+      timestampConfidence: "high",
+      signedTicket: "signed.ticket.value",
+      authorization: "signed.authorization.value",
+      scannerDeviceId: first.scannerDevice.id,
     });
 
     await expect(store.cacheSnapshot(second)).rejects.toEqual(
@@ -84,5 +94,51 @@ describe("Offline scanner store", () => {
     await store.cacheSnapshot(second, { replaceExisting: true });
     expect(await store.getCachedSnapshot()).toEqual(second);
     expect(await store.countPendingScanAttempts(first.event.id)).toBe(1);
+  });
+
+  it("durably prevents a local duplicate and reconciles an acknowledged Check-in into the snapshot", async () => {
+    const store = createStore();
+    const eventSnapshot = snapshot(randomUUID(), "Offline gate test");
+    const ticketId = randomUUID();
+    eventSnapshot.tickets.push({
+      ticketId,
+      displayName: "Ada Lovelace",
+      validityState: "active",
+      existingCheckInState: "not_checked_in",
+    });
+    await store.cacheSnapshot(eventSnapshot);
+    const attemptId = randomUUID();
+    await store.savePendingScanAttempt({
+      id: attemptId,
+      eventId: eventSnapshot.event.id,
+      ticketId,
+      inputDigest: "a".repeat(64),
+      inputMethod: "camera",
+      capturedOutcome: "provisional",
+      deviceRecordedAt: "2030-01-02T10:05:00.000Z",
+      serverTimeAnchor: eventSnapshot.serverTimeAnchor,
+      monotonicElapsedMs: 2_100_000,
+      timestampConfidence: "high",
+      signedTicket: "signed.ticket.value",
+      authorization: eventSnapshot.authorization,
+      scannerDeviceId: eventSnapshot.scannerDevice.id,
+    });
+
+    expect(
+      await store.hasLocallyAcceptedTicket(eventSnapshot.event.id, ticketId),
+    ).toBe(true);
+    expect(await store.listPendingScanAttempts(eventSnapshot.event.id)).toHaveLength(
+      1,
+    );
+
+    await store.acknowledgeScanAttempts(eventSnapshot.event.id, [
+      { id: attemptId, ticketId, outcome: "accepted" },
+    ]);
+
+    expect(await store.countPendingScanAttempts(eventSnapshot.event.id)).toBe(0);
+    expect((await store.getCachedSnapshot())?.tickets[0]).toMatchObject({
+      ticketId,
+      existingCheckInState: "checked_in",
+    });
   });
 });

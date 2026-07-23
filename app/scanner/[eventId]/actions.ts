@@ -10,6 +10,7 @@ import { getActiveStaffSession } from "@/lib/staff-session";
 
 const scanInputSchema = z.object({
   eventId: z.uuid(),
+  clientAttemptId: z.uuid(),
   input: z.string().trim().min(1).max(4096),
   inputMethod: z.enum(["camera", "manual"]),
 });
@@ -22,6 +23,7 @@ const scannerPreparationSchema = z.object({
 
 export async function scanTicketAction(values: {
   eventId: string;
+  clientAttemptId: string;
   input: string;
   inputMethod: "camera" | "manual";
 }): Promise<AdmissionResult> {

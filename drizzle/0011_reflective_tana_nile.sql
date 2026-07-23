@@ -1,0 +1,8 @@
+ALTER TABLE "scan_attempt" ADD COLUMN "scanner_device_id" uuid;--> statement-breakpoint
+ALTER TABLE "scan_attempt" ADD COLUMN "source" text DEFAULT 'online' NOT NULL;--> statement-breakpoint
+ALTER TABLE "scan_attempt" ADD COLUMN "raw_device_time" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "scan_attempt" ADD COLUMN "server_time_anchor" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "scan_attempt" ADD COLUMN "monotonic_elapsed_ms" bigint;--> statement-breakpoint
+ALTER TABLE "scan_attempt" ADD COLUMN "timestamp_confidence" text;--> statement-breakpoint
+ALTER TABLE "scan_attempt" ADD CONSTRAINT "scan_attempt_source_check" CHECK ("scan_attempt"."source" in ('online', 'offline'));--> statement-breakpoint
+ALTER TABLE "scan_attempt" ADD CONSTRAINT "scan_attempt_offline_timing_check" CHECK (("scan_attempt"."source" = 'online' and "scan_attempt"."scanner_device_id" is null and "scan_attempt"."raw_device_time" is null and "scan_attempt"."server_time_anchor" is null and "scan_attempt"."monotonic_elapsed_ms" is null and "scan_attempt"."timestamp_confidence" is null) or ("scan_attempt"."source" = 'offline' and "scan_attempt"."scanner_device_id" is not null and "scan_attempt"."raw_device_time" is not null and "scan_attempt"."server_time_anchor" is not null and "scan_attempt"."monotonic_elapsed_ms" >= 0 and "scan_attempt"."timestamp_confidence" in ('high', 'low')));

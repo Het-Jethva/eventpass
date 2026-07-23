@@ -13,12 +13,32 @@ type ScannerProfileRecord = {
 type StoredSnapshot = {
   eventId: string;
   snapshot: OfflineEventSnapshot;
+  performanceTimeOrigin: number;
+  performanceNow: number;
 };
 
 export type PendingScanAttemptRecord = {
   id: string;
   eventId: string;
-  recordedAt: string;
+  ticketId: string | null;
+  inputDigest: string;
+  inputMethod: "camera" | "manual";
+  capturedOutcome:
+    | "provisional"
+    | "duplicate"
+    | "invalid"
+    | "unknown"
+    | "canceled"
+    | "replaced"
+    | "expired"
+    | "outside_window";
+  deviceRecordedAt: string;
+  serverTimeAnchor: string;
+  monotonicElapsedMs: number;
+  timestampConfidence: "high" | "low";
+  signedTicket: string | null;
+  authorization: string;
+  scannerDeviceId: string;
 };
 
 class OfflineScannerDatabase extends Dexie {
@@ -32,6 +52,11 @@ class OfflineScannerDatabase extends Dexie {
       scannerProfile: "&key",
       snapshots: "&eventId",
       pendingScanAttempts: "&id,eventId",
+    });
+    this.version(2).stores({
+      scannerProfile: "&key",
+      snapshots: "&eventId",
+      pendingScanAttempts: "&id,eventId,[eventId+ticketId]",
     });
   }
 }
@@ -103,13 +128,95 @@ export function createOfflineScannerStore(
         await database.snapshots.put({
           eventId: snapshot.event.id,
           snapshot,
+          performanceTimeOrigin: performance.timeOrigin,
+          performanceNow: performance.now(),
         });
       },
     );
   }
 
+  async function captureAttemptTiming(eventId: string) {
+    const stored = await database.snapshots.get(eventId);
+    if (!stored) return null;
+    const sameMonotonicClock =
+      stored.performanceTimeOrigin === performance.timeOrigin;
+    const monotonicElapsedMs = sameMonotonicClock
+      ? Math.max(0, Math.round(performance.now() - stored.performanceNow))
+      : Math.max(
+          0,
+          Date.now() - new Date(stored.snapshot.serverTimeAnchor).getTime(),
+        );
+    const estimatedServerTime =
+      new Date(stored.snapshot.serverTimeAnchor).getTime() + monotonicElapsedMs;
+    const clockDriftMs = Math.abs(Date.now() - estimatedServerTime);
+    return {
+      serverTimeAnchor: stored.snapshot.serverTimeAnchor,
+      monotonicElapsedMs,
+      timestampConfidence:
+        sameMonotonicClock && clockDriftMs <= 2 * 60 * 1000
+          ? ("high" as const)
+          : ("low" as const),
+    };
+  }
+
   async function savePendingScanAttempt(attempt: PendingScanAttemptRecord) {
     await database.pendingScanAttempts.put(attempt);
+  }
+
+  async function hasLocallyAcceptedTicket(eventId: string, ticketId: string) {
+    const attempts = await database.pendingScanAttempts
+      .where("[eventId+ticketId]")
+      .equals([eventId, ticketId])
+      .toArray();
+    return attempts.some((attempt) => attempt.capturedOutcome === "provisional");
+  }
+
+  async function listPendingScanAttempts(eventId: string) {
+    return database.pendingScanAttempts
+      .where("eventId")
+      .equals(eventId)
+      .sortBy("deviceRecordedAt");
+  }
+
+  async function acknowledgeScanAttempts(
+    eventId: string,
+    results: Array<{
+      id: string;
+      ticketId: string | null;
+      outcome: string;
+    }>,
+  ) {
+    await database.transaction(
+      "rw",
+      database.snapshots,
+      database.pendingScanAttempts,
+      async () => {
+        const stored = await database.snapshots.get(eventId);
+        if (stored) {
+          const checkedInTicketIds = new Set(
+            results
+              .filter(
+                (result) =>
+                  result.ticketId &&
+                  (result.outcome === "accepted" ||
+                    result.outcome === "duplicate"),
+              )
+              .map((result) => result.ticketId),
+          );
+          if (checkedInTicketIds.size > 0) {
+            stored.snapshot.tickets = stored.snapshot.tickets.map((ticket) =>
+              checkedInTicketIds.has(ticket.ticketId)
+                ? { ...ticket, existingCheckInState: "checked_in" }
+                : ticket,
+            );
+            await database.snapshots.put(stored);
+          }
+        }
+        await database.pendingScanAttempts.bulkDelete(
+          results.map((result) => result.id),
+        );
+      },
+    );
   }
 
   function close() {
@@ -121,8 +228,12 @@ export function createOfflineScannerStore(
     updateScannerDeviceLabel,
     getCachedSnapshot,
     cacheSnapshot,
+    captureAttemptTiming,
     countPendingScanAttempts,
     savePendingScanAttempt,
+    hasLocallyAcceptedTicket,
+    listPendingScanAttempts,
+    acknowledgeScanAttempts,
     close,
   };
 }

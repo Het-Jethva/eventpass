@@ -8,6 +8,7 @@ import {
   IconCircleCheck,
   IconClockExclamation,
   IconClockX,
+  IconCloudUpload,
   IconCopyCheck,
   IconHelpHexagon,
   IconKeyboard,
@@ -36,6 +37,9 @@ import type {
   AdmissionResult,
 } from "@/features/admission/server/admission-application";
 import { cn } from "@/lib/utils";
+import { admitOffline } from "./offline-scan";
+import { offlineScannerStore } from "./offline-snapshot-store";
+import { synchronizePendingAttempts } from "./offline-synchronization-client";
 import { ScannerPreparation } from "./scanner-preparation";
 
 type ScannerControls = { stop: () => void };
@@ -49,6 +53,13 @@ const outcomePresentation: Record<
     description:
       "Admission recorded. The Ticket cannot be used again while this Check-in is active.",
     icon: IconCircleCheck,
+    destructive: false,
+  },
+  provisional: {
+    title: "Provisionally checked in",
+    description:
+      "Stored on this device. Synchronization will establish the authoritative Check-in when connectivity returns.",
+    icon: IconCloudUpload,
     destructive: false,
   },
   duplicate: {
@@ -111,13 +122,14 @@ const outcomePresentation: Record<
 function announceFeedback(outcome: AdmissionOutcome, enabled: boolean) {
   if (!enabled || typeof window === "undefined") return;
   try {
-    navigator.vibrate?.(outcome === "accepted" ? 90 : [80, 60, 80]);
+    const admitted = outcome === "accepted" || outcome === "provisional";
+    navigator.vibrate?.(admitted ? 90 : [80, 60, 80]);
     const AudioContextConstructor = window.AudioContext;
     if (!AudioContextConstructor) return;
     const context = new AudioContextConstructor();
     const oscillator = context.createOscillator();
     const gain = context.createGain();
-    oscillator.frequency.value = outcome === "accepted" ? 880 : 220;
+    oscillator.frequency.value = admitted ? 880 : 220;
     gain.gain.setValueAtTime(0.08, context.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.12);
     oscillator.connect(gain);
@@ -143,6 +155,7 @@ export function ScannerWorkspace({
   const controlsRef = useRef<ScannerControls | null>(null);
   const resultRef = useRef<HTMLDivElement>(null);
   const submittingRef = useRef(false);
+  const syncingRef = useRef(false);
   const [manualCode, setManualCode] = useState("");
   const [result, setResult] = useState<AdmissionResult | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
@@ -150,8 +163,63 @@ export function ScannerWorkspace({
   const [isPending, setIsPending] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [feedbackEnabled, setFeedbackEnabled] = useState(true);
+  const [pendingAttemptCount, setPendingAttemptCount] = useState(0);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
   useEffect(() => () => controlsRef.current?.stop(), []);
+
+  async function refreshPendingCount() {
+    setPendingAttemptCount(
+      await offlineScannerStore.countPendingScanAttempts(eventId),
+    );
+  }
+
+  async function synchronize() {
+    if (syncingRef.current || !navigator.onLine) return;
+    syncingRef.current = true;
+    setSyncing(true);
+    setSyncMessage(null);
+    try {
+      const synchronized = await synchronizePendingAttempts(eventId);
+      if (synchronized.acknowledged > 0) {
+        setSyncMessage(
+          `${synchronized.acknowledged} Scan Attempt${synchronized.acknowledged === 1 ? "" : "s"} synchronized${
+            synchronized.changed > 0
+              ? `; ${synchronized.changed} reconciled with newer server state`
+              : ""
+          }.`,
+        );
+      }
+      await refreshPendingCount();
+    } catch {
+      setSyncMessage(
+        "Pending Scan Attempts remain safely stored. Retry when connectivity is stable.",
+      );
+    } finally {
+      syncingRef.current = false;
+      setSyncing(false);
+    }
+  }
+
+  useEffect(() => {
+    const handleOnline = () => void synchronize();
+    window.addEventListener("online", handleOnline);
+    const initialization = window.setTimeout(() => {
+      void refreshPendingCount();
+      if (navigator.onLine) void synchronize();
+    }, 0);
+    const retryInterval = window.setInterval(() => {
+      if (navigator.onLine) void synchronize();
+    }, 15_000);
+    return () => {
+      window.clearTimeout(initialization);
+      window.clearInterval(retryInterval);
+      window.removeEventListener("online", handleOnline);
+    };
+    // Synchronization is intentionally triggered only on mount and connectivity restoration.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventId]);
 
   useEffect(() => {
     if (result || actionError) resultRef.current?.focus();
@@ -164,13 +232,24 @@ export function ScannerWorkspace({
     setActionError(null);
     setResult(null);
     try {
-      const nextResult = await scanTicketAction({
-        eventId,
-        input,
-        inputMethod,
-      });
+      let nextResult: AdmissionResult;
+      if (navigator.onLine) {
+        try {
+          nextResult = await scanTicketAction({
+            eventId,
+            clientAttemptId: crypto.randomUUID(),
+            input,
+            inputMethod,
+          });
+        } catch {
+          nextResult = await admitOffline({ eventId, input, inputMethod });
+        }
+      } else {
+        nextResult = await admitOffline({ eventId, input, inputMethod });
+      }
       setResult(nextResult);
       announceFeedback(nextResult.outcome, feedbackEnabled);
+      await refreshPendingCount();
       if (inputMethod === "manual") setManualCode("");
     } catch {
       setActionError(
@@ -258,6 +337,38 @@ export function ScannerWorkspace({
       </section>
 
       <ScannerPreparation eventId={eventId} />
+
+      {pendingAttemptCount > 0 || syncMessage ? (
+        <section
+          aria-label="Scan Attempt synchronization"
+          className="flex flex-wrap items-center justify-between gap-3 border-b pb-6"
+        >
+          <p className="text-sm text-muted-foreground" aria-live="polite">
+            {pendingAttemptCount > 0
+              ? `${pendingAttemptCount} pending Scan Attempt${pendingAttemptCount === 1 ? "" : "s"} stored on this device.`
+              : syncMessage}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            className="min-h-11"
+            disabled={syncing || pendingAttemptCount === 0}
+            onClick={() => void synchronize()}
+          >
+            {syncing ? (
+              <Spinner data-icon="inline-start" />
+            ) : (
+              <IconCloudUpload data-icon="inline-start" />
+            )}
+            {syncing ? "Synchronizing…" : "Retry synchronization"}
+          </Button>
+          {pendingAttemptCount > 0 && syncMessage ? (
+            <p className="w-full text-sm text-muted-foreground" aria-live="polite">
+              {syncMessage}
+            </p>
+          ) : null}
+        </section>
+      ) : null}
 
       {presentation && result ? (
         <Alert

@@ -3,7 +3,9 @@ import { randomUUID } from "node:crypto";
 import { Pool } from "@neondatabase/serverless";
 import { eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-serverless";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, expect, it, vi } from "vitest";
+
+import { describeWithDatabase, testDatabaseUrl } from "@/lib/test-db-helper";
 
 vi.mock("server-only", () => ({}));
 vi.mock("../../../lib/db", () => ({ db: {} }));
@@ -18,9 +20,6 @@ import {
   user,
 } from "../../../lib/db/schema";
 import { createPublishedEventApplicationService } from "./published-event-application";
-
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const describeWithDatabase = testDatabaseUrl ? describe : describe.skip;
 
 describeWithDatabase("Published Event application service", () => {
   const client = new Pool({ connectionString: testDatabaseUrl! });

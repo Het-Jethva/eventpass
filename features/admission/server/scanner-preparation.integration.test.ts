@@ -2,8 +2,9 @@ import { generateKeyPairSync, randomUUID } from "node:crypto";
 
 import { Pool } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, expect, it } from "vitest";
 
+import { describeWithDatabase, testDatabaseUrl } from "@/lib/test-db-helper";
 import {
   event,
   eventStaff,
@@ -14,8 +15,6 @@ import {
 import { signTicket } from "../../tickets/ticket-crypto";
 import { createScannerPreparationService } from "./scanner-preparation";
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const describeWithDatabase = testDatabaseUrl ? describe : describe.skip;
 const { privateKey, publicKey } = generateKeyPairSync("ec", {
   namedCurve: "P-256",
 });

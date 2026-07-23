@@ -1,8 +1,9 @@
 import { Pool } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { inArray } from "drizzle-orm";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, expect, it } from "vitest";
 
+import { describeWithDatabase, testDatabaseUrl } from "@/lib/test-db-helper";
 import {
   capacityHold,
   event,
@@ -11,9 +12,6 @@ import {
   registrationVerification,
 } from "../../../lib/db/schema";
 import { createRegistrationApplicationService } from "./registration-application";
-
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const describeWithDatabase = testDatabaseUrl ? describe : describe.skip;
 
 describeWithDatabase("Registration application service", () => {
   const client = new Pool({ connectionString: testDatabaseUrl! });

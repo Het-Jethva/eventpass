@@ -39,12 +39,16 @@ export async function POST(request: Request) {
   }
 
   const transition = OUTCOMES[event.type];
+  const emailId =
+    event.data && typeof event.data === "object" && "email_id" in event.data
+      ? event.data.email_id
+      : null;
 
-  if (transition && "email_id" in event.data) {
+  if (transition && typeof emailId === "string" && emailId.trim().length > 0) {
     await db
       .update(emailDelivery)
       .set(transition)
-      .where(eq(emailDelivery.providerMessageId, event.data.email_id));
+      .where(eq(emailDelivery.providerMessageId, emailId.trim()));
   }
 
   return new Response(null, { status: 204 });

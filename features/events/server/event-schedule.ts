@@ -114,7 +114,8 @@ export function localDateTimeInTimeZoneToUtc(
 }
 
 export function utcToLocalDateTimeInput(instant: Date, timeZone: string) {
-  const parts = partsAtInstant(instant, timeZone);
+  const validTimeZone = isIanaTimeZone(timeZone) ? timeZone : "UTC";
+  const parts = partsAtInstant(instant, validTimeZone);
   const pad = (value: number) => String(value).padStart(2, "0");
 
   return `${parts.year}-${pad(parts.month)}-${pad(parts.day)}T${pad(parts.hour)}:${pad(parts.minute)}`;

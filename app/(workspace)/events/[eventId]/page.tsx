@@ -12,6 +12,7 @@ import {
   IconScan,
   IconForms,
   IconSend,
+  IconFileSpreadsheet,
   IconUsers,
   IconUserShield,
 } from "@tabler/icons-react";
@@ -101,6 +102,13 @@ export default async function EventOverviewPage({
             >
               <IconClockQuestion data-icon="inline-start" />
               Check-in operations
+            </Link>
+            <Link
+              href={`/events/${event.id}/registrations`}
+              className={buttonVariants({ variant: "outline" })}
+            >
+              <IconFileSpreadsheet data-icon="inline-start" />
+              Registrations
             </Link>
             <Link
               href={`/events/${event.id}/staff`}

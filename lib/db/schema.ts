@@ -405,6 +405,49 @@ export const auditEntry = pgTable(
   ],
 );
 
+export const registrationImport = pgTable(
+  "registration_import",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => event.id, { onDelete: "restrict" }),
+    actorUserId: uuid("actor_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    status: text("status").default("preview").notNull(),
+    payload: jsonb("payload").notNull(),
+    rowCount: integer("row_count").notNull(),
+    importedCount: integer("imported_count"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "registration_import_status_check",
+      sql`${table.status} in ('preview', 'completed')`,
+    ),
+    check(
+      "registration_import_row_count_check",
+      sql`${table.rowCount} > 0 and ${table.rowCount} <= 500`,
+    ),
+    check(
+      "registration_import_completion_check",
+      sql`(${table.status} = 'preview' and ${table.completedAt} is null and ${table.importedCount} is null) or (${table.status} = 'completed' and ${table.completedAt} is not null and ${table.importedCount} is not null)`,
+    ),
+    index("registration_import_event_created_at_idx").on(
+      table.eventId,
+      table.createdAt,
+    ),
+    index("registration_import_expiry_idx").on(table.expiresAt),
+  ],
+);
+
 export const registrationField = pgTable(
   "registration_field",
   {

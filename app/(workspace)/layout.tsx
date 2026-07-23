@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { EventPassMark } from "@/components/eventpass-mark";
 import { Badge } from "@/components/ui/badge";
+import { isPlatformAdmin } from "@/features/admin/admin-policy";
 import { SignOutButton } from "@/features/staff-identity/sign-out-button";
 import { getActiveStaffSession } from "@/lib/staff-session";
 
@@ -25,12 +27,20 @@ export default async function WorkspaceLayout({
         <div className="mx-auto flex h-16 w-full max-w-7xl items-center gap-6 px-4 sm:px-6">
           <EventPassMark />
           <nav
-            className="hidden h-full items-center border-l pl-6 sm:flex"
+            className="hidden h-full items-center gap-4 border-l pl-6 sm:flex"
             aria-label="Primary"
           >
-            <span className="flex h-full items-center border-b-2 border-foreground px-2 text-sm font-medium">
+            <Link href="/events" className="flex h-full items-center border-b-2 border-foreground px-2 text-sm font-medium">
               Events
-            </span>
+            </Link>
+            {isPlatformAdmin({
+              userEmail: staffSession.user.email,
+              isPlatformAdminFlag: (staffSession.user as unknown as Record<string, unknown>).isPlatformAdmin as boolean | undefined,
+            }) && (
+              <Link href="/admin" className="flex h-full items-center border-b-2 border-transparent px-2 text-sm font-medium text-muted-foreground hover:text-foreground">
+                Admin
+              </Link>
+            )}
           </nav>
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
             <Badge

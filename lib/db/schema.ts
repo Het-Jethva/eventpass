@@ -29,6 +29,7 @@ export const user = pgTable("user", {
     .$onUpdate(() => /* @__PURE__ */ new Date())
     .notNull(),
   suspended: boolean("suspended").default(false).notNull(),
+  isPlatformAdmin: boolean("is_platform_admin").default(false).notNull(),
 });
 
 export const session = pgTable(
@@ -217,6 +218,9 @@ export const event = pgTable(
     publishedAt: timestamp("published_at", { withTimezone: true }),
     canceledAt: timestamp("canceled_at", { withTimezone: true }),
     cancellationReason: text("cancellation_reason"),
+    suspended: boolean("suspended").default(false).notNull(),
+    suspendedAt: timestamp("suspended_at", { withTimezone: true }),
+    suspensionReason: text("suspension_reason"),
   },
   (table) => [
     check(
@@ -239,6 +243,10 @@ export const event = pgTable(
     check(
       "event_cancellation_check",
       sql`(${table.status} = 'canceled' and ${table.canceledAt} is not null and length(btrim(${table.cancellationReason})) > 0) or (${table.status} <> 'canceled' and ${table.canceledAt} is null and ${table.cancellationReason} is null)`,
+    ),
+    check(
+      "event_suspension_check",
+      sql`(${table.suspended} = true and ${table.suspendedAt} is not null and length(btrim(${table.suspensionReason})) > 0) or (${table.suspended} = false and ${table.suspendedAt} is null and ${table.suspensionReason} is null)`,
     ),
     check("event_capacity_positive_check", sql`${table.capacity} > 0`),
     check("event_schedule_check", sql`${table.startsAt} < ${table.endsAt}`),
@@ -375,7 +383,6 @@ export const auditEntry = pgTable(
       .default(sql`pg_catalog.gen_random_uuid()`)
       .primaryKey(),
     eventId: uuid("event_id")
-      .notNull()
       .references(() => event.id, { onDelete: "restrict" }),
     actorUserId: uuid("actor_user_id")
       .notNull()
@@ -1173,3 +1180,46 @@ export const registrationVerificationRelations = relations(
     }),
   }),
 );
+
+export const supportAccess = pgTable(
+  "support_access",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => event.id, { onDelete: "restrict" }),
+    adminUserId: uuid("admin_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    reason: text("reason").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (table) => [
+    check(
+      "support_access_reason_not_blank_check",
+      sql`length(btrim(${table.reason})) > 0`,
+    ),
+    index("support_access_event_admin_idx").on(
+      table.eventId,
+      table.adminUserId,
+    ),
+    index("support_access_expires_at_idx").on(table.expiresAt),
+  ],
+);
+
+export const supportAccessRelations = relations(supportAccess, ({ one }) => ({
+  event: one(event, {
+    fields: [supportAccess.eventId],
+    references: [event.id],
+  }),
+  adminUser: one(user, {
+    fields: [supportAccess.adminUserId],
+    references: [user.id],
+  }),
+}));

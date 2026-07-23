@@ -22,9 +22,12 @@ import { getOrganizerEvent } from "@/features/events/server/get-event";
 import { getActiveStaffSession } from "@/lib/staff-session";
 import { cn } from "@/lib/utils";
 import { DeleteEventControl } from "@/features/events/delete-event-control";
+import { CancelEventControl } from "@/features/events/cancel-event-control";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 import {
   deleteEventAction,
+  cancelEventAction,
   publishEventAction,
   returnEventToDraftAction,
 } from "./actions";
@@ -53,6 +56,8 @@ export default async function EventOverviewPage({
   if (!event) notFound();
 
   const isDraft = event.status === "draft";
+  const isPublished = event.status === "published";
+  const isCanceled = event.status === "canceled";
   const isOwner = event.role === "owner";
 
   return (
@@ -71,8 +76,12 @@ export default async function EventOverviewPage({
               <h1 className="text-2xl font-semibold tracking-tight">
                 {event.name}
               </h1>
-              <Badge variant={isDraft ? "secondary" : "default"}>
-                {isDraft ? "Draft Event" : "Published Event"}
+              <Badge variant={isDraft ? "secondary" : isCanceled ? "destructive" : "default"}>
+                {isDraft
+                  ? "Draft Event"
+                  : isCanceled
+                    ? "Canceled Event"
+                    : "Published Event"}
               </Badge>
             </div>
             <p className="mt-2 font-mono text-sm text-muted-foreground">
@@ -80,7 +89,7 @@ export default async function EventOverviewPage({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {!isDraft ? (
+            {isPublished ? (
               <Link href={`/scanner/${event.id}`} className={buttonVariants()}>
                 <IconScan data-icon="inline-start" />
                 Open scanner
@@ -114,7 +123,7 @@ export default async function EventOverviewPage({
               <IconEye data-icon="inline-start" />
               Preview
             </Link>
-            {isDraft ? (
+            {!isCanceled ? (
               <Link
                 href={`/events/${event.id}/edit`}
                 className={buttonVariants({ variant: "outline" })}
@@ -122,7 +131,8 @@ export default async function EventOverviewPage({
                 <IconPencil data-icon="inline-start" />
                 Configure
               </Link>
-            ) : (
+            ) : null}
+            {!isDraft ? (
               <Link
                 href={`/e/${event.slug}`}
                 target="_blank"
@@ -131,10 +141,22 @@ export default async function EventOverviewPage({
                 <IconExternalLink data-icon="inline-end" />
                 Open public page
               </Link>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
+
+      {isCanceled ? (
+        <Alert variant="destructive">
+          <IconClockQuestion aria-hidden="true" />
+          <AlertTitle>This Event was canceled</AlertTitle>
+          <AlertDescription>
+            {event.cancellationReason} All active Tickets are invalid, and
+            Registration and admission are closed. Operational history remains
+            available.
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       <section
         className="divide-y rounded-2xl border bg-background"
@@ -201,7 +223,7 @@ export default async function EventOverviewPage({
         </section>
       ) : null}
 
-      {!isDraft ? (
+      {isPublished ? (
         <section className="flex flex-col gap-5 border-t pt-8 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="font-medium">Return to Draft</h2>
@@ -215,6 +237,22 @@ export default async function EventOverviewPage({
               Return to Draft
             </button>
           </form>
+        </section>
+      ) : null}
+
+      {isPublished && isOwner ? (
+        <section className="flex flex-col gap-5 border-t pt-8 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-medium">Cancel this Event</h2>
+            <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+              Only the Event Owner can cancel. Cancellation is immediate and
+              irreversible, but preserves all records.
+            </p>
+          </div>
+          <CancelEventControl
+            action={cancelEventAction.bind(null, event.id)}
+            eventName={event.name}
+          />
         </section>
       ) : null}
 

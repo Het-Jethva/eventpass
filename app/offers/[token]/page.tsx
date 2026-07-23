@@ -20,7 +20,14 @@ export default async function AdmissionOfferPage({
   const [{ token }, query] = await Promise.all([params, searchParams]);
   const offer = await getAdmissionOfferView(token);
   const outcome = typeof query.outcome === "string" ? query.outcome : "";
-  if (!offer && outcome !== "expired" && outcome !== "consumed") notFound();
+  if (
+    !offer &&
+    outcome !== "expired" &&
+    outcome !== "consumed" &&
+    outcome !== "canceled"
+  ) {
+    notFound();
+  }
 
   return (
     <div className="flex min-h-svh flex-col bg-muted/20">
@@ -59,12 +66,18 @@ export default async function AdmissionOfferPage({
           ) : (
             <>
               <h1 className="text-3xl font-semibold tracking-tight text-balance">
-                {outcome === "consumed" ? "Offer already claimed" : "Admission Offer expired"}
+                {outcome === "consumed"
+                  ? "Offer already claimed"
+                  : outcome === "canceled"
+                    ? "Event canceled"
+                    : "Admission Offer expired"}
               </h1>
               <p className="mt-4 text-muted-foreground">
                 {outcome === "consumed"
                   ? "This private claim link has already been used. Open the Ticket email that was sent after the claim."
-                  : "The claim deadline passed, so this Registration expired and the place may have moved to the next Attendee."}
+                  : outcome === "canceled"
+                    ? "This Event was canceled, so the Admission Offer cannot be claimed and no Ticket can be issued."
+                    : "The claim deadline passed, so this Registration expired and the place may have moved to the next Attendee."}
               </p>
             </>
           )}

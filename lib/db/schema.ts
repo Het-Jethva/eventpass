@@ -153,6 +153,7 @@ export const emailDelivery = pgTable(
     outcome: text("outcome").notNull(),
     failureKind: text("failure_kind"),
     attemptCount: integer("attempt_count").default(0).notNull(),
+    metadata: jsonb("metadata").default({}).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -214,6 +215,8 @@ export const event = pgTable(
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
     publishedAt: timestamp("published_at", { withTimezone: true }),
+    canceledAt: timestamp("canceled_at", { withTimezone: true }),
+    cancellationReason: text("cancellation_reason"),
   },
   (table) => [
     check(
@@ -232,6 +235,10 @@ export const event = pgTable(
     check(
       "event_publication_timestamp_check",
       sql`${table.status} = 'draft' or ${table.publishedAt} is not null`,
+    ),
+    check(
+      "event_cancellation_check",
+      sql`(${table.status} = 'canceled' and ${table.canceledAt} is not null and length(btrim(${table.cancellationReason})) > 0) or (${table.status} <> 'canceled' and ${table.canceledAt} is null and ${table.cancellationReason} is null)`,
     ),
     check("event_capacity_positive_check", sql`${table.capacity} > 0`),
     check("event_schedule_check", sql`${table.startsAt} < ${table.endsAt}`),

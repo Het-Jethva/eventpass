@@ -97,10 +97,12 @@ function setEmptyFormValue(
 export function CreateEventForm({
   eventId,
   initialValues,
+  published = false,
   slugImmutable = false,
 }: {
   eventId?: string;
   initialValues?: Record<CreateEventFormField, string>;
+  published?: boolean;
   slugImmutable?: boolean;
 } = {}) {
   const action = eventId
@@ -119,7 +121,7 @@ export function CreateEventForm({
       {state.status === "error" ? (
         <Alert variant="destructive">
           <IconAlertCircle aria-hidden="true" />
-          <AlertTitle>Draft Event not created</AlertTitle>
+          <AlertTitle>Event not saved</AlertTitle>
           <AlertDescription>{state.message}</AlertDescription>
         </Alert>
       ) : null}
@@ -401,12 +403,16 @@ export function CreateEventForm({
           {isPending ? (
             <>
               <Spinner data-icon="inline-start" />
-              {isEditing ? "Saving Draft Event…" : "Creating Draft Event…"}
+              {isEditing
+                ? `Saving ${published ? "Published" : "Draft"} Event…`
+                : "Creating Draft Event…"}
             </>
           ) : (
             <>
               <IconPlus data-icon="inline-start" />
-              {isEditing ? "Save Draft Event" : "Create Draft Event"}
+              {isEditing
+                ? `Save ${published ? "Published" : "Draft"} Event`
+                : "Create Draft Event"}
             </>
           )}
         </Button>
@@ -414,7 +420,7 @@ export function CreateEventForm({
       <p className="sr-only" aria-live="polite">
         {isPending
           ? isEditing
-            ? "Saving the Draft Event configuration."
+            ? `Saving the ${published ? "Published" : "Draft"} Event configuration.`
             : "Creating the Draft Event and Event Owner assignment."
           : ""}
       </p>

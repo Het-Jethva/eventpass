@@ -17,6 +17,15 @@ import {
 } from "@/features/events/server/update-draft-event";
 import { getActiveStaffSession } from "@/lib/staff-session";
 import { returnEventToDraft } from "@/features/events/server/return-event-to-draft";
+import { getOrganizerEvent } from "@/features/events/server/get-event";
+import {
+  cancelPublishedEvent,
+  updatePublishedEvent,
+} from "@/features/events/server/published-events";
+import {
+  EventCapacityConflictError,
+  PublishedEventChangeError,
+} from "@/features/events/server/published-event-application";
 
 function formValue(formData: FormData, name: CreateEventFormField) {
   const value = formData.get(name);
@@ -63,7 +72,12 @@ export async function updateEventAction(
   }
 
   try {
-    await updateDraftEvent(eventId, staffSession.user.id, values);
+    const currentEvent = await getOrganizerEvent(eventId, staffSession.user.id);
+    if (currentEvent?.status === "published") {
+      await updatePublishedEvent(eventId, staffSession.user.id, values);
+    } else {
+      await updateDraftEvent(eventId, staffSession.user.id, values);
+    }
   } catch (error) {
     if (
       error instanceof EventSlugUnavailableError ||
@@ -76,10 +90,20 @@ export async function updateEventAction(
         values,
       };
     }
+    if (
+      error instanceof PublishedEventChangeError ||
+      error instanceof EventCapacityConflictError
+    ) {
+      return {
+        status: "error",
+        message: error.message,
+        values,
+      };
+    }
 
     return {
       status: "error",
-      message: "The Draft Event could not be saved. It may no longer be editable.",
+      message: "The Event could not be saved. It may no longer be editable.",
       values,
     };
   }
@@ -117,5 +141,18 @@ export async function returnEventToDraftAction(eventId: string) {
   revalidatePath("/events");
   revalidatePath(`/events/${eventId}`);
   revalidatePath(`/e/${draftEvent.slug}`);
+  redirect(`/events/${eventId}`);
+}
+
+export async function cancelEventAction(eventId: string, formData: FormData) {
+  const staffSession = await getActiveStaffSession();
+  if (!staffSession) redirect("/sign-in");
+
+  await cancelPublishedEvent(eventId, staffSession.user.id, {
+    reason: formData.get("reason"),
+  });
+  revalidatePath("/events");
+  revalidatePath(`/events/${eventId}`);
+  revalidatePath("/e/[slug]", "page");
   redirect(`/events/${eventId}`);
 }

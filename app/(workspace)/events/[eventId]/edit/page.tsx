@@ -7,7 +7,7 @@ import { utcToLocalDateTimeInput } from "@/features/events/server/event-schedule
 import { getOrganizerEvent } from "@/features/events/server/get-event";
 import { getActiveStaffSession } from "@/lib/staff-session";
 
-export const metadata: Metadata = { title: "Configure Draft Event" };
+export const metadata: Metadata = { title: "Configure Event" };
 
 export default async function EditEventPage({
   params,
@@ -19,7 +19,7 @@ export default async function EditEventPage({
   if (!staffSession) redirect("/sign-in");
 
   const event = await getOrganizerEvent(eventId, staffSession.user.id);
-  if (!event || event.status !== "draft") notFound();
+  if (!event || event.status === "canceled") notFound();
 
   const local = (date: Date) => utcToLocalDateTimeInput(date, event.eventTimeZone);
   const initialValues = {
@@ -42,16 +42,21 @@ export default async function EditEventPage({
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
       <div className="flex flex-col gap-2">
-        <p className="text-sm font-medium text-muted-foreground">Draft Event</p>
+        <p className="text-sm font-medium text-muted-foreground">
+          {event.status === "draft" ? "Draft Event" : "Published Event"}
+        </p>
         <h1 className="text-2xl font-semibold tracking-tight">Configure {event.name}</h1>
         <p className="max-w-2xl text-sm text-muted-foreground">
-          Changes remain private until you publish. The Event Slug becomes immutable at publication.
+          {event.status === "draft"
+            ? "Changes remain private until you publish. The Event Slug becomes immutable at publication."
+            : "Material changes are recorded and emailed to affected Attendees. Restrictions tighten when check-in opens."}
         </p>
       </div>
       <CreateEventForm
         eventId={event.id}
         initialValues={initialValues}
         slugImmutable={Boolean(event.publishedAt)}
+        published={event.status === "published"}
       />
     </main>
   );

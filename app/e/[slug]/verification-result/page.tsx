@@ -51,6 +51,13 @@ const outcomes = {
       "This link cannot confirm a place for this Event. Open the original email and use its complete link.",
     success: false,
   },
+  canceled: {
+    icon: IconAlertTriangle,
+    title: "Event canceled",
+    description:
+      "This Event was canceled, so the Registration cannot be confirmed and no Ticket can be issued.",
+    success: false,
+  },
 } as const;
 
 export default async function VerificationResultPage({

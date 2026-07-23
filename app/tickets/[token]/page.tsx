@@ -66,6 +66,17 @@ export default async function TicketPage({
         </div>
       </header>
       <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-4 py-8 sm:px-6 sm:py-12 print:max-w-none print:p-0">
+        {management.event.status === "canceled" ? (
+          <Alert variant="destructive" className="mb-6">
+            <IconTicketOff aria-hidden="true" />
+            <AlertTitle>This Event was canceled</AlertTitle>
+            <AlertDescription>
+              {management.event.cancellationReason} This Ticket is inactive
+              and cannot be used for admission. Your Registration remains in
+              history.
+            </AlertDescription>
+          </Alert>
+        ) : null}
         {deliveryFailed ? (
           <Alert variant="destructive" className="mb-6 print:hidden">
             <IconShieldCheck aria-hidden="true" />

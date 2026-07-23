@@ -1,10 +1,15 @@
 import "server-only";
 
+import { createHash, randomBytes } from "node:crypto";
+
 import { Resend } from "resend";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { emailDelivery } from "@/lib/db/schema";
+import {
+  emailDelivery,
+  registrationVerification,
+} from "@/lib/db/schema";
 
 const TEMPLATE = "registration-verification-v1";
 
@@ -23,11 +28,13 @@ function escapeHtml(value: string) {
 }
 
 export async function sendRegistrationVerification({
+  registrationId,
   email,
   eventName,
   eventSlug,
   token,
 }: {
+  registrationId: string;
   email: string;
   eventName: string;
   eventSlug: string;
@@ -38,8 +45,6 @@ export async function sendRegistrationVerification({
   if (!apiKey) throw new Error("RESEND_API_KEY is required to send verification emails.");
   if (!applicationUrl) throw new Error("NEXT_PUBLIC_APP_URL is required to create verification links.");
 
-  const verificationUrl = new URL(`/e/${encodeURIComponent(eventSlug)}/verify`, applicationUrl);
-  verificationUrl.searchParams.set("token", token);
   const resend = new Resend(apiKey);
   const [delivery] = await db
     .insert(emailDelivery)
@@ -52,54 +57,110 @@ export async function sendRegistrationVerification({
     .returning({ id: emailDelivery.id });
   if (!delivery) throw new Error("Could not create the Email Delivery record.");
 
-  let response;
-  try {
-    response = await resend.emails.send(
-      {
-        from:
-          process.env.RESEND_FROM_EMAIL ??
-          "EventPass <registration@mail.hetjethva.tech>",
-        to: email,
-        subject: `Verify your Registration for ${eventName}`,
-        html: `<div style="font-family:Arial,sans-serif;color:#171717;line-height:1.6"><p>Verify your email address to continue your Registration for <strong>${escapeHtml(eventName)}</strong>.</p><p><a href="${escapeHtml(verificationUrl.toString())}">Verify Registration</a></p><p>This single-use link expires in 15 minutes. If you did not submit this Registration, you can ignore this email.</p></div>`,
-        text: `Verify your Registration for ${eventName}: ${verificationUrl.toString()}\n\nThis single-use link expires in 15 minutes.`,
-      },
-      { idempotencyKey: `email-delivery/${delivery.id}` },
+  const sendAttempt = async (attemptToken: string, attempt: number) => {
+    const verificationUrl = new URL(
+      `/e/${encodeURIComponent(eventSlug)}/verify`,
+      applicationUrl,
     );
-  } catch {
+    verificationUrl.searchParams.set("token", attemptToken);
+    try {
+      const response = await resend.emails.send(
+        {
+          from:
+            process.env.RESEND_FROM_EMAIL ??
+            "EventPass <registration@mail.hetjethva.tech>",
+          to: email,
+          subject: `Verify your Registration for ${eventName}`,
+          html: `<div style="font-family:Arial,sans-serif;color:#171717;line-height:1.6"><p>Verify your email address to continue your Registration for <strong>${escapeHtml(eventName)}</strong>.</p><p><a href="${escapeHtml(verificationUrl.toString())}">Verify Registration</a></p><p>This single-use link expires in 15 minutes. If you did not submit this Registration, you can ignore this email.</p></div>`,
+          text: `Verify your Registration for ${eventName}: ${verificationUrl.toString()}\n\nThis single-use link expires in 15 minutes.`,
+        },
+        { idempotencyKey: `email-delivery/${delivery.id}/attempt/${attempt}` },
+      );
+      if (!response.error) {
+        return { kind: "submitted" as const, id: response.data.id };
+      }
+      const transient =
+        response.error.statusCode === 429 ||
+        (response.error.statusCode !== null && response.error.statusCode >= 500);
+      return { kind: transient ? ("transient" as const) : ("permanent" as const) };
+    } catch {
+      return { kind: "transient" as const };
+    }
+  };
+
+  const recordFailure = async (
+    attemptCount: number,
+    kind: "transient" | "permanent",
+  ) => {
     await db
       .update(emailDelivery)
       .set({
-        attemptCount: 1,
-        failureKind: "transient",
-        outcome: "transient_failure",
+        attemptCount,
+        failureKind: kind,
+        outcome:
+          kind === "transient" ? "transient_failure" : "permanent_failure",
       })
       .where(eq(emailDelivery.id, delivery.id));
-    throw new Error("The verification email could not be sent.");
-  }
+  };
 
-  if (!response.error) {
+  const firstAttempt = await sendAttempt(token, 1);
+  if (firstAttempt.kind === "submitted") {
     await db
       .update(emailDelivery)
       .set({
         attemptCount: 1,
         outcome: "submitted",
-        providerMessageId: response.data.id,
+        providerMessageId: firstAttempt.id,
       })
       .where(eq(emailDelivery.id, delivery.id));
     return;
   }
+  await recordFailure(1, firstAttempt.kind);
+  if (firstAttempt.kind === "permanent") {
+    throw new Error("The verification email could not be sent.");
+  }
 
-  const transient =
-    response.error.statusCode === 429 ||
-    (response.error.statusCode !== null && response.error.statusCode >= 500);
-  await db
-    .update(emailDelivery)
-    .set({
-      attemptCount: 1,
-      failureKind: transient ? "transient" : "permanent",
-      outcome: transient ? "transient_failure" : "permanent_failure",
-    })
-    .where(eq(emailDelivery.id, delivery.id));
+  const rotatedToken = randomBytes(32).toString("base64url");
+  const rotated = await db.transaction(async (transaction) => {
+    const [current] = await transaction
+      .update(registrationVerification)
+      .set({ consumedAt: new Date() })
+      .where(
+        and(
+          eq(registrationVerification.registrationId, registrationId),
+          eq(
+            registrationVerification.tokenDigest,
+            createHash("sha256").update(token).digest("hex"),
+          ),
+          isNull(registrationVerification.consumedAt),
+        ),
+      )
+      .returning({ expiresAt: registrationVerification.expiresAt });
+    if (!current) return false;
+    await transaction.insert(registrationVerification).values({
+      registrationId,
+      tokenDigest: createHash("sha256").update(rotatedToken).digest("hex"),
+      expiresAt: current.expiresAt,
+    });
+    return true;
+  });
+  if (!rotated) {
+    throw new Error("The verification email could not be retried safely.");
+  }
+
+  const retry = await sendAttempt(rotatedToken, 2);
+  if (retry.kind === "submitted") {
+    await db
+      .update(emailDelivery)
+      .set({
+        attemptCount: 2,
+        failureKind: null,
+        outcome: "submitted",
+        providerMessageId: retry.id,
+      })
+      .where(eq(emailDelivery.id, delivery.id));
+    return;
+  }
+  await recordFailure(2, retry.kind);
   throw new Error("The verification email could not be sent.");
 }

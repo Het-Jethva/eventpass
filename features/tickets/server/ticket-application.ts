@@ -70,7 +70,7 @@ export type RegistrationVerificationResult =
       deliveryStatus: "sent" | "failed";
     }
   | { outcome: "waitlisted" | "offered" }
-  | { outcome: "expired" | "consumed" | "invalid" | "mismatched" };
+  | { outcome: "expired" | "consumed" | "invalid" | "mismatched" | "canceled" };
 
 export type AdmissionOfferClaimResult =
   | {
@@ -79,7 +79,7 @@ export type AdmissionOfferClaimResult =
       ticketId: string;
       deliveryStatus: "sent" | "failed";
     }
-  | { outcome: "expired" | "consumed" | "invalid" };
+  | { outcome: "expired" | "consumed" | "invalid" | "canceled" };
 
 export type AdmissionOfferView = {
   attendeeName: string;
@@ -108,6 +108,8 @@ export type RegistrationManagementView = {
   email: string;
   registrationStatus: string;
   event: TicketView["event"] & {
+    status: string;
+    cancellationReason: string | null;
     registrationClosesAt: Date;
     checkInOpensAt: Date;
   };
@@ -178,6 +180,7 @@ export function createTicketApplicationService({
           id: event.id,
           name: event.name,
           slug: event.slug,
+          status: event.status,
           eventTimeZone: event.eventTimeZone,
           startsAt: event.startsAt,
           endsAt: event.endsAt,
@@ -189,6 +192,12 @@ export function createTicketApplicationService({
         .for("update")
         .limit(1);
       if (!lockedEvent) return { outcome: "mismatched" } as const;
+      if (lockedEvent.status === "canceled") {
+        return { outcome: "canceled" } as const;
+      }
+      if (lockedEvent.status !== "published") {
+        return { outcome: "mismatched" } as const;
+      }
 
       const [capability] = await transaction
         .select({
@@ -402,6 +411,7 @@ export function createTicketApplicationService({
           attendeeName: registration.attendeeName,
           email: registration.email,
           eventId: event.id,
+          eventStatus: event.status,
           eventName: event.name,
           eventTimeZone: event.eventTimeZone,
           startsAt: event.startsAt,
@@ -416,6 +426,12 @@ export function createTicketApplicationService({
         .for("update")
         .limit(1);
       if (!offered) return { outcome: "invalid" } as const;
+      if (offered.eventStatus === "canceled") {
+        return { outcome: "canceled" } as const;
+      }
+      if (offered.eventStatus !== "published") {
+        return { outcome: "expired" } as const;
+      }
       if (offered.offerStatus === "claimed" || offered.registrationStatus === "confirmed") {
         return { outcome: "consumed" } as const;
       }
@@ -551,6 +567,7 @@ export function createTicketApplicationService({
             eq(admissionOffer.tokenDigest, digestBearerToken(offerToken)),
             eq(admissionOffer.status, "active"),
             eq(registration.status, "waitlisted"),
+            eq(event.status, "published"),
           ),
         )
         .limit(1);
@@ -646,6 +663,8 @@ export function createTicketApplicationService({
         registrationStatus: registration.status,
         eventName: event.name,
         eventSlug: event.slug,
+        eventStatus: event.status,
+        cancellationReason: event.cancellationReason,
         eventTimeZone: event.eventTimeZone,
         startsAt: event.startsAt,
         endsAt: event.endsAt,
@@ -739,6 +758,8 @@ export function createTicketApplicationService({
       event: {
         name: record.eventName,
         slug: record.eventSlug,
+        status: record.eventStatus,
+        cancellationReason: record.cancellationReason,
         eventTimeZone: record.eventTimeZone,
         startsAt: record.startsAt,
         endsAt: record.endsAt,
@@ -750,9 +771,11 @@ export function createTicketApplicationService({
       ticket: currentTicket,
       fields,
       canEdit:
+        record.eventStatus === "published" &&
         record.registrationStatus === "confirmed" &&
         record.registrationClosesAt > viewedAt,
       canReplaceOrCancel:
+        record.eventStatus === "published" &&
         record.registrationStatus === "confirmed" &&
         currentTicket?.status === "active" &&
         record.checkInOpensAt > viewedAt,

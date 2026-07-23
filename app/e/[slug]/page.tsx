@@ -34,13 +34,26 @@ export default async function PublicEventPage({
   const fields = await getPublicRegistrationForm(event.id);
   const now = new Date();
   const registrationIsOpen =
-    now >= event.registrationOpensAt && now < event.registrationClosesAt;
+    event.status === "published" &&
+    now >= event.registrationOpensAt &&
+    now < event.registrationClosesAt;
 
   return (
     <EventPublicDetails
       event={event}
       registration={
-        registrationIsOpen ? (
+        event.status === "canceled" ? (
+          <div role="status">
+            <p className="font-medium text-destructive">Event canceled</p>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              {event.cancellationReason}
+            </p>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Registration and admission are closed. Existing Tickets are
+              inactive.
+            </p>
+          </div>
+        ) : registrationIsOpen ? (
           <AttendeeRegistrationForm slug={slug} fields={fields} />
         ) : (
           <p className="text-sm leading-6 text-muted-foreground">

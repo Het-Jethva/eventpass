@@ -3,8 +3,8 @@ import "server-only";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { db } from "@/lib/db";
-import { event, eventStaff, user } from "@/lib/db/schema";
+import { db } from "../../../lib/db";
+import { event, eventStaff, user } from "../../../lib/db/schema";
 
 import {
   isIanaTimeZone,

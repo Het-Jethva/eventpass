@@ -23,6 +23,8 @@ const eventSelection = {
   checkInOpensAt: event.checkInOpensAt,
   checkInClosesAt: event.checkInClosesAt,
   publishedAt: event.publishedAt,
+  canceledAt: event.canceledAt,
+  cancellationReason: event.cancellationReason,
 };
 
 export type EventDetails = typeof event.$inferSelect;
@@ -48,7 +50,12 @@ export async function getPublishedEvent(slug: string) {
   const [result] = await db
     .select(eventSelection)
     .from(event)
-    .where(and(eq(event.slug, slug), eq(event.status, "published")))
+    .where(
+      and(
+        eq(event.slug, slug),
+        inArray(event.status, ["published", "canceled"]),
+      ),
+    )
     .limit(1);
 
   return result ?? null;

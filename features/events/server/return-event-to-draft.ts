@@ -1,15 +1,13 @@
 import "server-only";
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, notExists } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { event, eventStaff } from "@/lib/db/schema";
+import { event, eventStaff, registration } from "@/lib/db/schema";
 
 export class EventCannotReturnToDraftError extends Error {}
 
 export async function returnEventToDraft(eventId: string, actorUserId: string) {
-  // Ticket #5 introduces Registrations. Its registration transaction will extend
-  // this service with the required NOT EXISTS guard before any can be created.
   const [draftEvent] = await db
     .update(event)
     .set({ status: "draft", updatedAt: new Date() })
@@ -21,6 +19,12 @@ export async function returnEventToDraft(eventId: string, actorUserId: string) {
         eq(eventStaff.eventId, event.id),
         eq(eventStaff.userId, actorUserId),
         inArray(eventStaff.role, ["owner", "organizer"]),
+        notExists(
+          db
+            .select({ id: registration.id })
+            .from(registration)
+            .where(eq(registration.eventId, eventId)),
+        ),
       ),
     )
     .returning({ slug: event.slug });

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, count, eq, gt, inArray, isNull } from "drizzle-orm";
+import { and, count, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 
 import {
   calculateAttendanceRate,
@@ -155,13 +155,18 @@ export async function getOrganizerEventMetrics(
         ),
       ),
 
-    // Email delivery outcomes
+    // Email delivery outcomes scoped to this event's registrations
     db
       .select({
         outcome: emailDelivery.outcome,
         count: count(),
       })
       .from(emailDelivery)
+      .innerJoin(
+        registration,
+        eq(registration.id, sql`cast(${emailDelivery.metadata}->>'registrationId' as uuid)`),
+      )
+      .where(eq(registration.eventId, eventId))
       .groupBy(emailDelivery.outcome),
 
     // Active check-ins with timestamps for timeline grouping

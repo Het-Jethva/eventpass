@@ -29,6 +29,8 @@ import {
   reverseOrganizerCheckInAction,
 } from "./actions";
 
+import { EventWorkspaceNav } from "../event-workspace-nav";
+
 export const metadata: Metadata = { title: "Check-in operations" };
 
 function formatAttemptTime(value: Date, timeZone: string) {
@@ -69,8 +71,11 @@ export default async function CheckInConflictsPage({
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <IconArrowLeft aria-hidden="true" className="size-4" />
-          {event.name}
+          Event Overview
         </Link>
+        <div className="mt-4 mb-6">
+          <EventWorkspaceNav eventId={event.id} eventName={event.name} />
+        </div>
         <div className="mt-5 flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-semibold tracking-tight">

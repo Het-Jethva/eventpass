@@ -43,6 +43,7 @@ import {
   revokeStaffInvitationAction,
 } from "./actions";
 import { acceptOwnershipTransferAction } from "./transfer-actions";
+import { EventWorkspaceNav } from "../event-workspace-nav";
 
 export const metadata: Metadata = { title: "Event Staff" };
 
@@ -95,8 +96,11 @@ export default async function EventStaffPage({
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
         >
           <IconArrowLeft aria-hidden="true" className="size-4" />
-          {staffing.eventName}
+          Event Overview
         </Link>
+        <div className="mt-4 mb-6">
+          <EventWorkspaceNav eventId={eventId} eventName={staffing.eventName} />
+        </div>
         <div className="mt-5 flex flex-col gap-2">
           <h1 className="text-2xl font-semibold tracking-tight">Event Staff</h1>
           <p className="max-w-2xl text-sm leading-6 text-muted-foreground">

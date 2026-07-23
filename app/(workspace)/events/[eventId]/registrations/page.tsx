@@ -11,6 +11,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { getOrganizerEvent } from "@/features/events/server/get-event";
 import { RegistrationImportWorkspace } from "@/features/registration-import/registration-import-workspace";
 import { getActiveStaffSession } from "@/lib/staff-session";
+import { EventWorkspaceNav } from "../event-workspace-nav";
 
 export const metadata: Metadata = { title: "Registrations" };
 
@@ -31,9 +32,14 @@ export default async function RegistrationsPage(props: {
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
         >
           <IconArrowLeft aria-hidden="true" className="size-4" />
-          Event overview
+          Event Overview
         </Link>
-        <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+
+        <div className="mt-4 mb-6">
+          <EventWorkspaceNav eventId={currentEvent.id} eventName={currentEvent.name} />
+        </div>
+
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="flex items-center gap-2">
               <IconFileSpreadsheet aria-hidden="true" className="size-6" />

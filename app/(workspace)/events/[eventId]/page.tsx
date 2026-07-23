@@ -6,25 +6,23 @@ import {
   IconCalendarEvent,
   IconClockQuestion,
   IconExternalLink,
-  IconEye,
   IconMapPin,
-  IconPencil,
   IconScan,
-  IconForms,
   IconSend,
-  IconFileSpreadsheet,
   IconUsers,
-  IconUserShield,
 } from "@tabler/icons-react";
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { getOrganizerEvent } from "@/features/events/server/get-event";
+import { getOrganizerEventMetrics } from "@/features/events/server/get-event-metrics";
+import { LiveMetricsDashboard } from "@/features/events/live-metrics-dashboard";
 import { getActiveStaffSession } from "@/lib/staff-session";
 import { cn } from "@/lib/utils";
 import { DeleteEventControl } from "@/features/events/delete-event-control";
 import { CancelEventControl } from "@/features/events/cancel-event-control";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { EventWorkspaceNav } from "./event-workspace-nav";
 
 import {
   deleteEventAction,
@@ -33,7 +31,7 @@ import {
   returnEventToDraftAction,
 } from "./actions";
 
-export const metadata: Metadata = { title: "Event overview" };
+export const metadata: Metadata = { title: "Event Overview" };
 
 function formatRange(startsAt: Date, endsAt: Date, timeZone: string) {
   return new Intl.DateTimeFormat("en", {
@@ -53,8 +51,12 @@ export default async function EventOverviewPage({
   const staffSession = await getActiveStaffSession();
   if (!staffSession) redirect("/sign-in");
 
-  const event = await getOrganizerEvent(eventId, staffSession.user.id);
-  if (!event) notFound();
+  const [event, initialMetrics] = await Promise.all([
+    getOrganizerEvent(eventId, staffSession.user.id),
+    getOrganizerEventMetrics(eventId, staffSession.user.id),
+  ]);
+
+  if (!event || !initialMetrics) notFound();
 
   const isDraft = event.status === "draft";
   const isPublished = event.status === "published";
@@ -71,7 +73,12 @@ export default async function EventOverviewPage({
           <IconArrowLeft aria-hidden="true" className="size-4" />
           Events
         </Link>
-        <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+
+        <div className="mt-4 mb-6">
+          <EventWorkspaceNav eventId={event.id} eventName={event.name} />
+        </div>
+
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-semibold tracking-tight">
@@ -96,55 +103,11 @@ export default async function EventOverviewPage({
                 Open scanner
               </Link>
             ) : null}
-            <Link
-              href={`/events/${event.id}/check-in`}
-              className={buttonVariants({ variant: "outline" })}
-            >
-              <IconClockQuestion data-icon="inline-start" />
-              Check-in operations
-            </Link>
-            <Link
-              href={`/events/${event.id}/registrations`}
-              className={buttonVariants({ variant: "outline" })}
-            >
-              <IconFileSpreadsheet data-icon="inline-start" />
-              Registrations
-            </Link>
-            <Link
-              href={`/events/${event.id}/staff`}
-              className={buttonVariants({ variant: "outline" })}
-            >
-              <IconUserShield data-icon="inline-start" />
-              Event Staff
-            </Link>
-            <Link
-              href={`/events/${event.id}/form`}
-              className={buttonVariants({ variant: "outline" })}
-            >
-              <IconForms data-icon="inline-start" />
-              Registration form
-            </Link>
-            <Link
-              href={`/events/${event.id}/preview`}
-              className={buttonVariants({ variant: "outline" })}
-            >
-              <IconEye data-icon="inline-start" />
-              Preview
-            </Link>
-            {!isCanceled ? (
-              <Link
-                href={`/events/${event.id}/edit`}
-                className={buttonVariants({ variant: "outline" })}
-              >
-                <IconPencil data-icon="inline-start" />
-                Configure
-              </Link>
-            ) : null}
             {!isDraft ? (
               <Link
                 href={`/e/${event.slug}`}
                 target="_blank"
-                className={buttonVariants()}
+                className={buttonVariants({ variant: "outline" })}
               >
                 <IconExternalLink data-icon="inline-end" />
                 Open public page
@@ -166,6 +129,10 @@ export default async function EventOverviewPage({
         </Alert>
       ) : null}
 
+      {/* Live Operational Metrics Dashboard */}
+      <LiveMetricsDashboard eventId={event.id} initialMetrics={initialMetrics} />
+
+      {/* Configuration Details Section */}
       <section
         className="divide-y rounded-2xl border bg-background"
         aria-labelledby="configuration-heading"

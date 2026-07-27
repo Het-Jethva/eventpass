@@ -3,11 +3,11 @@ import "server-only";
 import { and, count, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 
 import {
+  buildCheckInsTimeline,
   calculateAttendanceRate,
   computeCapacityUtilization,
   type CheckInConflictStats,
   type DeliveryOutcomeStats,
-  type HourlyCheckInPoint,
   type LiveEventMetricsResult,
   type PendingDeviceSyncStats,
   type ScanAttemptStats,
@@ -144,7 +144,7 @@ export async function getOrganizerEventMetrics(
       .where(eq(checkInConflict.eventId, eventId))
       .groupBy(checkInConflict.status),
 
-    // Provisional offline attempts count
+    // Offline scan attempts count
     db
       .select({ count: count() })
       .from(scanAttempt)
@@ -279,7 +279,7 @@ export async function getOrganizerEventMetrics(
   const isSyncPending = unresolvedConflicts > 0 || lowConfidenceCount > 0;
 
   const pendingDeviceSync: PendingDeviceSyncStats = {
-    provisionalOfflineAttempts: offlineTotal,
+    offlineScanAttempts: offlineTotal,
     lowConfidenceAttempts: lowConfidenceCount,
     unresolvedConflicts,
     isSyncPending,
@@ -345,43 +345,4 @@ export async function getOrganizerEventMetrics(
     deliveryOutcomes: deliveryStats,
     checkInsOverTime,
   };
-}
-
-function buildCheckInsTimeline({
-  checkIns,
-  timeZone,
-}: {
-  checkIns: { checkedInAt: Date }[];
-  timeZone: string;
-}): HourlyCheckInPoint[] {
-  const map = new Map<string, { label: string; count: number }>();
-
-  const hourFormatter = new Intl.DateTimeFormat("en", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-    timeZone,
-  });
-
-  for (const item of checkIns) {
-    const d = new Date(item.checkedInAt);
-    d.setMinutes(0, 0, 0);
-    const key = d.toISOString();
-    const existing = map.get(key);
-    if (existing) {
-      existing.count += 1;
-    } else {
-      map.set(key, { label: hourFormatter.format(d), count: 1 });
-    }
-  }
-
-  const points = Array.from(map.entries()).map(([hourIso, val]) => ({
-    hourIso,
-    label: val.label,
-    count: val.count,
-  }));
-
-  points.sort((a, b) => a.hourIso.localeCompare(b.hourIso));
-
-  return points;
 }

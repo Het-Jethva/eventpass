@@ -337,7 +337,7 @@ export function LiveMetricsDashboard({
               <IconDeviceMobile aria-hidden="true" className="size-4 text-muted-foreground" />
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Provisional offline scanner status
+              Offline scanner synchronization status
             </p>
 
             <div className="mt-3">
@@ -358,7 +358,7 @@ export function LiveMetricsDashboard({
               <div className="flex items-center justify-between border-b pb-1.5">
                 <dt className="text-muted-foreground">Offline Scan Attempts</dt>
                 <dd className="font-mono font-semibold">
-                  {pendingDeviceSync.provisionalOfflineAttempts}
+                  {pendingDeviceSync.offlineScanAttempts}
                 </dd>
               </div>
               <div className="flex items-center justify-between border-b pb-1.5">

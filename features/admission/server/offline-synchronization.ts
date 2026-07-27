@@ -505,30 +505,50 @@ export function createOfflineSynchronizationService({
       )
       .orderBy(asc(checkInConflict.createdAt));
 
-    return Promise.all(
-      conflicts.map(async (conflict) => {
-        const attempts = await database
-          .select({
-            id: scanAttempt.id,
-            scannerDeviceId: scanAttempt.scannerDeviceId,
-            actorName: user.name,
-            attemptedAt: scanAttempt.attemptedAt,
-            rawDeviceTime: scanAttempt.rawDeviceTime,
-            timestampConfidence: scanAttempt.timestampConfidence,
-          })
-          .from(scanAttempt)
-          .innerJoin(user, eq(user.id, scanAttempt.actorUserId))
-          .where(
-            and(
-              eq(scanAttempt.ticketId, conflict.ticketId),
-              eq(scanAttempt.source, "offline"),
-              inArray(scanAttempt.outcome, ["accepted", "conflict"]),
-            ),
-          )
-          .orderBy(asc(scanAttempt.attemptedAt), asc(scanAttempt.id));
-        return { ...conflict, attempts };
-      }),
-    );
+    if (conflicts.length === 0) return [];
+
+    const attempts = await database
+      .select({
+        ticketId: scanAttempt.ticketId,
+        id: scanAttempt.id,
+        scannerDeviceId: scanAttempt.scannerDeviceId,
+        actorName: user.name,
+        attemptedAt: scanAttempt.attemptedAt,
+        rawDeviceTime: scanAttempt.rawDeviceTime,
+        timestampConfidence: scanAttempt.timestampConfidence,
+      })
+      .from(scanAttempt)
+      .innerJoin(user, eq(user.id, scanAttempt.actorUserId))
+      .where(
+        and(
+          inArray(
+            scanAttempt.ticketId,
+            conflicts.map((conflict) => conflict.ticketId),
+          ),
+          eq(scanAttempt.source, "offline"),
+          inArray(scanAttempt.outcome, ["accepted", "conflict"]),
+        ),
+      )
+      .orderBy(asc(scanAttempt.attemptedAt), asc(scanAttempt.id));
+
+    const attemptsByTicket = new Map<
+      string,
+      Array<Omit<(typeof attempts)[number], "ticketId">>
+    >();
+    for (const { ticketId, ...attempt } of attempts) {
+      if (!ticketId) continue;
+      const groupedAttempts = attemptsByTicket.get(ticketId);
+      if (groupedAttempts) {
+        groupedAttempts.push(attempt);
+      } else {
+        attemptsByTicket.set(ticketId, [attempt]);
+      }
+    }
+
+    return conflicts.map((conflict) => ({
+      ...conflict,
+      attempts: attemptsByTicket.get(conflict.ticketId) ?? [],
+    }));
   }
 
   async function resolveCheckInConflict(values: {

@@ -3,11 +3,10 @@ import Link from "next/link";
 import {
   IconBrandGithub,
   IconCalendarEvent,
+  IconChecks,
   IconDeviceMobile,
   IconHistory,
-  IconLock,
   IconQrcode,
-  IconRouteAltLeft,
   IconTicket,
   IconWifiOff,
 } from "@tabler/icons-react";
@@ -20,22 +19,22 @@ const REPOSITORY_URL = "https://github.com/Het-Jethva/eventpass";
 
 export const metadata: Metadata = {
   title: {
-    absolute: "EventPass — event check-in that stays trustworthy offline",
+    absolute: "EventPass — event check-in that works without Wi-Fi",
   },
   description:
-    "EventPass handles registration, signed QR tickets, and attendance for in-person events, with a scanner that keeps working when venue internet does not.",
+    "EventPass handles registration, QR tickets, and door check-in for in-person events, with a scanner that keeps working when the venue network does not.",
 };
 
 const roles = [
   {
     icon: IconCalendarEvent,
     role: "Organizers",
-    summary: "Configure the event and watch it run.",
+    summary: "Set the event up and watch it run.",
     points: [
-      "Set venue, schedule, time zone, capacity, and registration and check-in windows.",
-      "Build a registration form from short-text, choice, and acknowledgment fields.",
-      "Invite organizers and check-in volunteers scoped to one event only.",
-      "Follow a live operations dashboard and an immutable audit history.",
+      "Set venue, schedule, capacity, and when registration and check-in open.",
+      "Build your own registration form in a few clicks.",
+      "Invite co-organizers and door volunteers to a single event.",
+      "Watch arrivals live and see exactly what happened afterwards.",
     ],
   },
   {
@@ -43,59 +42,77 @@ const roles = [
     role: "Attendees",
     summary: "Register and get in without an account.",
     points: [
-      "Register with no password and no account, holding a place for 15 minutes.",
-      "Verify by email, then receive a signed QR ticket and a 10-character fallback code.",
-      "Join a waitlist that promotes in order of verification when capacity opens.",
-      "Manage, resend, replace, or cancel a registration through a revocable link.",
+      "Sign up in under a minute — no password, no account to create.",
+      "Confirm by email and get a QR ticket plus a short backup code.",
+      "Join the waitlist and move up automatically when a spot opens.",
+      "Change, resend, or cancel a registration from one private link.",
     ],
   },
   {
     icon: IconDeviceMobile,
     role: "Volunteers",
-    summary: "Admit people quickly at the door.",
+    summary: "Keep the door moving.",
     points: [
-      "Scan with the camera or type the ticket code when scanning is unavailable.",
-      "Read one unmistakable outcome per scan: accepted, duplicate, invalid, or expired.",
-      "Keep admitting during connectivity loss using a downloaded event snapshot.",
-      "Reverse an accidental check-in within 30 seconds, with a reason recorded.",
+      "Scan with a phone camera, or type the code when scanning won't cooperate.",
+      "Get one clear answer per scan: let them in, already used, or not valid.",
+      "Keep checking people in even when the venue Wi-Fi drops.",
+      "Undo an accidental check-in within 30 seconds.",
     ],
   },
 ];
 
-const guarantees = [
+const promises = [
   {
     icon: IconQrcode,
-    title: "Tickets are signed, not guessed",
+    title: "Tickets that can't be faked",
     description:
-      "Every ticket is a compact JWS signed with an ECDSA P-256 key ring. The payload carries only a schema version and two opaque identifiers, so presenting a ticket discloses no personal information. Rotated keys keep their public half so tickets issued earlier stay verifiable.",
+      "Each ticket is issued to one person and works once. A screenshot passed to a friend gets turned away at the door, and the ticket itself carries nothing personal about the guest.",
   },
   {
     icon: IconWifiOff,
-    title: "Offline mode states its own limits",
+    title: "The door never stops",
     description:
-      "A volunteer downloads a minimal event snapshot — opaque ticket identifiers, display names, and validity state, never emails or form answers. Signatures are verified locally through Web Crypto, and snapshot age and offline status stay on screen so a local decision is never mistaken for an authoritative one.",
+      "Before doors open, volunteers download the guest list to their phone. If the network drops mid-event, scanning carries on as normal — and the screen always shows whether it's working online or from the downloaded copy.",
   },
   {
-    icon: IconRouteAltLeft,
-    title: "Offline duplicates are detected and resolved",
+    icon: IconChecks,
+    title: "Everything syncs back up",
     description:
-      "Two isolated scanners can accept the same ticket, so EventPass does not claim to prevent that. Synchronization surfaces the conflict instead: the earliest high-confidence attempt becomes the check-in automatically, low-confidence clock disagreements require a reasoned organizer decision, and every competing attempt is kept.",
+      "When phones reconnect, every scan is merged back into one list. If two doors admitted the same ticket, EventPass flags it for you instead of silently picking a winner.",
   },
   {
     icon: IconHistory,
-    title: "Privileged actions stay accountable",
+    title: "A record you can trust",
     description:
-      "Scan attempts and security-relevant changes land in a database-enforced append-only audit store recording actor, target, time, device, and reason. Audit entries deliberately exclude registration answers and bearer secrets.",
+      "Every check-in, reversal, and staff change is logged with who did it, when, and why — and nothing in that log can be edited or deleted after the fact.",
   },
 ];
 
-const stack = [
-  { label: "Framework", value: "Next.js 16 · React 19" },
-  { label: "Language", value: "TypeScript" },
-  { label: "Database", value: "PostgreSQL on Neon · Drizzle ORM" },
-  { label: "Identity", value: "Better Auth magic links" },
-  { label: "Offline", value: "Serwist PWA · Dexie · IndexedDB" },
-  { label: "Email", value: "Resend with signed webhooks" },
+const steps = [
+  {
+    step: "01",
+    title: "Create the event",
+    description:
+      "Add the details, set your capacity, and design the registration form your guests will fill in.",
+  },
+  {
+    step: "02",
+    title: "Share the link",
+    description:
+      "Guests register and get a QR ticket by email. Once you're full, everyone else joins the waitlist.",
+  },
+  {
+    step: "03",
+    title: "Scan at the door",
+    description:
+      "Volunteers open the scanner on their phones and admit people, online or off.",
+  },
+  {
+    step: "04",
+    title: "See how it went",
+    description:
+      "Attendance, no-shows, and a full check-in history, ready the moment the event ends.",
+  },
 ];
 
 export default function Home() {
@@ -106,13 +123,6 @@ export default function Home() {
           <EventPassMark />
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
             <ThemeSwitcher />
-            <a
-              href={REPOSITORY_URL}
-              className={buttonVariants({ variant: "ghost", size: "icon" })}
-              aria-label="View EventPass source on GitHub"
-            >
-              <IconBrandGithub aria-hidden="true" />
-            </a>
             <Link
               href="/sign-in"
               className={buttonVariants({ variant: "outline", size: "sm" })}
@@ -128,18 +138,16 @@ export default function Home() {
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-16 sm:px-6 sm:py-24">
             <div className="flex flex-col gap-5">
               <p className="text-sm font-medium text-muted-foreground">
-                Registration, ticketing, and attendance for in-person events
+                Registration, ticketing, and check-in for in-person events
               </p>
               <h1 className="max-w-3xl text-4xl font-semibold tracking-[-0.03em] text-balance sm:text-5xl sm:leading-[1.1]">
-                Event check-in that stays trustworthy when the internet does
-                not.
+                Event check-in that keeps working when the Wi-Fi doesn&apos;t.
               </h1>
               <p className="max-w-2xl text-base leading-7 text-muted-foreground text-pretty sm:text-lg sm:leading-8">
-                University clubs run events in basements, gyms, and lecture
-                halls where the venue network is unreliable. EventPass issues
-                signed single-entry tickets, keeps the door moving when
-                connectivity drops, and reconciles what happened afterwards
-                without quietly discarding anything.
+                Basements, gyms, lecture halls — the places events actually
+                happen rarely have reliable internet. EventPass sends every
+                guest a QR ticket, keeps the queue moving when the signal
+                disappears, and gives you a clean attendance record afterwards.
               </p>
             </div>
 
@@ -148,26 +156,12 @@ export default function Home() {
                 Staff sign-in
               </Link>
               <a
-                href={REPOSITORY_URL}
+                href="#how-it-works"
                 className={buttonVariants({ variant: "outline", size: "lg" })}
               >
-                <IconBrandGithub aria-hidden="true" data-icon="inline-start" />
-                Read the source
+                See how it works
               </a>
             </div>
-
-            <p className="flex max-w-2xl items-start gap-2.5 border-t pt-6 text-sm leading-6 text-muted-foreground">
-              <IconLock
-                aria-hidden="true"
-                className="mt-0.5 size-4 shrink-0"
-              />
-              <span>
-                A portfolio project built on production infrastructure. There is
-                no demo mode, no seeded data, and no reset button — every record
-                is synthetic and was created through the same workflows a real
-                organizer would use.
-              </span>
-            </p>
           </div>
         </section>
 
@@ -181,11 +175,11 @@ export default function Home() {
                 id="roles-heading"
                 className="text-2xl font-semibold tracking-[-0.02em] sm:text-3xl"
               >
-                Three roles, three jobs
+                Built for everyone at the event
               </h2>
               <p className="max-w-2xl text-base leading-7 text-muted-foreground text-pretty">
-                Each role sees only what its immediate job requires. Access to
-                one event grants nothing on any other.
+                Everyone sees exactly what they need for their part of the
+                night, and nothing else.
               </p>
             </div>
 
@@ -220,27 +214,23 @@ export default function Home() {
           </div>
         </section>
 
-        <section aria-labelledby="guarantees-heading" className="border-b">
+        <section aria-labelledby="promises-heading" className="border-b">
           <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
             <div className="flex flex-col gap-3">
               <h2
-                id="guarantees-heading"
+                id="promises-heading"
                 className="text-2xl font-semibold tracking-[-0.02em] sm:text-3xl"
               >
-                What the admission guarantee actually is
+                Why the door stays calm
               </h2>
               <p className="max-w-2xl text-base leading-7 text-muted-foreground text-pretty">
-                The offline story is deliberately bounded, and the interface
-                says so rather than implying certainty it cannot deliver.
+                Four things you shouldn&apos;t have to think about on the night.
               </p>
             </div>
 
             <div className="mt-10 grid border-t sm:grid-cols-2 sm:gap-x-10">
-              {guarantees.map(({ description, icon: Icon, title }) => (
-                <div
-                  className="flex flex-col gap-3 border-b py-8"
-                  key={title}
-                >
+              {promises.map(({ description, icon: Icon, title }) => (
+                <div className="flex flex-col gap-3 border-b py-8" key={title}>
                   <div className="flex items-center gap-3">
                     <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-background">
                       <Icon aria-hidden="true" className="size-5" />
@@ -258,34 +248,37 @@ export default function Home() {
           </div>
         </section>
 
-        <section aria-labelledby="stack-heading" className="bg-muted/20">
+        <section
+          aria-labelledby="how-it-works-heading"
+          className="bg-muted/20"
+          id="how-it-works"
+        >
           <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
             <div className="flex flex-col gap-3">
               <h2
-                id="stack-heading"
+                id="how-it-works-heading"
                 className="text-2xl font-semibold tracking-[-0.02em] sm:text-3xl"
               >
-                Built as one modular monolith
+                From first invite to final headcount
               </h2>
               <p className="max-w-2xl text-base leading-7 text-muted-foreground text-pretty">
-                Domain authorization and invariants live at server-only
-                application-service boundaries close to the database. Server
-                actions and route handlers are treated as untrusted transport.
-                Capacity-changing operations serialize on a per-event row lock,
-                so the final place cannot be sold twice.
+                Four steps, and no spreadsheet at the door.
               </p>
             </div>
 
-            <dl className="mt-10 grid border-t sm:grid-cols-2 lg:grid-cols-3">
-              {stack.map(({ label, value }) => (
-                <div className="flex flex-col gap-1 border-b py-5" key={label}>
-                  <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                    {label}
-                  </dt>
-                  <dd className="text-sm">{value}</dd>
-                </div>
+            <ol className="mt-10 grid border-t sm:grid-cols-2 sm:gap-x-10 lg:grid-cols-4 lg:gap-x-8">
+              {steps.map(({ description, step, title }) => (
+                <li className="flex flex-col gap-2 border-b py-8" key={step}>
+                  <span className="text-xs font-medium tracking-wide text-muted-foreground">
+                    {step}
+                  </span>
+                  <h3 className="text-base font-semibold">{title}</h3>
+                  <p className="text-sm leading-6 text-muted-foreground text-pretty">
+                    {description}
+                  </p>
+                </li>
               ))}
-            </dl>
+            </ol>
           </div>
         </section>
       </main>
@@ -304,10 +297,11 @@ export default function Home() {
           </p>
           <div className="flex items-center gap-4 text-sm">
             <a
-              className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+              className="flex items-center gap-1.5 text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
               href={REPOSITORY_URL}
             >
-              Source
+              <IconBrandGithub aria-hidden="true" className="size-4" />
+              GitHub
             </a>
             <Link
               className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"

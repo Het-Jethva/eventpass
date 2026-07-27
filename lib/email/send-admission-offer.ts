@@ -19,12 +19,14 @@ function escapeHtml(value: string) {
 export async function sendAdmissionOffer({
   email,
   attendeeName,
+  eventId,
   eventName,
   expiresAt,
   token,
 }: {
   email: string;
   attendeeName: string;
+  eventId: string;
   eventName: string;
   eventSlug: string;
   expiresAt: Date;
@@ -47,6 +49,7 @@ export async function sendAdmissionOffer({
       template: "admission-offer-v1",
       recipient: email,
       provider: "resend",
+      eventId,
       outcome: "pending",
     })
     .returning({ id: emailDelivery.id });

@@ -27,6 +27,7 @@ type RegistrationDatabase = typeof import("../../../lib/db").db;
 type VerificationEmail = {
   registrationId: string;
   email: string;
+  eventId: string;
   eventName: string;
   eventSlug: string;
   token: string;
@@ -288,6 +289,7 @@ export function createRegistrationApplicationService({
         emailMessage = {
           registrationId: created.id,
           email: validation.data.email,
+          eventId: publishedEvent.id,
           eventName: publishedEvent.name,
           eventSlug,
           token,

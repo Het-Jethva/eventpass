@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, count, eq, gt, inArray, isNull, sql } from "drizzle-orm";
+import { and, count, eq, gt, inArray, isNull } from "drizzle-orm";
 
 import {
   buildCheckInsTimeline,
@@ -155,18 +155,14 @@ export async function getOrganizerEventMetrics(
         ),
       ),
 
-    // Email delivery outcomes scoped to this event's registrations
+    // Email Delivery outcomes for this Event
     db
       .select({
         outcome: emailDelivery.outcome,
         count: count(),
       })
       .from(emailDelivery)
-      .innerJoin(
-        registration,
-        eq(registration.id, sql`cast(${emailDelivery.metadata}->>'registrationId' as uuid)`),
-      )
-      .where(eq(registration.eventId, eventId))
+      .where(eq(emailDelivery.eventId, eventId))
       .groupBy(emailDelivery.outcome),
 
     // Active check-ins with timestamps for timeline grouping

@@ -30,12 +30,14 @@ function escapeHtml(value: string) {
 export async function sendRegistrationVerification({
   registrationId,
   email,
+  eventId,
   eventName,
   eventSlug,
   token,
 }: {
   registrationId: string;
   email: string;
+  eventId: string;
   eventName: string;
   eventSlug: string;
   token: string;
@@ -52,6 +54,7 @@ export async function sendRegistrationVerification({
       template: TEMPLATE,
       recipient: email,
       provider: "resend",
+      eventId,
       outcome: "pending",
     })
     .returning({ id: emailDelivery.id });

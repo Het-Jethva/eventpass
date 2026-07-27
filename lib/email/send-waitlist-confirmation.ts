@@ -9,10 +9,12 @@ import { emailDelivery } from "@/lib/db/schema";
 export async function sendWaitlistConfirmation({
   email,
   attendeeName,
+  eventId,
   eventName,
 }: {
   email: string;
   attendeeName: string;
+  eventId: string;
   eventName: string;
   eventSlug: string;
 }) {
@@ -24,6 +26,7 @@ export async function sendWaitlistConfirmation({
       template: "waitlist-confirmed-v1",
       recipient: email,
       provider: "resend",
+      eventId,
       outcome: "pending",
     })
     .returning({ id: emailDelivery.id });

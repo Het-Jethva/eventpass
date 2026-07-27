@@ -18,6 +18,7 @@ export type DatabaseTransaction = Parameters<
 export type AdmissionOfferMessage = {
   email: string;
   attendeeName: string;
+  eventId: string;
   eventName: string;
   eventSlug: string;
   expiresAt: Date;
@@ -187,6 +188,7 @@ export async function reconcileWaitlistInTransaction({
     messages.push({
       email: candidate.email,
       attendeeName: candidate.attendeeName,
+      eventId: lockedEvent.id,
       eventName: lockedEvent.name,
       eventSlug: lockedEvent.slug,
       expiresAt,

@@ -307,6 +307,7 @@ export function createPublishedEventApplicationService({
             template: "event-material-change-v1",
             recipient: email,
             provider: "resend",
+            eventId,
             outcome: "pending",
             metadata: {
               kind: "material_change",
@@ -429,6 +430,7 @@ export function createPublishedEventApplicationService({
             template: "event-canceled-v1",
             recipient: email,
             provider: "resend",
+            eventId,
             outcome: "pending",
             metadata: {
               kind: "cancellation",

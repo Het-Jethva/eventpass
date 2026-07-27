@@ -32,6 +32,7 @@ function formatEventRange(startsAt: Date, endsAt: Date, timeZone: string) {
 export async function sendTicket({
   email,
   attendeeName,
+  eventId,
   event,
   ticketCode,
   ticketJws,
@@ -39,6 +40,7 @@ export async function sendTicket({
 }: {
   email: string;
   attendeeName: string;
+  eventId: string;
   event: {
     name: string;
     eventTimeZone: string;
@@ -67,7 +69,13 @@ export async function sendTicket({
   });
   const [delivery] = await db
     .insert(emailDelivery)
-    .values({ template: TEMPLATE, recipient: email, provider: "resend", outcome: "pending" })
+    .values({
+      template: TEMPLATE,
+      recipient: email,
+      provider: "resend",
+      eventId,
+      outcome: "pending",
+    })
     .returning({ id: emailDelivery.id });
   if (!delivery) throw new Error("Could not create the Email Delivery record.");
 

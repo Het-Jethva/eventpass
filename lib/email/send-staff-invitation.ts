@@ -25,6 +25,7 @@ function escapeHtml(value: string) {
 
 export async function sendStaffInvitationEmail(input: {
   email: string;
+  eventId: string;
   eventName: string;
   invitationUrl: string;
   role: InviteableStaffRole;
@@ -38,6 +39,7 @@ export async function sendStaffInvitationEmail(input: {
       template: TEMPLATE,
       recipient: input.email,
       provider: "resend",
+      eventId: input.eventId,
       outcome: "pending",
     })
     .returning({ id: emailDelivery.id });

@@ -67,6 +67,7 @@ export async function inviteStaffAction(eventId: string, formData: FormData) {
     const origin = await getApplicationOrigin();
     await sendStaffInvitationEmail({
       email: invitation.email,
+      eventId: validEventId,
       eventName: invitation.eventName,
       invitationUrl: `${origin}/staff-invitations/${encodeURIComponent(invitation.token)}`,
       role: invitation.role,

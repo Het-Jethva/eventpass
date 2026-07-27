@@ -31,6 +31,7 @@ type SigningKey = Parameters<typeof signTicket>[1];
 type TicketEmail = {
   email: string;
   attendeeName: string;
+  eventId: string;
   event: {
     name: string;
     eventTimeZone: string;
@@ -52,6 +53,7 @@ type TicketApplicationDependencies = {
   sendWaitlistEmail?: (message: {
     email: string;
     attendeeName: string;
+    eventId: string;
     eventName: string;
     eventSlug: string;
   }) => Promise<void>;
@@ -256,6 +258,7 @@ export function createTicketApplicationService({
           waitlistMessage = {
             email: capability.email,
             attendeeName: capability.attendeeName,
+            eventId: lockedEvent.id,
             eventName: lockedEvent.name,
             eventSlug: lockedEvent.slug,
           };
@@ -339,6 +342,7 @@ export function createTicketApplicationService({
       emailMessage = {
         email: capability.email,
         attendeeName: capability.attendeeName,
+        eventId: lockedEvent.id,
         event: lockedEvent,
         ticketCode,
         ticketJws,
@@ -496,6 +500,7 @@ export function createTicketApplicationService({
       emailMessage = {
         email: offered.email,
         attendeeName: offered.attendeeName,
+        eventId: offered.eventId,
         event: {
           name: offered.eventName,
           eventTimeZone: offered.eventTimeZone,
@@ -893,10 +898,25 @@ export function createTicketApplicationService({
     if (view.registrationStatus !== "confirmed" || view.ticket?.status !== "active") {
       return { outcome: "inactive" };
     }
+    const [managed] = await database
+      .select({ eventId: registration.eventId })
+      .from(registration)
+      .where(
+        and(
+          eq(
+            registration.managementTokenDigest,
+            digestBearerToken(managementToken),
+          ),
+          isNull(registration.managementTokenRevokedAt),
+        ),
+      )
+      .limit(1);
+    if (!managed) return { outcome: "invalid" };
     try {
       await sendTicketEmail({
         email: view.email,
         attendeeName: view.attendeeName,
+        eventId: managed.eventId,
         event: view.event,
         ticketCode: view.ticket.code,
         ticketJws: view.ticket.signedPayload,
@@ -988,6 +1008,7 @@ export function createTicketApplicationService({
       emailMessage = {
         email: managed.email,
         attendeeName: managed.attendeeName,
+        eventId: managed.eventId,
         event: {
           name: managed.eventName,
           eventTimeZone: managed.eventTimeZone,

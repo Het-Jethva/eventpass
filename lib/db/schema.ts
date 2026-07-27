@@ -150,6 +150,7 @@ export const emailDelivery = pgTable(
     template: text("template").notNull(),
     recipient: text("recipient").notNull(),
     provider: text("provider").notNull(),
+    eventId: uuid("event_id").references(() => event.id, { onDelete: "restrict" }),
     providerMessageId: text("provider_message_id").unique(),
     outcome: text("outcome").notNull(),
     failureKind: text("failure_kind"),
@@ -164,6 +165,7 @@ export const emailDelivery = pgTable(
       .notNull(),
   },
   (table) => [
+    index("email_delivery_event_outcome_idx").on(table.eventId, table.outcome),
     check(
       "email_delivery_outcome_check",
       sql`${table.outcome} in ('pending', 'submitted', 'sent', 'delivered', 'transient_failure', 'permanent_failure')`,

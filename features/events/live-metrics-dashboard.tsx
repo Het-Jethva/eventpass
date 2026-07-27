@@ -31,17 +31,27 @@ export function LiveMetricsDashboard({
 }: LiveMetricsDashboardProps) {
   const [metrics, setMetrics] = useState<LiveEventMetricsResult>(initialMetrics);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isPolling, setIsPolling] = useState(true);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date>(
     new Date(initialMetrics.refreshedAt),
   );
 
   useEffect(() => {
     let isMounted = true;
+    let controller: AbortController | null = null;
+    let interval: ReturnType<typeof setInterval> | null = null;
 
     async function fetchMetrics() {
+      if (controller) return;
+
+      const requestController = new AbortController();
+      controller = requestController;
+
       try {
         setIsRefreshing(true);
-        const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/live-metrics`);
+        const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/live-metrics`, {
+          signal: requestController.signal,
+        });
         if (res.ok) {
           const data: LiveEventMetricsResult = await res.json();
           if (isMounted) {
@@ -50,17 +60,59 @@ export function LiveMetricsDashboard({
           }
         }
       } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
         console.error("Failed to refresh live metrics:", err);
       } finally {
-        if (isMounted) setIsRefreshing(false);
+        if (controller === requestController) {
+          controller = null;
+          if (isMounted) setIsRefreshing(false);
+        }
       }
     }
 
-    const interval = setInterval(fetchMetrics, 5000);
+    function startPolling() {
+      if (interval !== null) return;
+
+      interval = setInterval(fetchMetrics, 5000);
+      if (isMounted) setIsPolling(true);
+    }
+
+    function stopPolling() {
+      if (interval !== null) {
+        clearInterval(interval);
+        interval = null;
+      }
+
+      controller?.abort();
+      controller = null;
+      if (isMounted) {
+        setIsRefreshing(false);
+        setIsPolling(false);
+      }
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "hidden") {
+        stopPolling();
+        return;
+      }
+
+      void fetchMetrics();
+      startPolling();
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    if (document.visibilityState === "visible") {
+      startPolling();
+    } else {
+      stopPolling();
+    }
 
     return () => {
       isMounted = false;
-      clearInterval(interval);
+      stopPolling();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [eventId]);
 
@@ -72,8 +124,14 @@ export function LiveMetricsDashboard({
       <div className="flex flex-col gap-2 rounded-xl border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <span className="relative flex size-3">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex size-3 rounded-full bg-emerald-500"></span>
+            {isPolling ? (
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+            ) : null}
+            <span
+              className={`relative inline-flex size-3 rounded-full ${
+                isPolling ? "bg-emerald-500" : "bg-muted-foreground"
+              }`}
+            ></span>
           </span>
           <div>
             <div className="flex items-center gap-2">
@@ -86,7 +144,7 @@ export function LiveMetricsDashboard({
                 ) : (
                   <IconClock aria-hidden="true" className="size-3 text-muted-foreground" />
                 )}
-                Live metrics (refreshes 5s)
+                {isPolling ? "Live metrics (refreshes 5s)" : "Paused"}
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground">

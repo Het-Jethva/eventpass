@@ -1,18 +1,23 @@
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { Resend } from "resend";
 
+import {
+  EMAIL_DELIVERY_OUTCOME_RANK,
+  RESEND_EVENT_OUTCOMES,
+  type EmailDeliveryOutcome,
+} from "@/features/messaging/email-delivery-state";
 import { db } from "@/lib/db";
 import { emailDelivery } from "@/lib/db/schema";
 
-const OUTCOMES: Record<string, { failureKind: string | null; outcome: string }> = {
-  "email.bounced": { failureKind: "permanent", outcome: "permanent_failure" },
-  "email.complained": { failureKind: "permanent", outcome: "permanent_failure" },
-  "email.delivered": { failureKind: null, outcome: "delivered" },
-  "email.delivery_delayed": { failureKind: "transient", outcome: "transient_failure" },
-  "email.failed": { failureKind: "permanent", outcome: "permanent_failure" },
-  "email.sent": { failureKind: null, outcome: "sent" },
-  "email.suppressed": { failureKind: "permanent", outcome: "permanent_failure" },
-};
+const CURRENT_OUTCOME_RANK = sql<number>`case ${emailDelivery.outcome} ${sql.join(
+  (
+    Object.entries(EMAIL_DELIVERY_OUTCOME_RANK) as [
+      EmailDeliveryOutcome,
+      number,
+    ][]
+  ).map(([outcome, rank]) => sql`when ${outcome} then ${rank}`),
+  sql` `,
+)} end`;
 
 export async function POST(request: Request) {
   const webhookSecret = process.env.RESEND_WEBHOOK_SECRET;
@@ -38,7 +43,7 @@ export async function POST(request: Request) {
     return new Response("Invalid signature.", { status: 400 });
   }
 
-  const transition = OUTCOMES[event.type];
+  const transition = RESEND_EVENT_OUTCOMES[event.type];
   const emailId =
     event.data && typeof event.data === "object" && "email_id" in event.data
       ? event.data.email_id
@@ -48,7 +53,12 @@ export async function POST(request: Request) {
     await db
       .update(emailDelivery)
       .set(transition)
-      .where(eq(emailDelivery.providerMessageId, emailId.trim()));
+      .where(
+        and(
+          eq(emailDelivery.providerMessageId, emailId.trim()),
+          sql`${CURRENT_OUTCOME_RANK} < ${EMAIL_DELIVERY_OUTCOME_RANK[transition.outcome]}`,
+        ),
+      );
   }
 
   return new Response(null, { status: 204 });

@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "EventPass",
     description:
       "Trustworthy offline-first Event registration and admission operations.",
-    start_url: "/",
+    start_url: "/events",
     display: "standalone",
     background_color: "#09090b",
     theme_color: "#09090b",

@@ -12,12 +12,30 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://eventpass.hetjethva.tech";
+const siteDescription =
+  "Trustworthy Event registration and admission operations, with a scanner that keeps working when venue internet does not.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: {
     default: "EventPass",
     template: "%s · EventPass",
   },
-  description: "Trustworthy Event registration and admission operations.",
+  description: siteDescription,
+  applicationName: "EventPass",
+  openGraph: {
+    type: "website",
+    siteName: "EventPass",
+    title: "EventPass",
+    description: siteDescription,
+    url: siteUrl,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "EventPass",
+    description: siteDescription,
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",

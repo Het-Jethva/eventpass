@@ -514,15 +514,10 @@ export function createRegistrationImportService({
       }
       const signingKey = getSigningKey();
 
-      const usedCodes = new Set<string>();
-      const createdRegistrations: Array<{
-        registrationId: string;
-        row: (typeof payload.rows)[number];
-      }> = [];
-      for (const row of payload.rows) {
-        const [createdRegistration] = await transaction
-          .insert(registration)
-          .values({
+      const insertedRegistrations = await transaction
+        .insert(registration)
+        .values(
+          payload.rows.map((row) => ({
             eventId,
             attendeeName: row.name,
             email: row.email,
@@ -532,40 +527,47 @@ export function createRegistrationImportService({
             source: "imported",
             verifiedAt: confirmedAt,
             managementTokenDigest: digestToken(createManagementToken()),
-          })
-          .returning({ id: registration.id });
+          })),
+        )
+        .returning({ id: registration.id });
+      if (insertedRegistrations.length !== payload.rows.length) {
+        throw new Error("Could not import Registration.");
+      }
+      const createdRegistrations = payload.rows.map((row, index) => {
+        const createdRegistration = insertedRegistrations[index];
         if (!createdRegistration) throw new Error("Could not import Registration.");
-        createdRegistrations.push({
+        return {
           registrationId: createdRegistration.id,
           row,
-        });
+        };
+      });
 
+      const existingTicketCodes = await transaction
+        .select({ code: ticket.code })
+        .from(ticket)
+        .where(eq(ticket.eventId, eventId));
+      const usedCodes = new Set(existingTicketCodes.map(({ code }) => code));
+      const ticketRows = createdRegistrations.map(({ registrationId }) => {
         let code: string | null = null;
         for (let attempt = 0; attempt < 20; attempt += 1) {
           const candidate = createTicketCode();
           if (usedCodes.has(candidate)) continue;
-          const [duplicateCode] = await transaction
-            .select({ id: ticket.id })
-            .from(ticket)
-            .where(and(eq(ticket.eventId, eventId), eq(ticket.code, candidate)))
-            .limit(1);
-          if (!duplicateCode) {
-            code = candidate;
-            usedCodes.add(candidate);
-            break;
-          }
+          code = candidate;
+          usedCodes.add(candidate);
+          break;
         }
         if (!code) throw new Error("Could not allocate a unique Ticket Code.");
         const ticketId = createTicketId();
-        await transaction.insert(ticket).values({
+        return {
           id: ticketId,
           eventId,
-          registrationId: createdRegistration.id,
+          registrationId,
           code,
           signedPayload: signTicket({ eventId, ticketId }, signingKey),
           signingKeyId: signingKey.id,
-        });
-      }
+        };
+      });
+      await transaction.insert(ticket).values(ticketRows);
 
       const fieldIds = payload.mappings.flatMap((mapping) =>
         mapping.kind === "field" && mapping.fieldId ? [mapping.fieldId] : [],

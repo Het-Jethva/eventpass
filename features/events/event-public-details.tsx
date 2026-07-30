@@ -32,9 +32,14 @@ function formatRange(startsAt: Date, endsAt: Date, timeZone: string) {
 }
 
 function formatMoment(moment: Date, timeZone: string) {
+  // Components spelled out because `dateStyle`/`timeStyle` cannot be combined
+  // with `timeZoneName`; the mix throws "Invalid option : option".
   return new Intl.DateTimeFormat("en", {
-    dateStyle: "medium",
-    timeStyle: "short",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
     timeZone,
     timeZoneName: "short",
   }).format(moment);

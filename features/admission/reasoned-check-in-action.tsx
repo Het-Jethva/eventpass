@@ -105,9 +105,12 @@ export function ReasonedCheckInAction({
           ) : null}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={pending}>Keep Check-in</AlertDialogCancel>
+            {/* Quiet to reach for, loud to commit: the trigger stays tinted so
+                a row of them does not scream, but the confirm is solid because
+                this is the irreversible half. DESIGN.md § Components. */}
             <AlertDialogAction
               type="submit"
-              variant={variant}
+              variant={variant === "destructive" ? "destructive-solid" : "default"}
               disabled={pending || !reason.trim()}
             >
               {pending ? <Spinner data-icon="inline-start" /> : null}

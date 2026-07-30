@@ -3,21 +3,12 @@
 import { FormEvent, startTransition, useEffect, useRef, useState } from "react";
 import {
   IconAlertTriangle,
-  IconCalendarCancel,
   IconCamera,
-  IconCircleCheck,
-  IconClockExclamation,
-  IconClockX,
   IconCloudUpload,
-  IconCopyCheck,
-  IconHelpHexagon,
   IconKeyboard,
-  IconLock,
-  IconRefresh,
   IconScan,
   IconVolume,
   IconVolumeOff,
-  type Icon,
 } from "@tabler/icons-react";
 
 import {
@@ -46,83 +37,9 @@ import { synchronizePendingAttempts } from "./offline-synchronization-client";
 import { ScannerPreparation } from "./scanner-preparation";
 import { ReasonedCheckInAction } from "./reasoned-check-in-action";
 import { PwaUpdateManager } from "./pwa-update-manager";
+import { ScanOutcome, outcomePresentation } from "./scan-outcome";
 
 type ScannerControls = { stop: () => void };
-
-const outcomePresentation: Record<
-  AdmissionOutcome,
-  { title: string; description: string; icon: Icon; destructive: boolean }
-> = {
-  accepted: {
-    title: "Checked in",
-    description:
-      "Admission recorded. The Ticket cannot be used again while this Check-in is active.",
-    icon: IconCircleCheck,
-    destructive: false,
-  },
-  provisional: {
-    title: "Provisionally checked in",
-    description:
-      "Stored on this device. Synchronization will establish the authoritative Check-in when connectivity returns.",
-    icon: IconCloudUpload,
-    destructive: false,
-  },
-  duplicate: {
-    title: "Already checked in",
-    description:
-      "This Ticket already has an active Check-in. This attempt was recorded as a duplicate.",
-    icon: IconCopyCheck,
-    destructive: false,
-  },
-  invalid: {
-    title: "Invalid Ticket",
-    description:
-      "The QR representation or Ticket Code is malformed or its signature is not valid.",
-    icon: IconAlertTriangle,
-    destructive: true,
-  },
-  unknown: {
-    title: "Ticket not found",
-    description:
-      "No Ticket for this Event matches that QR representation or Ticket Code.",
-    icon: IconHelpHexagon,
-    destructive: true,
-  },
-  canceled: {
-    title: "Ticket canceled",
-    description: "This Ticket or Event was canceled and cannot be admitted.",
-    icon: IconCalendarCancel,
-    destructive: true,
-  },
-  replaced: {
-    title: "Ticket replaced",
-    description:
-      "A newer Ticket was issued for this Registration. Ask the Attendee for the replacement.",
-    icon: IconRefresh,
-    destructive: true,
-  },
-  expired: {
-    title: "Check-in closed",
-    description:
-      "The Check-in Window has ended, so this Ticket is no longer admissible.",
-    icon: IconClockX,
-    destructive: true,
-  },
-  outside_window: {
-    title: "Check-in not open",
-    description:
-      "This Ticket is valid, but the Check-in Window has not opened yet.",
-    icon: IconClockExclamation,
-    destructive: true,
-  },
-  unauthorized: {
-    title: "Scanner access unavailable",
-    description:
-      "Your current staff access does not authorize admission for this Event.",
-    icon: IconLock,
-    destructive: true,
-  },
-};
 
 function announceFeedback(outcome: AdmissionOutcome, enabled: boolean) {
   if (!enabled || typeof window === "undefined") return;
@@ -364,7 +281,6 @@ export function ScannerWorkspace({
   }
 
   const presentation = result ? outcomePresentation[result.outcome] : null;
-  const ResultIcon = presentation?.icon ?? IconScan;
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
@@ -432,29 +348,40 @@ export function ScannerWorkspace({
       ) : null}
 
       {presentation && result ? (
-        <div className="flex flex-col gap-3">
-          <Alert
-            ref={resultRef}
-            tabIndex={-1}
-            variant={presentation.destructive ? "destructive" : "default"}
-            className={cn(
-              "min-h-32 items-start p-5",
-              !presentation.destructive && "border-foreground",
-            )}
-            aria-live="assertive"
-          >
-            <ResultIcon aria-hidden="true" className="mt-0.5 size-7" />
-            <AlertTitle className="text-lg">{presentation.title}</AlertTitle>
-            <AlertDescription className="mt-1 text-base">
-              {result.attendeeName ? (
-                <strong className="text-foreground">
-                  {result.attendeeName}.{" "}
-                </strong>
-              ) : null}
-              {presentation.description}
-            </AlertDescription>
-          </Alert>
-          {result.outcome === "accepted" && result.checkInId ? (
+        // The decision owns the screen. It previously rendered as an 18px
+        // headline with a 28px glyph, in normal flow above the camera — so a
+        // volunteer had to look away from the viewfinder, and possibly scroll,
+        // to find out whether to admit someone.
+        //
+        // No entrance animation, deliberately: a 200ms fade on a door decision
+        // is 200ms of a volunteer not knowing. DESIGN.md § Motion.
+        <div
+          ref={resultRef}
+          tabIndex={-1}
+          role="alertdialog"
+          aria-label={presentation.title}
+          aria-live="assertive"
+          className="fixed inset-0 z-50 overflow-y-auto outline-none"
+        >
+          <ScanOutcome
+            outcome={result.outcome}
+            attendeeName={result.attendeeName}
+            className="min-h-full"
+            actions={
+              <>
+                <Button
+                  type="button"
+                  size="lg"
+                  className="min-h-11"
+                  onClick={() => {
+                    setResult(null);
+                    setLastInput(null);
+                  }}
+                >
+                  <IconScan data-icon="inline-start" />
+                  Next scan
+                </Button>
+                {result.outcome === "accepted" && result.checkInId ? (
             <ReasonedCheckInAction
               label={
                 actorRole === "check_in_volunteer"
@@ -505,7 +432,10 @@ export function ScannerWorkspace({
                     };
               }}
             />
-          ) : null}
+                ) : null}
+              </>
+            }
+          />
         </div>
       ) : null}
 

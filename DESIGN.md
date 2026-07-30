@@ -1,101 +1,252 @@
 ---
 name: The Control Desk
-description: A bright, calm operational interface that makes event status and check-in outcomes unmistakable under pressure.
+description: A calm, precise operational instrument whose admission outcomes are unmistakable under pressure, and whose Ticket is an object worth keeping.
 tokens:
-  colors:
-    background: "oklch(1 0 0)"
-    foreground: "oklch(0.145 0 0)"
-    card: "oklch(1 0 0)"
-    primary: "oklch(0.205 0 0)"
-    primary-foreground: "oklch(0.985 0 0)"
-    secondary: "oklch(0.97 0 0)"
-    muted: "oklch(0.97 0 0)"
-    muted-foreground: "oklch(0.556 0 0)"
-    border: "oklch(0.922 0 0)"
-    ring: "oklch(0.708 0 0)"
-    destructive: "oklch(0.577 0.245 27.325)"
+  hues:
+    brand: 200 # teal — identity and informational register
+    success: 150 # green — accepted, confirmed, delivered, synchronized
+    warning: 75 # amber — duplicate, transient failure, low-confidence clock
+    destructive: 27 # red — invalid, canceled, permanent failure, unresolved conflict
+    provisional: 265 # indigo — offline acceptance, pending authority
+    neutral: 260 # the tint carried by the whole neutral ramp
   typography:
-    sans: Geist
-    mono: Geist Mono
+    sans: Geist # UI, body, tables, forms, and every status or scanner string
+    display: Instrument Serif # page titles, public pages, landing headlines only
+    mono: IBM Plex Mono # Ticket Codes, identifiers, timestamps, stat values
   radii:
-    base: "0.625rem"
-    button: "1.625rem"
+    control: 0.375rem # buttons, inputs, chips, small controls
+    container: 0.625rem # regions, panels, table shells, the Ticket body
+    overlay: 0.875rem # dialogs, popovers, menus
 ---
 
 ## Overview
 
-EventPass follows **The Control Desk**: a polished operational workspace inspired by the clarity of Stripe Dashboard and the decisiveness of Square POS. It should feel calm, precise, and dependable—not decorative or futuristic. Dense information is welcome when it is grouped clearly, aligned consistently, and paired with an obvious next action.
+EventPass is **The Control Desk**: an operational instrument that stays calm in a
+crowded check-in line. It is precise, dependable, and quiet — right up until a
+decision has to be made at a door, at which point it becomes impossible to
+misread.
 
-Organizer screens prioritize hierarchy, scanning, and comparison. The volunteer scanner prioritizes instant comprehension from arm's length and in bright venue lighting. Public registration pages are quieter and more spacious, but remain visibly part of the same product.
+Three registers, one system:
 
-Use the existing semantic tokens from `app/globals.css`. Tailwind utilities may control layout, spacing, typography, and responsive behavior; component-level colors must come from semantic tokens rather than newly invented values.
+- **Organizer surfaces** prioritize scanning, comparison, and density. Calm,
+  border-led, typographically ordered.
+- **The scanner** prioritizes instant comprehension at arm's length in bright
+  venue lighting. It is the loudest thing in the product, deliberately.
+- **Attendee surfaces** are quieter and more spacious, and the Ticket itself is
+  treated as a physical object — a stub worth keeping, printing, and presenting.
+
+All three share one token set, one type system, and one component library. They
+differ in density and scale, never in vocabulary.
 
 ## Colors
 
-The current neutral shadcn palette is the product palette. Light mode uses a white background, near-black foreground and primary actions, soft neutral secondary surfaces, and quiet gray borders. Dark mode uses the existing inverse tokens. Both modes are first-class, with **System** as the default and a persistent Light/System/Dark selector.
+All color comes from semantic tokens in `app/globals.css`. Components must never
+introduce raw color values, per-component palettes, or Tailwind palette classes
+such as `text-emerald-600`. If a component needs a color the tokens cannot
+express, the token set is wrong — extend it there.
 
-Color communicates hierarchy, not decoration:
+### Neutrals
 
-- Primary foreground/background pairs identify the single strongest action in a region.
-- Muted surfaces separate secondary controls, table headers, and contextual information.
-- Borders define structure without turning every section into a floating card.
-- Destructive is reserved for errors, invalid tickets, cancellation, suspension, and irreversible actions.
-- Check-in outcomes must never rely on color alone; pair them with an icon, concise label, and optional sound or vibration.
+The neutral ramp carries a slight cool tint (hue 260, chroma ≈ 0.005). It is
+never pure gray. `--primary` stays near-black in light mode and near-white in
+dark: the strongest action in a region is defined by contrast, not by hue, so a
+primary button can never be mistaken for a status.
 
-Do not add a brand gradient, decorative accent palette, or arbitrary per-component colors. Charts use the existing neutral chart scale and must remain distinguishable through labels, shape, or pattern as well as tone.
+### The five hues
+
+| Family | Hue | Meaning |
+|---|---|---|
+| `brand` / `info` | 200 | Product identity, focus ring, selection, active navigation, informational emphasis |
+| `success` | 150 | Accepted, confirmed, delivered, fully synchronized |
+| `warning` | 75 | Duplicate, transient failure, low-confidence clock, auto-resolved conflict |
+| `destructive` | 27 | Invalid, canceled, permanent failure, unresolved conflict, irreversible action |
+| `provisional` | 265 | Offline acceptance, pending authority, snapshot in use |
+
+`brand` and `info` deliberately share hue 200. The product's voice and its
+informational register are the same register; splitting them would add a hue
+without adding meaning.
+
+**`provisional` is a first-class outcome, not a shade of success.** An offline
+acceptance is the single most important distinction this product draws — it is a
+qualified yes, and it must never render in the same color as a confirmed one.
+
+### Token shape
+
+Every hue family provides five tokens:
+
+- `--{family}` — solid fill
+- `--{family}-foreground` — text and icons on that solid fill
+- `--{family}-text` — accessible text on `--background` and on `--{family}-subtle`
+- `--{family}-subtle` — tinted surface for inline alerts, badges, and rows
+- `--{family}-border` — border paired with the subtle surface
+
+Both modes are first-class. Every pair is verified against WCAG 2.2 AA by
+`app/globals.contrast.test.ts`, which fails the build on drift. Adding a color
+without adding it to that audit is not permitted.
+
+### Color is never the only signal
+
+Every outcome pairs its color with an icon, a concise label, and — on the scanner
+— optional sound and vibration. Removing all color from any screen must leave it
+fully usable. Charts and meters remain distinguishable by label and value, not
+tone alone.
 
 ## Typography
 
-Use **Geist Sans** for navigation, headings, body copy, labels, tables, forms, and buttons. Use **Geist Mono** only where fixed-width characters improve verification: Ticket Codes, identifiers, timestamps, cryptographic metadata, and debugging details.
+**Geist Sans** carries UI, body copy, navigation, tables, forms, buttons, and
+**every status, outcome, and scanner string without exception**. Arm's-length
+legibility in bright light is a safety property; nothing decorative may touch it.
 
-Hierarchy should come from size, weight, spacing, and placement rather than dramatic type changes. Page titles are compact and confident; section headings are restrained; labels are direct; supporting copy is short and muted. Operational numbers may be prominent, but avoid oversized marketing-style metrics.
+**Instrument Serif** fills `--font-heading` and appears only in:
 
-Use sentence case throughout. Prefer concrete status language such as “Checked in,” “Already checked in,” and “Ticket not found” over clever or vague copy.
+- organizer page titles
+- public event and registration pages
+- landing page headlines
+- the Event name on the Ticket
 
-## Elevation
+It never appears in scanner outcomes, status labels, badges, table content,
+form labels, or any string under `text-xl`. It ships regular and italic only —
+that constraint is intentional and must not be worked around with synthetic
+bold.
 
-The interface is primarily flat and border-led. Use background shifts and dividers to establish regions before reaching for shadows. Reserve elevation for genuinely layered UI such as dialogs, popovers, menus, and sticky controls that pass over content.
+**IBM Plex Mono** carries Ticket Codes, Event Slugs, identifiers, timestamps,
+cryptographic metadata, and every operational number in a stat or table cell.
+Ticket Codes use Crockford Base32, which already excludes `I`, `L`, `O`, and
+`U`; the face must keep `5`/`S`, `2`/`Z`, `8`/`B`, and `6`/`G` distinct.
 
-Avoid placing every section inside an independent rounded card. Related controls and data should share a clear structural region. Rounded corners use the existing global radius scale; pill shapes are appropriate for buttons and compact statuses, not large content containers.
+### Scale
 
-Motion is restrained: use 150–200 ms transitions for state changes, focus, expansion, and overlays. Do not add decorative entrance animations. Scanner feedback is immediate; reduced-motion preferences are respected.
+Sizes come from the Tailwind scale. Arbitrary values such as `text-[10px]` and
+`text-[11px]` are not permitted — if a size is missing, the scale is wrong.
+Hierarchy comes from size, weight, spacing, and placement. Use sentence case
+throughout, and concrete status language: "Checked in," "Already checked in,"
+"Ticket not found."
+
+## Shape and elevation
+
+Exactly three radii, named by role:
+
+- **control** — buttons, inputs, chips, badges, small controls
+- **container** — regions, panels, table shells, the Ticket body
+- **overlay** — dialogs, popovers, menus
+
+`rounded-full` is permitted only for status chips, avatars, and dots. **Buttons
+are not pills.** A primary action is a decision, not a chip.
+
+The interface is flat and border-led. Establish regions with background shifts
+and dividers before reaching for a shadow. **Decorative elevation is not
+permitted** — shadow exists only where something genuinely passes over content:
+dialogs, popovers, menus, and sticky bars.
+
+Do not wrap every content group in an independent floating card. Related
+controls and data share one bordered region with internal dividers.
+
+## Motion
+
+Motion is used where it carries meaning and nowhere else.
+
+**Permitted:**
+
+- Shared-element morphing between related routes (Event list → Event workspace,
+  Ticket surfaces) via React `<ViewTransition>`
+- `<Suspense>` reveals resolving a skeleton into its real content
+- Crossfades when table content changes within the same route (filters, search)
+- 150–200 ms transitions on state, focus, expansion, and overlays
+
+**Not permitted:**
+
+- Directional slide transitions between workspace sections
+- Any entrance animation on **scan outcomes**. The outcome appears instantly. A
+  200 ms fade on a door decision is 200 ms of a volunteer not knowing.
+- Motion that gates interactivity or delays first input
+
+`prefers-reduced-motion` is honored everywhere, and every animation has a
+static, fully usable fallback. View transitions rely on
+`experimental.viewTransition`; where a browser lacks support the app works
+normally without animation.
 
 ## Components
 
-**Buttons** use the existing shadcn/Base UI component and its semantic variants. Default is for the primary action, outline or secondary for supporting actions, ghost for low-emphasis table and navigation controls, destructive for consequential actions, and link only for actions that visually belong in prose. A view should rarely show more than one dominant default button in the same action group.
+**Buttons** use the shared component and its semantic variants. `default` for
+the single strongest action in a region, `outline` or `secondary` for supporting
+actions, `ghost` for low-emphasis table and navigation controls, `link` only in
+prose.
 
-**Navigation** keeps the event identity and current section obvious. The top level opens to **Events**. Each event is a focused workspace with **Overview**, **Registrations**, **Form**, **Check-in**, **Staff**, **Audit**, and **Settings** in that order. The scanner launches from Check-in into a separate distraction-free, full-screen shell with large touch targets and a clear route back to the event workspace.
+**Destructive splits by role.** A destructive *trigger* — a control sitting in a
+table row or a settings list — uses the tinted treatment, so rows do not scream.
+The *confirm* button inside the resulting dialog is **solid**. Quiet to reach
+for, loud to commit.
 
-The public attendee path is intentionally linear: **Event page → Registration form → Check email → Verify registration → Ticket page**. The ticket page is also the attendee's secure, accountless management destination for viewing the QR code, editing eligible answers, resending or replacing the ticket, and canceling before the permitted cutoff. Each step uses one obvious primary action and clearly explains what happens next.
+**Navigation.** The organizer shell is a left sidebar carrying Event identity and
+all seven sections at once: Overview, Registrations, Form, Check-in, Staff,
+Audit, Settings. It collapses to a drawer on small screens. Sections are never
+hidden behind a scroller without an affordance. One container measure applies
+across the app; table-heavy sections may run wider.
 
-**Forms** place labels above fields, keep help and error text adjacent to the relevant control, and preserve entered values after validation errors. Required state and errors are conveyed in text, not color alone.
+The scanner launches from Check-in into a separate full-screen shell with large
+touch targets and an unambiguous route back.
 
-**Tables and lists** are the default for attendee, staff, audit, delivery, and scan-attempt records. Keep columns aligned, actions predictable, and critical statuses readable without opening a detail view. On narrow screens, preserve priority information instead of shrinking a desktop table beyond usability.
+**The attendee path** stays linear: Event page → Registration form → Check email
+→ Verify registration → Ticket page. Each step has one obvious primary action and
+states plainly what happens next.
 
-**Status indicators** combine a concise label with an icon or shape. Status wording must match the domain language in `CONTEXT.md`.
+**The Ticket** is an object. QR representation, Ticket Code, attendee name, and
+Event identity lead on **every** viewport — never below management controls, and
+never below the fold on a phone, because a phone at a door is the primary case.
+The stub carries a perforation edge and corner notches. The QR sits in a fixed
+white chamber in both themes; an inverted QR does not scan. Management controls
+sit below a hard divider. The print stylesheet is a first-class surface.
 
-**Scanner feedback** is the signature interaction. Success, duplicate, invalid, offline-provisional, and conflict states each receive a distinct icon, headline, explanation, and next action. The result must remain legible in bright light and must not disappear before a volunteer can understand it. Scanner actions use touch targets of at least 44 by 44 CSS pixels.
+**Scanner feedback is the signature interaction.** A resolved scan takes over the
+screen: the outcome hue as the surface, a glyph at 96 px or larger, a large sans
+headline, the attendee name prominent, and exactly one next action. It persists
+until dismissed or replaced by the next scan — it never auto-dismisses before a
+volunteer can read it. Each of the ten outcomes is distinguishable by icon,
+headline, and color together. Outcome surfaces stay high-luminance in **both**
+themes: ambient venue light beats theme preference at a door. Touch targets are
+at least 44 × 44 CSS pixels.
 
-**Focus and accessibility** follow WCAG 2.2 AA. Preserve the existing visible ring treatment, logical keyboard order, semantic controls, accessible names, screen-reader status announcements, and strong contrast.
+**Forms** put labels above fields, keep help and error text beside the control,
+and preserve entered values through validation errors. Required state and errors
+are conveyed in text, never color alone.
+
+**Tables and lists** are the default for attendee, staff, audit, delivery, and
+scan-attempt records. Columns stay aligned, actions predictable, and critical
+status readable without opening a detail view. On narrow screens, preserve
+priority information rather than shrinking a desktop table past usability.
+
+**Metrics show proportion, not bare counts.** A number without a denominator
+cannot be judged. "7 duplicates" is meaningless; "7 of 412 attempts" is
+actionable. Prefer share-of-total bars, capacity meters, and sparklines — all
+hand-built, no charting dependency. An overview answers three questions at a
+glance: how full, how many arrived, is anything wrong. Everything else belongs in
+the section that owns it.
+
+**Focus and accessibility** follow WCAG 2.2 AA: the visible ring uses the brand
+hue, keyboard order is logical, controls are semantic, names are accessible, and
+status changes are announced. Scan outcomes announce assertively and receive
+focus.
 
 ## Do's and Don'ts
 
 **Do**
 
-- Make the current state and next action obvious at a glance.
-- Use whitespace, alignment, dividers, and typography to create hierarchy.
-- Design organizer screens for scanning and comparison, not presentation.
-- Keep high-pressure scanner controls large, immediate, and forgiving.
-- Show offline state, pending synchronization, and conflicts explicitly.
+- Make the current state and the next action obvious at a glance.
+- Treat `provisional` as a distinct outcome everywhere it can occur.
+- Show offline state, snapshot age, pending synchronization, and conflicts
+  explicitly.
+- Give every number a denominator.
 - Use progressive disclosure for advanced or dangerous actions.
-- Preserve the defaults in `globals.css` as the sole color source.
+- Take color, radius, elevation, and type exclusively from the tokens.
 
 **Don't**
 
-- Resemble a dark cybersecurity console, crypto product, or generic purple-gradient SaaS template.
-- Use oversized hero metrics or marketing visuals inside the operational dashboard.
-- Turn every content group into a floating, heavily rounded card.
-- introduce raw color values or one-off component palettes.
-- Hide important state behind hover, color alone, or transient toast messages.
-- Animate routine page entry or delay scanner feedback for visual effect.
-- Sacrifice clarity to make the interface appear more technically complex.
+- Resemble a dark security console, a crypto product, or a gradient SaaS
+  template.
+- Introduce raw color values or Tailwind palette classes in components.
+- Use arbitrary type sizes.
+- Wrap every content group in a floating rounded card.
+- Animate a scan outcome, or animate routine content that carries no meaning.
+- Hide important state behind hover, color alone, or a transient toast.
+- Let the display serif touch anything operational.
+- Sacrifice clarity to make the interface look more technically complex.

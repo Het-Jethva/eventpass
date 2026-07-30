@@ -253,6 +253,26 @@ TEST_DATABASE_URL=postgres://... npm test
 Without it, the integration suites **skip** and only the pure-logic tests run.
 Point it at a scratch database or a Neon branch — the suites write real rows.
 
+### A local database, no Neon account needed
+
+`compose.yaml` brings up Postgres plus Neon's `wsproxy`. The proxy matters:
+the application and every integration test connect through
+`@neondatabase/serverless`, which speaks WebSockets rather than the Postgres
+wire protocol, so it cannot reach a plain Postgres container directly. Bridging
+it — rather than substituting `pg` for tests — keeps the suites on the same
+driver production uses, including its pipelining and transaction semantics.
+
+```bash
+docker compose up -d
+DATABASE_URL=postgresql://postgres:postgres@localhost:55432/eventpass npm run db:migrate
+TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55432/eventpass npm test
+```
+
+`vitest.setup.ts` points the driver at the proxy automatically whenever the
+database URL is local; it leaves `lib/db/index.ts` untouched, so production
+behaviour is unchanged. Ports are non-default (55432, 54444) to avoid colliding
+with an existing Postgres.
+
 ## Deliberately out of scope
 
 Payments, seat maps, ticket classes, native apps, microservices, message queues,

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { Pool } from "@neondatabase/serverless";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
 
@@ -34,7 +34,18 @@ describeWithDatabase("Published Event application service", () => {
 
   afterAll(async () => {
     if (eventIds.length > 0) {
-      await database.delete(auditEntry).where(inArray(auditEntry.eventId, eventIds));
+      // Audit Entries are append-only in the schema: migration 0009 installs a
+      // `prevent_audit_entry_mutation` trigger that raises on delete. That is
+      // the behavior the product promises, so teardown suppresses the trigger
+      // for its own transaction rather than the schema relaxing for tests.
+      // Without this the Events below cannot be removed at all — `audit_entry`
+      // references them with `on delete restrict`.
+      await database.transaction(async (transaction) => {
+        await transaction.execute(sql`set local session_replication_role = replica`);
+        await transaction
+          .delete(auditEntry)
+          .where(inArray(auditEntry.eventId, eventIds));
+      });
       const registrations = await database
         .select({ id: registration.id })
         .from(registration)
@@ -49,6 +60,13 @@ describeWithDatabase("Published Event application service", () => {
           .where(inArray(registration.id, registrationIds));
       }
       await database.delete(eventStaff).where(inArray(eventStaff.eventId, eventIds));
+      // Email Deliveries must go before their Events: plan 005 gave
+      // `email_delivery` a real `event_id` foreign key, so deleting the Event
+      // first violates it. Scoped by Event rather than by `deliveryIds` because
+      // the service under test creates deliveries this suite never sees.
+      await database
+        .delete(emailDelivery)
+        .where(inArray(emailDelivery.eventId, eventIds));
       await database.delete(event).where(inArray(event.id, eventIds));
     }
     if (deliveryIds.length > 0) {

@@ -40,13 +40,10 @@ export default async function EditEventPage({
   } satisfies Record<CreateEventFormField, string>;
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
+    <>
       <div className="flex flex-col gap-2">
-        <p className="text-sm font-medium text-muted-foreground">
-          {event.status === "draft" ? "Draft Event" : "Published Event"}
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight">Configure {event.name}</h1>
-        <p className="max-w-2xl text-sm text-muted-foreground">
+        <h2 className="text-xl font-semibold tracking-tight">Settings</h2>
+        <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
           {event.status === "draft"
             ? "Changes remain private until you publish. The Event Slug becomes immutable at publication."
             : "Material changes are recorded and emailed to affected Attendees. Restrictions tighten when check-in opens."}
@@ -58,6 +55,6 @@ export default async function EditEventPage({
         slugImmutable={Boolean(event.publishedAt)}
         published={event.status === "published"}
       />
-    </main>
+    </>
   );
 }

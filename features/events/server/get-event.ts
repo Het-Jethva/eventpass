@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/lib/db";
@@ -29,7 +30,13 @@ const eventSelection = {
 
 export type EventDetails = typeof event.$inferSelect;
 
-export async function getOrganizerEvent(eventId: string, staffUserId: string) {
+// Deduplicated per request: the event workspace layout and the page rendering
+// inside it both need the Event, and without this each render pass would issue
+// the same query twice.
+export const getOrganizerEvent = cache(async function getOrganizerEvent(
+  eventId: string,
+  staffUserId: string,
+) {
   const [result] = await db
     .select({ ...eventSelection, role: eventStaff.role })
     .from(eventStaff)
@@ -44,7 +51,7 @@ export async function getOrganizerEvent(eventId: string, staffUserId: string) {
     .limit(1);
 
   return result ?? null;
-}
+});
 
 export async function getPublishedEvent(slug: string) {
   const [result] = await db

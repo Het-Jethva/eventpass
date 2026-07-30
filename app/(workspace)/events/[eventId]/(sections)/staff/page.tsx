@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import {
-  IconArrowLeft,
   IconClock,
   IconMailForward,
   IconShieldCheck,
@@ -12,7 +10,7 @@ import {
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Field,
   FieldDescription,
@@ -43,7 +41,6 @@ import {
   revokeStaffInvitationAction,
 } from "./actions";
 import { acceptOwnershipTransferAction } from "./transfer-actions";
-import { EventWorkspaceNav } from "../event-workspace-nav";
 
 export const metadata: Metadata = { title: "Event Staff" };
 
@@ -89,25 +86,13 @@ export default async function EventStaffPage({
     : null;
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
-      <div>
-        <Link
-          href={`/events/${eventId}`}
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <IconArrowLeft aria-hidden="true" className="size-4" />
-          Event Overview
-        </Link>
-        <div className="mt-4 mb-6">
-          <EventWorkspaceNav eventId={eventId} eventName={staffing.eventName} />
-        </div>
-        <div className="mt-5 flex flex-col gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight">Event Staff</h1>
-          <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-            Assign Event-scoped access. Every invitation, role change, removal,
-            and Ownership Transfer is recorded in immutable Audit Entries.
-          </p>
-        </div>
+    <>
+      <div className="flex flex-col gap-2">
+        <h2 className="text-xl font-semibold tracking-tight">Event Staff</h2>
+        <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+          Assign Event-scoped access. Every invitation, role change, removal,
+          and Ownership Transfer is recorded in immutable Audit Entries.
+        </p>
       </div>
 
       {query.error ? (
@@ -284,9 +269,6 @@ export default async function EventStaffPage({
         </section>
       ) : null}
 
-      <Link href={`/events/${eventId}`} className={buttonVariants({ variant: "outline" })}>
-        Return to Event overview
-      </Link>
-    </main>
+    </>
   );
 }

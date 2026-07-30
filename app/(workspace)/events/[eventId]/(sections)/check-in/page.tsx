@@ -1,16 +1,14 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import {
   IconAlertTriangle,
-  IconArrowLeft,
   IconClockQuestion,
   IconDeviceMobile,
 } from "@tabler/icons-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Field,
   FieldDescription,
@@ -29,14 +27,18 @@ import {
   reverseOrganizerCheckInAction,
 } from "./actions";
 
-import { EventWorkspaceNav } from "../event-workspace-nav";
-
 export const metadata: Metadata = { title: "Check-in operations" };
 
 function formatAttemptTime(value: Date, timeZone: string) {
+  // Components spelled out because `dateStyle`/`timeStyle` cannot be combined
+  // with `timeZoneName`; the mix throws "Invalid option : option".
   return new Intl.DateTimeFormat("en", {
-    dateStyle: "medium",
-    timeStyle: "medium",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
     timeZone,
     timeZoneName: "short",
   }).format(value);
@@ -64,34 +66,22 @@ export default async function CheckInConflictsPage({
   if (!event) notFound();
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
-      <header>
-        <Link
-          href={`/events/${eventId}`}
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <IconArrowLeft aria-hidden="true" className="size-4" />
-          Event Overview
-        </Link>
-        <div className="mt-4 mb-6">
-          <EventWorkspaceNav eventId={event.id} eventName={event.name} />
+    <>
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-xl font-semibold tracking-tight">
+            Check-in operations
+          </h2>
+          <Badge variant={conflicts.length > 0 ? "destructive" : "secondary"}>
+            {conflicts.length} unresolved
+          </Badge>
         </div>
-        <div className="mt-5 flex flex-col gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Check-in operations
-            </h1>
-            <Badge variant={conflicts.length > 0 ? "destructive" : "secondary"}>
-              {conflicts.length} unresolved
-            </Badge>
-          </div>
-          <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-            Isolated Scanner Devices cannot prevent the same Ticket from being
-            accepted at separate entrances. Offline acceptance remains
-            provisional until synchronization compares every Scan Attempt.
-          </p>
-        </div>
-      </header>
+        <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+          Isolated Scanner Devices cannot prevent the same Ticket from being
+          accepted at separate entrances. Offline acceptance remains provisional
+          until synchronization compares every Scan Attempt.
+        </p>
+      </div>
 
       {query.error ? (
         <Alert variant="destructive">
@@ -291,12 +281,6 @@ export default async function CheckInConflictsPage({
         </div>
       )}
 
-      <Link
-        href={`/events/${eventId}`}
-        className={buttonVariants({ variant: "outline" })}
-      >
-        Return to Event overview
-      </Link>
-    </main>
+    </>
   );
 }

@@ -14,7 +14,7 @@ import {
 import {
   initialSaveRegistrationFormState,
   saveRegistrationFormAction,
-} from "@/app/(workspace)/events/[eventId]/form/actions";
+} from "@/app/(workspace)/events/[eventId]/(sections)/form/actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";

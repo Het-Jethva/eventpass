@@ -1,18 +1,13 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import {
-  IconArrowLeft,
   IconCalendarEvent,
   IconClockQuestion,
-  IconExternalLink,
   IconMapPin,
-  IconScan,
   IconSend,
   IconUsers,
 } from "@tabler/icons-react";
 
-import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { getOrganizerEvent } from "@/features/events/server/get-event";
 import { getOrganizerEventMetrics } from "@/features/events/server/get-event-metrics";
@@ -22,21 +17,26 @@ import { cn } from "@/lib/utils";
 import { DeleteEventControl } from "@/features/events/delete-event-control";
 import { CancelEventControl } from "@/features/events/cancel-event-control";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { EventWorkspaceNav } from "./event-workspace-nav";
 
 import {
   deleteEventAction,
   cancelEventAction,
   publishEventAction,
   returnEventToDraftAction,
-} from "./actions";
+} from "../actions";
 
 export const metadata: Metadata = { title: "Event Overview" };
 
 function formatRange(startsAt: Date, endsAt: Date, timeZone: string) {
+  // `dateStyle`/`timeStyle` cannot be combined with `timeZoneName` — ECMA-402
+  // rejects the mix and `Intl.DateTimeFormat` throws "Invalid option : option".
+  // The Event Time Zone has to stay visible, so spell the components out.
   return new Intl.DateTimeFormat("en", {
-    dateStyle: "medium",
-    timeStyle: "short",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
     timeZone,
     timeZoneName: "short",
   }).formatRange(startsAt, endsAt);
@@ -64,59 +64,7 @@ export default async function EventOverviewPage({
   const isOwner = event.role === "owner";
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
-      <div>
-        <Link
-          href="/events"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <IconArrowLeft aria-hidden="true" className="size-4" />
-          Events
-        </Link>
-
-        <div className="mt-4 mb-6">
-          <EventWorkspaceNav eventId={event.id} eventName={event.name} />
-        </div>
-
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-semibold tracking-tight">
-                {event.name}
-              </h1>
-              <Badge variant={isDraft ? "secondary" : isCanceled ? "destructive" : "default"}>
-                {isDraft
-                  ? "Draft Event"
-                  : isCanceled
-                    ? "Canceled Event"
-                    : "Published Event"}
-              </Badge>
-            </div>
-            <p className="mt-2 font-mono text-sm text-muted-foreground">
-              /e/{event.slug}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {isPublished ? (
-              <Link href={`/scanner/${event.id}`} className={buttonVariants()}>
-                <IconScan data-icon="inline-start" />
-                Open scanner
-              </Link>
-            ) : null}
-            {!isDraft ? (
-              <Link
-                href={`/e/${event.slug}`}
-                target="_blank"
-                className={buttonVariants({ variant: "outline" })}
-              >
-                <IconExternalLink data-icon="inline-end" />
-                Open public page
-              </Link>
-            ) : null}
-          </div>
-        </div>
-      </div>
-
+    <>
       {isCanceled ? (
         <Alert variant="destructive">
           <IconClockQuestion aria-hidden="true" />
@@ -246,6 +194,6 @@ export default async function EventOverviewPage({
           />
         </section>
       ) : null}
-    </main>
+    </>
   );
 }

@@ -70,30 +70,36 @@ export function EventWorkspaceNav({ eventId, eventName }: EventWorkspaceNavProps
   return (
     <nav
       aria-label={`Event ${eventName} workspace sections`}
-      className="flex flex-wrap items-center gap-1 border-b pb-2"
+      // Seven sections wrap to three rows of pills on a phone, which reads as a
+      // block of chrome rather than a navigation bar. Scrolling keeps it to one
+      // row and preserves the section order DESIGN.md specifies.
+      className="-mx-4 overflow-x-auto border-b px-4 pb-2 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
-      {navItems.map((item) => {
-        const isActive = item.exact
-          ? pathname === item.href
-          : pathname.startsWith(item.href);
-        const Icon = item.icon;
+      <div className="flex w-max items-center gap-1">
+        {navItems.map((item) => {
+          const isActive = item.exact
+            ? pathname === item.href
+            : pathname.startsWith(item.href);
+          const Icon = item.icon;
 
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-              "inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-              isActive
-                ? "bg-foreground text-background shadow-xs"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground",
-            )}
-          >
-            <Icon className="size-4" aria-hidden="true" />
-            <span>{item.label}</span>
-          </Link>
-        );
-      })}
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={isActive ? "page" : undefined}
+              className={cn(
+                "inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                isActive
+                  ? "bg-foreground text-background shadow-xs"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+            >
+              <Icon className="size-4" aria-hidden="true" />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+      </div>
     </nav>
   );
 }

@@ -26,6 +26,14 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import type { RegistrationImportPreview } from "./server/registration-import-application";
 
 type Message = { kind: "error" | "success"; text: string } | null;
@@ -202,23 +210,23 @@ export function RegistrationImportWorkspace({ eventId }: { eventId: string }) {
             ))}
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border">
-            <table className="w-full min-w-2xl text-left text-sm">
-              <thead className="bg-muted/50 text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Row</th>
-                  <th className="px-4 py-3 font-medium">Name</th>
-                  <th className="px-4 py-3 font-medium">Email</th>
-                  <th className="px-4 py-3 font-medium">Validation</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
+          <div className="overflow-hidden rounded-2xl border">
+            <Table className="min-w-2xl">
+              <TableHeader className="bg-muted/50 text-muted-foreground">
+                <TableRow>
+                  <TableHead>Row</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Validation</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {preview.rows.map((row) => (
-                  <tr key={row.rowNumber} className="[content-visibility:auto]">
-                    <td className="px-4 py-3 font-mono">{row.rowNumber}</td>
-                    <td className="px-4 py-3">{row.name || "—"}</td>
-                    <td className="px-4 py-3">{row.email || "—"}</td>
-                    <td className="px-4 py-3">
+                  <TableRow key={row.rowNumber} className="[content-visibility:auto]">
+                    <TableCell className="font-mono">{row.rowNumber}</TableCell>
+                    <TableCell>{row.name || "—"}</TableCell>
+                    <TableCell>{row.email || "—"}</TableCell>
+                    <TableCell>
                       {row.errors.length === 0 ? (
                         <Badge variant="secondary">Ready</Badge>
                       ) : (
@@ -228,11 +236,11 @@ export function RegistrationImportWorkspace({ eventId }: { eventId: string }) {
                           ))}
                         </ul>
                       )}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </section>
       )}

@@ -11,6 +11,14 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { AdminActionDialog } from "./admin-action-dialog";
 
 export interface SupportAttendeeRecord {
@@ -124,56 +132,55 @@ export function SupportAccessView({
           </div>
 
           <div className="rounded-lg border bg-card">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="border-b bg-muted/40 text-xs font-medium text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-3">Attendee Name & Email</th>
-                    <th className="px-4 py-3">Registration Status</th>
-                    <th className="px-4 py-3">Ticket Code & Status</th>
-                    <th className="px-4 py-3">Registered At</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {filteredRegistrations.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
-                        No attendee records found for this Event.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredRegistrations.map((reg) => (
-                      <tr key={reg.id} className="hover:bg-muted/10 transition-colors">
-                        <td className="px-4 py-3">
-                          <div className="font-medium text-foreground">{reg.attendeeName}</div>
-                          <div className="font-mono text-xs text-muted-foreground">{reg.attendeeEmail}</div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <Badge variant="outline" className="capitalize">
-                            {reg.status}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-3 font-mono text-xs">
-                          {reg.ticketCode ? (
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold text-foreground">{reg.ticketCode}</span>
-                              <Badge variant="secondary" className="capitalize text-[10px]">
-                                {reg.ticketStatus}
-                              </Badge>
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground italic">No ticket issued</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-muted-foreground">
-                          {new Date(reg.createdAt).toLocaleDateString()} {new Date(reg.createdAt).toLocaleTimeString()}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <Table>
+              <TableHeader className="bg-muted/50 text-xs text-muted-foreground">
+                <TableRow>
+                  <TableHead>Attendee</TableHead>
+                  <TableHead>Registration status</TableHead>
+                  <TableHead>Ticket</TableHead>
+                  <TableHead>Registered at</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredRegistrations.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
+                      No attendee records found for this Event.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredRegistrations.map((reg) => (
+                    <TableRow key={reg.id}>
+                      <TableCell>
+                        <div className="font-medium text-foreground">{reg.attendeeName}</div>
+                        <div className="font-mono text-xs text-muted-foreground">{reg.attendeeEmail}</div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="capitalize">
+                          {reg.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="font-mono text-xs">
+                        {reg.ticketCode ? (
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-foreground">{reg.ticketCode}</span>
+                            <Badge variant="secondary" className="text-[10px] capitalize">
+                              {reg.ticketStatus}
+                            </Badge>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">No ticket issued</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {new Date(reg.createdAt).toLocaleDateString()}{" "}
+                        {new Date(reg.createdAt).toLocaleTimeString()}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
           </div>
         </div>
       )}

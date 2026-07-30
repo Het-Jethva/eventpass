@@ -9,6 +9,14 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import type {
   AuditCategory,
   AuditSourceFilter,
@@ -196,112 +204,99 @@ export function AuditView({ initialRecords }: AuditViewProps) {
 
       {/* Audit Log Table / Cards */}
       {filteredRecords.length > 0 ? (
-        <div className="rounded-xl border bg-card shadow-xs overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b bg-muted/50 text-muted-foreground uppercase tracking-wider font-medium">
-                <tr>
-                  <th scope="col" className="px-4 py-3">Timestamp</th>
-                  <th scope="col" className="px-4 py-3">Actor</th>
-                  <th scope="col" className="px-4 py-3">Action / Event</th>
-                  <th scope="col" className="px-4 py-3">Target</th>
-                  <th scope="col" className="px-4 py-3">Source & Device</th>
-                  <th scope="col" className="px-4 py-3">Reason / Details</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {filteredRecords.map((record) => {
-                  const date = new Date(record.createdAt);
-                  const isScan = record.category === "scan";
-                  const isConflictOrReversal =
-                    record.action.includes("conflict") || record.action.includes("reversal");
+        <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
+          <Table className="text-xs">
+            <TableHeader className="bg-muted/50 text-muted-foreground">
+              <TableRow>
+                <TableHead scope="col">Timestamp</TableHead>
+                <TableHead scope="col">Actor</TableHead>
+                <TableHead scope="col">Action</TableHead>
+                <TableHead scope="col">Target</TableHead>
+                <TableHead scope="col">Source</TableHead>
+                <TableHead scope="col">Reason</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredRecords.map((record) => {
+                const date = new Date(record.createdAt);
+                const isScan = record.category === "scan";
+                const isConflictOrReversal =
+                  record.action.includes("conflict") || record.action.includes("reversal");
 
-                  return (
-                    <tr
-                      key={record.id}
-                      className="hover:bg-muted/30 transition-colors"
-                    >
-                      {/* Timestamp */}
-                      <td className="whitespace-nowrap px-4 py-3 font-mono text-muted-foreground">
-                        {date.toLocaleDateString([], { month: "short", day: "numeric" })}{" "}
-                        {date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-                      </td>
+                return (
+                  <TableRow key={record.id}>
+                    <TableCell className="font-mono text-muted-foreground">
+                      {date.toLocaleDateString([], { month: "short", day: "numeric" })}{" "}
+                      {date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                    </TableCell>
 
-                      {/* Actor */}
-                      <td className="px-4 py-3 font-medium">
-                        <div>{record.actorName}</div>
-                        {record.actorEmail ? (
-                          <div className="text-[11px] text-muted-foreground font-mono">
-                            {record.actorEmail}
-                          </div>
-                        ) : null}
-                      </td>
-
-                      {/* Action / Event */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5">
-                          <Badge
-                            variant={
-                              isConflictOrReversal
-                                ? "destructive"
-                                : isScan
-                                  ? "secondary"
-                                  : "default"
-                            }
-                            className="text-[11px] font-normal"
-                          >
-                            {record.actionLabel}
-                          </Badge>
+                    <TableCell className="font-medium">
+                      <div>{record.actorName}</div>
+                      {record.actorEmail ? (
+                        <div className="font-mono text-[11px] text-muted-foreground">
+                          {record.actorEmail}
                         </div>
-                      </td>
+                      ) : null}
+                    </TableCell>
 
-                      {/* Target */}
-                      <td className="px-4 py-3 font-mono">
-                        {record.targetLabel ?? record.targetId}
-                      </td>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          isConflictOrReversal
+                            ? "destructive"
+                            : isScan
+                              ? "secondary"
+                              : "default"
+                        }
+                        className="text-[11px] font-normal"
+                      >
+                        {record.actionLabel}
+                      </Badge>
+                    </TableCell>
 
-                      {/* Source & Device */}
-                      <td className="px-4 py-3">
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-1">
-                            <Badge
-                              variant={record.source === "offline" ? "outline" : "secondary"}
-                              className="text-[10px] font-mono capitalize"
-                            >
-                              {record.source}
+                    <TableCell className="font-mono">
+                      {record.targetLabel ?? record.targetId}
+                    </TableCell>
+
+                    <TableCell>
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-1">
+                          <Badge
+                            variant={record.source === "offline" ? "outline" : "secondary"}
+                            className="font-mono text-[10px] capitalize"
+                          >
+                            {record.source}
+                          </Badge>
+                          {record.timestampConfidence === "low" ? (
+                            <Badge variant="destructive" className="text-[10px]">
+                              Low confidence clock
                             </Badge>
-                            {record.timestampConfidence === "low" ? (
-                              <Badge variant="destructive" className="text-[10px]">
-                                Low Confidence Clock
-                              </Badge>
-                            ) : null}
-                          </div>
-                          {record.scannerDeviceId ? (
-                            <span className="text-[10px] font-mono text-muted-foreground truncate max-w-32">
-                              Device: {record.scannerDeviceId.slice(0, 8)}
-                            </span>
                           ) : null}
                         </div>
-                      </td>
-
-                      {/* Reason / Details */}
-                      <td className="px-4 py-3 max-w-xs leading-relaxed text-muted-foreground">
-                        {record.reason ? (
-                          <span className="italic text-foreground">{record.reason}</span>
-                        ) : record.metadata && Object.keys(record.metadata).length > 0 ? (
-                          <span className="font-mono text-[10px]">
-                            {JSON.stringify(record.metadata)}
+                        {record.scannerDeviceId ? (
+                          <span className="max-w-32 truncate font-mono text-[10px] text-muted-foreground">
+                            Device: {record.scannerDeviceId.slice(0, 8)}
                           </span>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        ) : null}
+                      </div>
+                    </TableCell>
+
+                    <TableCell className="max-w-xs whitespace-normal leading-relaxed text-muted-foreground">
+                      {record.reason ? (
+                        <span className="text-foreground">{record.reason}</span>
+                      ) : record.metadata && Object.keys(record.metadata).length > 0 ? (
+                        <span className="font-mono text-[10px]">
+                          {JSON.stringify(record.metadata)}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed bg-card p-12 text-center">

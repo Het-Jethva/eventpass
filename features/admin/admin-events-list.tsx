@@ -11,6 +11,14 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { AdminActionDialog } from "./admin-action-dialog";
 
 export interface EventItem {
@@ -69,98 +77,96 @@ export function AdminEventsList({
       </div>
 
       <div className="rounded-lg border bg-card">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b bg-muted/40 text-xs font-medium text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3">Event Name & Slug</th>
-                <th className="px-4 py-3">Lifecycle Status</th>
-                <th className="px-4 py-3">Suspension State</th>
-                <th className="px-4 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {filteredEvents.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
-                    No platform events match your search.
-                  </td>
-                </tr>
-              ) : (
-                filteredEvents.map((ev) => (
-                  <tr key={ev.id} className="hover:bg-muted/10 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-foreground">{ev.name}</div>
-                      <div className="font-mono text-xs text-muted-foreground">/e/{ev.slug}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge variant="outline" className="capitalize">
-                        {ev.status}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3">
-                      {ev.suspended ? (
-                        <div className="space-y-1">
-                          <Badge variant="destructive" className="gap-1">
-                            <IconLock className="h-3 w-3" /> Event Suspended
-                          </Badge>
-                          {ev.suspensionReason && (
-                            <p className="text-xs text-muted-foreground italic truncate max-w-xs">
-                              Reason: {ev.suspensionReason}
-                            </p>
-                          )}
-                        </div>
-                      ) : (
-                        <Badge variant="secondary" className="gap-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                          <IconCheck className="h-3 w-3" /> Active
+        <Table>
+          <TableHeader className="bg-muted/50 text-xs text-muted-foreground">
+            <TableRow>
+              <TableHead>Event</TableHead>
+              <TableHead>Lifecycle status</TableHead>
+              <TableHead>Suspension state</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredEvents.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
+                  No platform events match your search.
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredEvents.map((ev) => (
+                <TableRow key={ev.id}>
+                  <TableCell>
+                    <div className="font-medium text-foreground">{ev.name}</div>
+                    <div className="font-mono text-xs text-muted-foreground">/e/{ev.slug}</div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="capitalize">
+                      {ev.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {ev.suspended ? (
+                      <div className="space-y-1">
+                        <Badge variant="destructive" className="gap-1">
+                          <IconLock className="h-3 w-3" /> Event Suspended
                         </Badge>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
+                        {ev.suspensionReason && (
+                          <p className="max-w-xs truncate text-xs text-muted-foreground">
+                            Reason: {ev.suspensionReason}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <Badge variant="secondary" className="gap-1">
+                        <IconCheck className="h-3 w-3" /> Active
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onInspectAttendeeData(ev.id)}
+                        title="Inspect Attendee Data under Support Access"
+                      >
+                        <IconEye className="mr-1.5 h-3.5 w-3.5" />
+                        Inspect Attendees
+                      </Button>
+
+                      {ev.suspended ? (
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => onInspectAttendeeData(ev.id)}
-                          title="Inspect Attendee Data under Support Access"
+                          onClick={() => {
+                            setSelectedEvent(ev);
+                            setActionType("reactivate");
+                          }}
                         >
-                          <IconEye className="mr-1.5 h-3.5 w-3.5 text-primary" />
-                          Inspect Attendees
+                          <IconLockOpen className="mr-1.5 h-3.5 w-3.5" />
+                          Reactivate
                         </Button>
-
-                        {ev.suspended ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setSelectedEvent(ev);
-                              setActionType("reactivate");
-                            }}
-                          >
-                            <IconLockOpen className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
-                            Reactivate
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => {
-                              setSelectedEvent(ev);
-                              setActionType("suspend");
-                            }}
-                          >
-                            <IconLock className="mr-1.5 h-3.5 w-3.5" />
-                            Suspend
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => {
+                            setSelectedEvent(ev);
+                            setActionType("suspend");
+                          }}
+                        >
+                          <IconLock className="mr-1.5 h-3.5 w-3.5" />
+                          Suspend
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </div>
 
       {selectedEvent && actionType === "suspend" && (

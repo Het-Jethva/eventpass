@@ -5,6 +5,14 @@ import { IconCheck, IconSearch, IconUserCheck, IconUserOff, IconShield } from "@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { AdminActionDialog } from "./admin-action-dialog";
 
 export interface AccountItem {
@@ -57,83 +65,81 @@ export function AdminAccountsList({
       </div>
 
       <div className="rounded-lg border bg-card">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b bg-muted/40 text-xs font-medium text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3">Account Name & Email</th>
-                <th className="px-4 py-3">Role / Privileges</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {filteredAccounts.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
-                    No platform accounts match your search.
-                  </td>
-                </tr>
-              ) : (
-                filteredAccounts.map((acc) => (
-                  <tr key={acc.id} className="hover:bg-muted/10 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-foreground">{acc.name}</div>
-                      <div className="font-mono text-xs text-muted-foreground">{acc.email}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      {acc.isPlatformAdmin ? (
-                        <Badge variant="outline" className="border-primary/40 bg-primary/5 text-primary gap-1">
-                          <IconShield className="h-3 w-3" /> Platform Administrator
-                        </Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">Staff Member</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      {acc.suspended ? (
-                        <Badge variant="destructive" className="gap-1">
-                          <IconUserOff className="h-3 w-3" /> Suspended
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary" className="gap-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                          <IconCheck className="h-3 w-3" /> Active
-                        </Badge>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {acc.suspended ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setSelectedUser(acc);
-                            setActionType("reactivate");
-                          }}
-                        >
-                          <IconUserCheck className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
-                          Reactivate
-                        </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => {
-                            setSelectedUser(acc);
-                            setActionType("suspend");
-                          }}
-                        >
-                          <IconUserOff className="mr-1.5 h-3.5 w-3.5" />
-                          Suspend
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        <Table>
+          <TableHeader className="bg-muted/50 text-xs text-muted-foreground">
+            <TableRow>
+              <TableHead>Account</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredAccounts.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
+                  No platform accounts match your search.
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredAccounts.map((acc) => (
+                <TableRow key={acc.id}>
+                  <TableCell>
+                    <div className="font-medium text-foreground">{acc.name}</div>
+                    <div className="font-mono text-xs text-muted-foreground">{acc.email}</div>
+                  </TableCell>
+                  <TableCell>
+                    {acc.isPlatformAdmin ? (
+                      <Badge variant="outline" className="gap-1">
+                        <IconShield className="h-3 w-3" /> Platform Administrator
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Staff member</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {acc.suspended ? (
+                      <Badge variant="destructive" className="gap-1">
+                        <IconUserOff className="h-3 w-3" /> Suspended
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="gap-1">
+                        <IconCheck className="h-3 w-3" /> Active
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {acc.suspended ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedUser(acc);
+                          setActionType("reactivate");
+                        }}
+                      >
+                        <IconUserCheck className="mr-1.5 h-3.5 w-3.5" />
+                        Reactivate
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => {
+                          setSelectedUser(acc);
+                          setActionType("suspend");
+                        }}
+                      >
+                        <IconUserOff className="mr-1.5 h-3.5 w-3.5" />
+                        Suspend
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </div>
 
       {selectedUser && actionType === "suspend" && (

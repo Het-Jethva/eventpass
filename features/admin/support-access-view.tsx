@@ -80,8 +80,8 @@ export function SupportAccessView({
       </div>
 
       {!activeSupportAccess ? (
-        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-6 text-center space-y-4">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
+        <div className="rounded-lg border border-warning-border bg-warning-subtle p-6 text-center space-y-4">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-warning/20 text-warning-text">
             <IconShieldLock className="h-6 w-6" />
           </div>
           <div className="space-y-1 max-w-md mx-auto">

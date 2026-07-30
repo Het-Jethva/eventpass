@@ -4,13 +4,25 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const alertVariants = cva(
-  "group/alert relative grid w-full gap-0.5 rounded-2xl border px-4 py-3 text-left text-sm has-data-[slot=alert-action]:relative has-data-[slot=alert-action]:pr-18 has-[>svg]:grid-cols-[auto_1fr] has-[>svg]:gap-x-2.5 *:[svg]:row-span-2 *:[svg]:translate-y-0.5 *:[svg]:text-current *:[svg:not([class*='size-'])]:size-4",
+  "group/alert relative grid w-full gap-0.5 rounded-lg border px-4 py-3 text-left text-sm has-data-[slot=alert-action]:relative has-data-[slot=alert-action]:pr-18 has-[>svg]:grid-cols-[auto_1fr] has-[>svg]:gap-x-2.5 *:[svg]:row-span-2 *:[svg]:translate-y-0.5 *:[svg]:text-current *:[svg:not([class*='size-'])]:size-4",
   {
     variants: {
+      // Outcome variants sit on their family's subtle surface rather than on
+      // plain card stock, so a status is legible as a region and not only as
+      // coloured text. Descriptions inherit the family text colour at reduced
+      // weight instead of falling back to muted-foreground, which would drop
+      // contrast against a tinted surface.
       variant: {
         default: "bg-card text-card-foreground",
+        success:
+          "border-success-border bg-success-subtle text-success-text *:data-[slot=alert-description]:text-success-text/90",
+        warning:
+          "border-warning-border bg-warning-subtle text-warning-text *:data-[slot=alert-description]:text-warning-text/90",
         destructive:
-          "bg-card text-destructive *:data-[slot=alert-description]:text-destructive/90 *:[svg]:text-current",
+          "border-destructive-border bg-destructive-subtle text-destructive-text *:data-[slot=alert-description]:text-destructive-text/90",
+        info: "border-info-border bg-info-subtle text-info-text *:data-[slot=alert-description]:text-info-text/90",
+        provisional:
+          "border-provisional-border bg-provisional-subtle text-provisional-text *:data-[slot=alert-description]:text-provisional-text/90",
       },
     },
     defaultVariants: {

@@ -12,7 +12,7 @@ export function AuditViewSkeleton({ rows = 8 }: { rows?: number }) {
   return (
     <div className="flex flex-col gap-6" aria-busy="true">
       <Skeleton className="h-5 w-48 rounded-md" />
-      <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
+      <div className="overflow-hidden rounded-xl border bg-card">
         <Table className="text-xs">
           <TableHeader className="bg-muted/50 text-muted-foreground">
             <TableRow>

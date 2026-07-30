@@ -168,7 +168,7 @@ export function LiveMetricsDashboard({
       {/* Core Glossary Metrics Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {/* Confirmed Registrations */}
-        <div className="rounded-xl border bg-card p-4 shadow-xs">
+        <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium uppercase tracking-wider">
               Confirmed Registrations
@@ -184,7 +184,7 @@ export function LiveMetricsDashboard({
         </div>
 
         {/* Event Capacity */}
-        <div className="rounded-xl border bg-card p-4 shadow-xs">
+        <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium uppercase tracking-wider">
               Event Capacity
@@ -207,7 +207,7 @@ export function LiveMetricsDashboard({
         </div>
 
         {/* Waitlist Entries */}
-        <div className="rounded-xl border bg-card p-4 shadow-xs">
+        <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium uppercase tracking-wider">
               Waitlist Entries
@@ -223,7 +223,7 @@ export function LiveMetricsDashboard({
         </div>
 
         {/* Active Check-ins */}
-        <div className="rounded-xl border bg-card p-4 shadow-xs">
+        <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium uppercase tracking-wider">
               Active Check-ins
@@ -239,7 +239,7 @@ export function LiveMetricsDashboard({
         </div>
 
         {/* Attendance Rate */}
-        <div className="rounded-xl border bg-card p-4 shadow-xs">
+        <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium uppercase tracking-wider">
               Attendance Rate
@@ -256,7 +256,7 @@ export function LiveMetricsDashboard({
       </div>
 
       {/* Check-ins Over Time Chart */}
-      <section className="rounded-xl border bg-card p-5 shadow-xs">
+      <section className="rounded-xl border bg-card p-5">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-semibold tracking-tight">Check-ins over time</h2>
@@ -338,7 +338,7 @@ export function LiveMetricsDashboard({
       {/* Operational Breakdown Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {/* Invalid & Duplicate Attempts */}
-        <div className="flex flex-col justify-between rounded-xl border bg-card p-5 shadow-xs">
+        <div className="flex flex-col justify-between rounded-xl border bg-card p-5">
           <div>
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold tracking-tight">Scan Attempt Outcomes</h3>
@@ -379,7 +379,7 @@ export function LiveMetricsDashboard({
         </div>
 
         {/* Check-in Conflicts */}
-        <div className="flex flex-col justify-between rounded-xl border bg-card p-5 shadow-xs">
+        <div className="flex flex-col justify-between rounded-xl border bg-card p-5">
           <div>
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold tracking-tight">Check-in Conflicts</h3>
@@ -419,7 +419,7 @@ export function LiveMetricsDashboard({
         </div>
 
         {/* Pending Device Synchronization */}
-        <div className="flex flex-col justify-between rounded-xl border bg-card p-5 shadow-xs">
+        <div className="flex flex-col justify-between rounded-xl border bg-card p-5">
           <div>
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold tracking-tight">Device Synchronization</h3>
@@ -467,7 +467,7 @@ export function LiveMetricsDashboard({
         </div>
 
         {/* Delivery Outcomes */}
-        <div className="flex flex-col justify-between rounded-xl border bg-card p-5 shadow-xs">
+        <div className="flex flex-col justify-between rounded-xl border bg-card p-5">
           <div>
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold tracking-tight">Email Delivery</h3>

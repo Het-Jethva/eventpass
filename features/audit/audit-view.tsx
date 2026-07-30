@@ -38,7 +38,7 @@ export function AuditView({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3 rounded-xl border bg-card p-5 shadow-xs">
+      <div className="flex flex-col gap-3 rounded-xl border bg-card p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <IconHistory className="size-5 text-muted-foreground" aria-hidden="true" />
@@ -77,7 +77,7 @@ export function AuditView({
 
       {log.records.length > 0 ? (
         <>
-          <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
+          <div className="overflow-hidden rounded-xl border bg-card">
             <Table className="text-xs">
               <TableHeader className="bg-muted/50 text-muted-foreground">
                 <TableRow>

@@ -90,7 +90,7 @@ export function EventWorkspaceNav({ eventId, eventName }: EventWorkspaceNavProps
               className={cn(
                 "inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                 isActive
-                  ? "bg-foreground text-background shadow-xs"
+                  ? "bg-foreground text-background"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >

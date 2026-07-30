@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, IBM_Plex_Mono, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -7,9 +7,22 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+// Ticket Codes, identifiers, timestamps, and every operational number. Plex
+// keeps 5/S, 2/Z, 8/B, and 6/G apart, which is all the Crockford Base32
+// alphabet still asks for once I, L, O, and U are excluded.
+const plexMono = IBM_Plex_Mono({
+  variable: "--font-plex-mono",
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
+});
+
+// Display only — page titles, public pages, landing headlines, the Event name
+// on a Ticket. Never operational text. It ships regular and italic alone, and
+// that constraint is the point: it cannot leak into UI without looking wrong.
+const instrumentSerif = Instrument_Serif({
+  variable: "--font-instrument-serif",
+  subsets: ["latin"],
+  weight: "400",
 });
 
 const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://eventpass.hetjethva.tech";
@@ -52,7 +65,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`h-full antialiased ${geistSans.variable} ${geistMono.variable}`}
+      className={`h-full antialiased ${geistSans.variable} ${plexMono.variable} ${instrumentSerif.variable}`}
     >
       <head>
         <script

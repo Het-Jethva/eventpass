@@ -271,31 +271,62 @@ export function LiveMetricsDashboard({
 
         {checkInsOverTime.length > 0 ? (
           <div className="mt-6 flex flex-col gap-3">
-            <div className="flex h-36 items-end gap-2 border-b pb-2 pt-4">
-              {(() => {
-                const maxCount = Math.max(...checkInsOverTime.map((p) => p.count), 1);
-                return checkInsOverTime.map((point) => {
-                  const heightPercent = Math.max(8, Math.round((point.count / maxCount) * 100));
-                  return (
-                    <div
-                      key={point.hourIso}
-                      className="group flex flex-1 flex-col items-center gap-1.5 h-full justify-end"
-                    >
-                      <span className="text-xs font-mono font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                        {point.count}
-                      </span>
-                      <div
-                        className="w-full max-w-12 rounded-t-sm bg-foreground/85 transition-all group-hover:bg-foreground"
-                        style={{ height: `${heightPercent}%` }}
-                      />
-                      <span className="text-[10px] font-mono text-muted-foreground truncate w-full text-center">
-                        {point.label}
-                      </span>
-                    </div>
+            {/*
+              Values are always rendered rather than revealed on hover. Hover
+              does not exist on a phone, which is where an Organizer actually
+              watches a door, so the chart previously had no numbers at all
+              there — and DESIGN.md rules out hiding state behind hover.
+
+              `<table>` rather than divs so the series is readable by a screen
+              reader and keyboard as an ordinary two-column table; the bars are
+              presentational decoration layered on the same cells.
+            */}
+            <table className="w-full">
+              <caption className="sr-only">
+                Active Check-ins per hour, in the Event Time Zone
+              </caption>
+              <thead className="sr-only">
+                <tr>
+                  <th scope="col">Hour</th>
+                  <th scope="col">Active Check-ins</th>
+                </tr>
+              </thead>
+              <tbody className="flex h-36 items-end gap-2 border-b pt-4 pb-2">
+                {(() => {
+                  const maxCount = Math.max(
+                    ...checkInsOverTime.map((p) => p.count),
+                    1,
                   );
-                });
-              })()}
-            </div>
+                  return checkInsOverTime.map((point) => {
+                    const heightPercent = Math.max(
+                      8,
+                      Math.round((point.count / maxCount) * 100),
+                    );
+                    return (
+                      <tr
+                        key={point.hourIso}
+                        className="flex h-full flex-1 flex-col items-center justify-end gap-1.5"
+                      >
+                        <td className="font-mono text-xs font-medium">
+                          {point.count}
+                        </td>
+                        <td
+                          aria-hidden="true"
+                          className="w-full max-w-12 rounded-t-sm bg-foreground/85"
+                          style={{ height: `${heightPercent}%` }}
+                        />
+                        <th
+                          scope="row"
+                          className="w-full truncate text-center font-mono text-[10px] font-normal text-muted-foreground"
+                        >
+                          {point.label}
+                        </th>
+                      </tr>
+                    );
+                  });
+                })()}
+              </tbody>
+            </table>
           </div>
         ) : (
           <div className="mt-6 flex h-28 items-center justify-center rounded-lg border border-dashed text-xs text-muted-foreground">

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
+import { Suspense, ViewTransition } from "react";
 import { notFound, redirect } from "next/navigation";
 import { IconHistory } from "@tabler/icons-react";
 
@@ -59,20 +59,26 @@ export default async function EventAuditPage(props: {
         </div>
       </div>
 
-      <Suspense
-        key={`${searchQuery}|${category}|${source}|${query.cursor ?? ""}`}
-        fallback={<AuditViewSkeleton />}
-      >
-        <AuditResults
-          eventId={currentEvent.id}
-          actorUserId={session.user.id}
-          searchQuery={searchQuery}
-          category={category}
-          source={source}
-          cursorParam={query.cursor}
-          basePath={`/events/${currentEvent.id}/audit`}
-        />
-      </Suspense>
+      {/* Two of the three permitted motion patterns land on the same boundary:
+          the skeleton resolving into real rows, and the crossfade when a filter
+          or cursor changes the key. Both communicate that this is the same
+          table with different contents rather than a new page. */}
+      <ViewTransition name="audit-results">
+        <Suspense
+          key={`${searchQuery}|${category}|${source}|${query.cursor ?? ""}`}
+          fallback={<AuditViewSkeleton />}
+        >
+          <AuditResults
+            eventId={currentEvent.id}
+            actorUserId={session.user.id}
+            searchQuery={searchQuery}
+            category={category}
+            source={source}
+            cursorParam={query.cursor}
+            basePath={`/events/${currentEvent.id}/audit`}
+          />
+        </Suspense>
+      </ViewTransition>
     </>
   );
 }

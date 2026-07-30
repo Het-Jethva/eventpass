@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, ViewTransition } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -62,7 +62,8 @@ function SidebarBody({
   showScanner,
   showPublicPage,
   onNavigate,
-}: EventSidebarProps & { onNavigate?: () => void }) {
+  morph,
+}: EventSidebarProps & { onNavigate?: () => void; morph?: boolean }) {
   const pathname = usePathname();
 
   return (
@@ -76,9 +77,20 @@ function SidebarBody({
           Events
         </Link>
         <div className="flex flex-col gap-1.5">
-          <p className="text-base leading-snug font-medium text-balance">
-            {eventName}
-          </p>
+          {/* Paired with the same name in the Events list. Only the persistent
+              rail claims it — the drawer renders the same body, and two live
+              elements sharing one view-transition-name is a conflict. */}
+          {morph ? (
+            <ViewTransition name={`event-${eventId}`}>
+              <p className="text-base leading-snug font-medium text-balance">
+                {eventName}
+              </p>
+            </ViewTransition>
+          ) : (
+            <p className="text-base leading-snug font-medium text-balance">
+              {eventName}
+            </p>
+          )}
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={statusVariant}>{statusLabel}</Badge>
           </div>
@@ -173,7 +185,7 @@ export function EventSidebar(props: EventSidebarProps) {
 
       <aside className="hidden w-64 shrink-0 border-r bg-sidebar text-sidebar-foreground lg:block">
         <div className="sticky top-0 max-h-svh overflow-y-auto">
-          <SidebarBody {...props} />
+          <SidebarBody {...props} morph />
         </div>
       </aside>
 

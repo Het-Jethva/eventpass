@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ViewTransition } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
@@ -97,7 +98,14 @@ export default async function EventsPage() {
             >
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="truncate font-medium">{eventItem.name}</h2>
+                  {/* Morphs into the Event name in the workspace rail, so
+                      opening an Event reads as the same thing moving rather
+                      than one page replacing another. The `event-` prefix
+                      matters: a view-transition-name is a CSS custom-ident and
+                      cannot begin with a digit, which a bare UUID may. */}
+                  <ViewTransition name={`event-${eventItem.id}`}>
+                    <h2 className="truncate font-medium">{eventItem.name}</h2>
+                  </ViewTransition>
                   <Badge variant={eventItem.status === "draft" ? "secondary" : "default"}>
                     {eventItem.status === "draft" ? "Draft Event" : "Published Event"}
                   </Badge>

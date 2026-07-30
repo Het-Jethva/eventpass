@@ -20,6 +20,7 @@ import { getOrganizerEvent } from "@/features/events/server/get-event";
 import { listCheckInConflicts } from "@/features/admission/server/synchronize-offline";
 import { listActiveCheckIns } from "@/features/admission/server/check-in-corrections";
 import { ReasonedCheckInAction } from "@/features/admission/reasoned-check-in-action";
+import { ActiveCheckInSearch } from "@/features/admission/active-check-in-search";
 import { getActiveStaffSession } from "@/lib/staff-session";
 
 import {
@@ -49,7 +50,7 @@ export default async function CheckInConflictsPage({
   searchParams,
 }: {
   params: Promise<{ eventId: string }>;
-  searchParams: Promise<{ error?: string; notice?: string }>;
+  searchParams: Promise<{ error?: string; notice?: string; q?: string }>;
 }) {
   const [{ eventId }, query, session] = await Promise.all([
     params,
@@ -58,10 +59,16 @@ export default async function CheckInConflictsPage({
   ]);
   if (!session) redirect("/sign-in");
 
+  const checkInSearch = query.q?.trim() ?? "";
+
   const [event, conflicts, activeCheckIns] = await Promise.all([
     getOrganizerEvent(eventId, session.user.id),
     listCheckInConflicts({ eventId, actorUserId: session.user.id }),
-    listActiveCheckIns({ eventId, actorUserId: session.user.id }),
+    listActiveCheckIns({
+      eventId,
+      actorUserId: session.user.id,
+      searchQuery: checkInSearch,
+    }),
   ]);
   if (!event) notFound();
 
@@ -109,15 +116,37 @@ export default async function CheckInConflictsPage({
               Scan Attempt while making the Ticket admissible again.
             </p>
           </div>
-          <Badge variant="secondary">{activeCheckIns.length} active</Badge>
+          <Badge variant="secondary">
+            {activeCheckIns.totalCount.toLocaleString()} active
+          </Badge>
         </div>
-        {activeCheckIns.length === 0 ? (
+
+        <div className="mb-4 flex flex-col gap-2">
+          <ActiveCheckInSearch initialQuery={checkInSearch} />
+          {/*
+            States what was searched, not just what is shown. The list is capped
+            because it exists to correct one specific Check-in, and an
+            Organizer should never be left wondering whether the person they
+            searched for was simply below the cut.
+          */}
+          <p className="text-sm text-muted-foreground" role="status" aria-live="polite">
+            {checkInSearch
+              ? `${activeCheckIns.matchingCount.toLocaleString()} of ${activeCheckIns.totalCount.toLocaleString()} active Check-ins match`
+              : activeCheckIns.matchingCount > activeCheckIns.limit
+                ? `Showing the ${activeCheckIns.limit} most recent of ${activeCheckIns.totalCount.toLocaleString()} active Check-ins. Search by name to find any of them.`
+                : `${activeCheckIns.totalCount.toLocaleString()} active Check-in${activeCheckIns.totalCount === 1 ? "" : "s"}`}
+          </p>
+        </div>
+
+        {activeCheckIns.rows.length === 0 ? (
           <div className="border-y bg-background px-5 py-8 text-center text-sm text-muted-foreground">
-            No active Check-ins.
+            {checkInSearch
+              ? "No active Check-ins match that name. Every active Check-in was searched, not just the visible page."
+              : "No active Check-ins."}
           </div>
         ) : (
           <div className="divide-y rounded-2xl border bg-background">
-            {activeCheckIns.map((activeCheckIn) => (
+            {activeCheckIns.rows.map((activeCheckIn) => (
               <div
                 key={activeCheckIn.id}
                 className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"

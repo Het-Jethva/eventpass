@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, count, desc, eq, ilike, inArray, isNull } from "drizzle-orm";
 
 import {
   auditEntry,
@@ -11,6 +11,7 @@ import {
 } from "../../../lib/db/schema";
 
 const QUICK_REVERSAL_WINDOW_MS = 30_000;
+export const ACTIVE_CHECK_IN_PAGE_SIZE = 25;
 type CorrectionDatabase = typeof import("../../../lib/db").db;
 
 export class CheckInCorrectionError extends Error {}
@@ -151,45 +152,83 @@ export function createCheckInCorrectionService({
     });
   }
 
+  /**
+   * The most recent active Check-ins, optionally narrowed by attendee name.
+   *
+   * Previously returned every active Check-in with no bound and no search, so a
+   * 500-person Event rendered 500 rows the Organizer had to scroll to find one
+   * person in. The list exists to correct a specific Check-in, so it is capped
+   * and searchable in the database and reports the true total.
+   */
   async function listActiveCheckIns(values: {
     eventId: string;
     actorUserId: string;
+    searchQuery?: string;
+    limit?: number;
   }) {
     const [assignment] = await database
-    .select({ role: eventStaff.role })
-    .from(eventStaff)
-    .where(
-      and(
-        eq(eventStaff.eventId, values.eventId),
-        eq(eventStaff.userId, values.actorUserId),
-        inArray(eventStaff.role, ["owner", "organizer"]),
-      ),
-    )
-    .limit(1);
+      .select({ role: eventStaff.role })
+      .from(eventStaff)
+      .where(
+        and(
+          eq(eventStaff.eventId, values.eventId),
+          eq(eventStaff.userId, values.actorUserId),
+          inArray(eventStaff.role, ["owner", "organizer"]),
+        ),
+      )
+      .limit(1);
     if (!assignment) {
       throw new CheckInCorrectionError(
         "Only an Organizer can review active Check-ins.",
       );
     }
 
-    return database
-    .select({
-      id: checkIn.id,
-      attendeeName: registration.attendeeName,
-      checkedInAt: checkIn.checkedInAt,
-      actorName: user.name,
-    })
-    .from(checkIn)
-    .innerJoin(ticket, eq(ticket.id, checkIn.ticketId))
-    .innerJoin(registration, eq(registration.id, ticket.registrationId))
-    .innerJoin(user, eq(user.id, checkIn.actorUserId))
-    .where(
-      and(
-        eq(checkIn.eventId, values.eventId),
-        isNull(checkIn.invalidatedAt),
-      ),
-    )
-      .orderBy(desc(checkIn.checkedInAt));
+    const trimmedQuery = values.searchQuery?.trim() ?? "";
+    const limit = values.limit ?? ACTIVE_CHECK_IN_PAGE_SIZE;
+
+    const scope = and(
+      eq(checkIn.eventId, values.eventId),
+      isNull(checkIn.invalidatedAt),
+    );
+    const matchCondition = trimmedQuery
+      ? and(scope, ilike(registration.attendeeName, `%${trimmedQuery}%`))
+      : scope;
+
+    const [rows, [matching], [total]] = await Promise.all([
+      database
+        .select({
+          id: checkIn.id,
+          attendeeName: registration.attendeeName,
+          checkedInAt: checkIn.checkedInAt,
+          actorName: user.name,
+        })
+        .from(checkIn)
+        .innerJoin(ticket, eq(ticket.id, checkIn.ticketId))
+        .innerJoin(registration, eq(registration.id, ticket.registrationId))
+        .innerJoin(user, eq(user.id, checkIn.actorUserId))
+        .where(matchCondition)
+        .orderBy(desc(checkIn.checkedInAt))
+        .limit(limit),
+      database
+        .select({ value: count() })
+        .from(checkIn)
+        .innerJoin(ticket, eq(ticket.id, checkIn.ticketId))
+        .innerJoin(registration, eq(registration.id, ticket.registrationId))
+        .where(matchCondition)
+        .then((result) => result),
+      database
+        .select({ value: count() })
+        .from(checkIn)
+        .where(scope)
+        .then((result) => result),
+    ]);
+
+    return {
+      rows,
+      matchingCount: matching?.value ?? 0,
+      totalCount: total?.value ?? 0,
+      limit,
+    };
   }
 
   return { listActiveCheckIns, reverseCheckIn };

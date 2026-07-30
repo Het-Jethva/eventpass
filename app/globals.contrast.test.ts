@@ -14,7 +14,6 @@ import { describe, expect, it } from "vitest";
 const CSS = readFileSync(path.join(__dirname, "globals.css"), "utf8");
 
 const AA_TEXT = 4.5;
-const AA_LARGE_TEXT = 3;
 const AA_NON_TEXT = 3;
 
 type Declaration = { selector: string; property: string; value: string };

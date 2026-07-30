@@ -12,6 +12,11 @@ import {
 } from "@tabler/icons-react";
 
 import { EventPassMark } from "@/components/eventpass-mark";
+import {
+  ScanOutcomeShowcase,
+  ShowcaseCaption,
+  TicketShowcase,
+} from "@/features/landing/product-showcase";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { buttonVariants } from "@/components/ui/button";
 
@@ -140,7 +145,7 @@ export default function Home() {
               <p className="text-sm font-medium text-muted-foreground">
                 Registration, ticketing, and check-in for in-person events
               </p>
-              <h1 className="max-w-3xl text-4xl font-semibold tracking-[-0.03em] text-balance sm:text-5xl sm:leading-[1.1]">
+              <h1 className="max-w-3xl font-heading text-5xl leading-[1.05] text-balance sm:text-6xl">
                 Event check-in that keeps working when the Wi-Fi doesn&apos;t.
               </h1>
               <p className="max-w-2xl text-base leading-7 text-muted-foreground text-pretty sm:text-lg sm:leading-8">
@@ -165,6 +170,44 @@ export default function Home() {
           </div>
         </section>
 
+        {/* The product itself, rather than three thousand words describing it.
+            These are the real components with static props — see
+            features/landing/product-showcase.tsx. */}
+        <section aria-labelledby="showcase-heading" className="border-b">
+          <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 py-16 sm:px-6 sm:py-20">
+            <div className="flex flex-col gap-3">
+              <h2 id="showcase-heading" className="font-heading text-4xl sm:text-5xl">
+                One scan, two honest answers
+              </h2>
+              <p className="max-w-2xl text-base leading-7 text-muted-foreground text-pretty">
+                Online, a check-in is final the moment it happens. Offline, it
+                is stored on the phone and clearly marked provisional until it
+                syncs. EventPass never shows you the first when it only means
+                the second.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <ScanOutcomeShowcase />
+              <ShowcaseCaption />
+            </div>
+
+            <div className="flex flex-col gap-6 border-t pt-10">
+              <div className="flex flex-col gap-3">
+                <h3 className="font-heading text-3xl sm:text-4xl">
+                  A ticket worth keeping
+                </h3>
+                <p className="max-w-2xl text-base leading-7 text-muted-foreground text-pretty">
+                  Every guest gets a QR representation and a short code they can
+                  read out if scanning won&apos;t cooperate. It prints, and it
+                  works on a phone at the door without an account.
+                </p>
+              </div>
+              <TicketShowcase />
+            </div>
+          </div>
+        </section>
+
         <section
           aria-labelledby="roles-heading"
           className="border-b bg-muted/20"
@@ -173,7 +216,7 @@ export default function Home() {
             <div className="flex flex-col gap-3">
               <h2
                 id="roles-heading"
-                className="text-2xl font-semibold tracking-[-0.02em] sm:text-3xl"
+                className="font-heading text-4xl sm:text-5xl"
               >
                 Built for everyone at the event
               </h2>
@@ -219,7 +262,7 @@ export default function Home() {
             <div className="flex flex-col gap-3">
               <h2
                 id="promises-heading"
-                className="text-2xl font-semibold tracking-[-0.02em] sm:text-3xl"
+                className="font-heading text-4xl sm:text-5xl"
               >
                 Why the door stays calm
               </h2>
@@ -257,7 +300,7 @@ export default function Home() {
             <div className="flex flex-col gap-3">
               <h2
                 id="how-it-works-heading"
-                className="text-2xl font-semibold tracking-[-0.02em] sm:text-3xl"
+                className="font-heading text-4xl sm:text-5xl"
               >
                 From first invite to final headcount
               </h2>

@@ -255,27 +255,27 @@
 }
 
 @layer utilities {
-  /* The Ticket stub edge. A dashed rule reads as a dotted border; a repeating
-     radial gradient reads as a perforation, and prints as one too. */
+  /* The Ticket tear line. `border-dashed` reads as a dashed box; punched round
+     holes read as a perforation, and print as one. */
   .perforation-x {
     background-image: radial-gradient(
       circle at center,
-      var(--background) 0 0.1875rem,
-      transparent 0.1875rem
+      var(--border) 0 0.09375rem,
+      transparent 0.09375rem
     );
     background-position: center;
     background-repeat: repeat-x;
-    background-size: 0.75rem 0.5rem;
+    background-size: 0.5rem 0.5rem;
   }
   .perforation-y {
     background-image: radial-gradient(
       circle at center,
-      var(--background) 0 0.1875rem,
-      transparent 0.1875rem
+      var(--border) 0 0.09375rem,
+      transparent 0.09375rem
     );
     background-position: center;
     background-repeat: repeat-y;
-    background-size: 0.5rem 0.75rem;
+    background-size: 0.5rem 0.5rem;
   }
 }
 

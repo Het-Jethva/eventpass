@@ -51,7 +51,7 @@ export default async function EventAuditPage(props: {
       <div className="flex items-center gap-3">
         <IconHistory aria-hidden="true" className="size-6 text-muted-foreground" />
         <div>
-          <h2 className="text-xl font-semibold tracking-tight">Audit log</h2>
+          <h1 className="font-heading text-3xl">Audit log</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Immutable, append-only records of privileged changes and Scan
             Attempts.

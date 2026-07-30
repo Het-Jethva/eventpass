@@ -50,7 +50,7 @@ export default async function RegistrationsPage(props: {
         <div>
           <div className="flex items-center gap-2">
             <IconFileSpreadsheet aria-hidden="true" className="size-6" />
-            <h2 className="text-xl font-semibold tracking-tight">Registrations</h2>
+            <h1 className="font-heading text-3xl">Registrations</h1>
           </div>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
             Who registered, whether they hold a valid Ticket, and whether they

@@ -42,7 +42,7 @@ export default async function EditEventPage({
   return (
     <>
       <div className="flex flex-col gap-2">
-        <h2 className="text-xl font-semibold tracking-tight">Settings</h2>
+        <h1 className="font-heading text-3xl">Settings</h1>
         <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
           {event.status === "draft"
             ? "Changes remain private until you publish. The Event Slug becomes immutable at publication."

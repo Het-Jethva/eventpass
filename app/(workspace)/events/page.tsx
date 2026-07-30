@@ -58,7 +58,7 @@ export default async function EventsPage() {
     <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight">Events</h1>
+          <h1 className="font-heading text-3xl">Events</h1>
           <p className="text-sm text-muted-foreground">
             Events where you are assigned as Event Staff.
           </p>

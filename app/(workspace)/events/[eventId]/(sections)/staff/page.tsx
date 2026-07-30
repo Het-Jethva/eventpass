@@ -88,7 +88,7 @@ export default async function EventStaffPage({
   return (
     <>
       <div className="flex flex-col gap-2">
-        <h2 className="text-xl font-semibold tracking-tight">Event Staff</h2>
+        <h1 className="font-heading text-3xl">Event Staff</h1>
         <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
           Assign Event-scoped access. Every invitation, role change, removal,
           and Ownership Transfer is recorded in immutable Audit Entries.

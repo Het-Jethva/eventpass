@@ -5,25 +5,127 @@ import Link from "next/link";
 import {
   IconAlertTriangle,
   IconArrowRight,
-  IconCheck,
+  IconCircleCheck,
   IconClock,
-  IconDeviceMobile,
-  IconMail,
   IconRefresh,
-  IconScan,
-  IconTicket,
-  IconUsers,
-  IconUserCheck,
 } from "@tabler/icons-react";
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import type { LiveEventMetricsResult } from "@/features/events/event-metrics-policy";
+import { cn } from "@/lib/utils";
 
 type LiveMetricsDashboardProps = {
   eventId: string;
   initialMetrics: LiveEventMetricsResult;
 };
+
+type Tone = "success" | "warning" | "destructive" | "provisional" | "neutral";
+
+const BAR_TONE: Record<Tone, string> = {
+  success: "bg-success",
+  warning: "bg-warning",
+  destructive: "bg-destructive",
+  provisional: "bg-provisional",
+  neutral: "bg-primary",
+};
+
+const TEXT_TONE: Record<Tone, string> = {
+  success: "text-success-text",
+  warning: "text-warning-text",
+  destructive: "text-destructive-text",
+  provisional: "text-provisional-text",
+  neutral: "text-foreground",
+};
+
+function percentOf(value: number, total: number) {
+  if (total <= 0) return 0;
+  return Math.min(100, Math.round((value / total) * 100));
+}
+
+/**
+ * A count is not judgeable on its own — "7 duplicates" means nothing without
+ * "of 412 attempts". Every figure on this screen carries its denominator and a
+ * proportional bar. DESIGN.md § Components.
+ */
+function ProportionRow({
+  label,
+  value,
+  total,
+  tone = "neutral",
+  unit = "",
+}: {
+  label: string;
+  value: number;
+  total: number;
+  tone?: Tone;
+  unit?: string;
+}) {
+  const percentage = percentOf(value, total);
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-baseline justify-between gap-3 text-sm">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="font-mono tabular-nums">
+          <span className={cn("font-semibold", TEXT_TONE[tone])}>
+            {value.toLocaleString()}
+          </span>
+          <span className="text-muted-foreground">
+            {" "}
+            / {total.toLocaleString()}
+            {unit} · {percentage}%
+          </span>
+        </span>
+      </div>
+      <div
+        className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
+        role="img"
+        aria-label={`${label}: ${value} of ${total}, ${percentage} percent`}
+      >
+        <div
+          className={cn("h-full transition-all duration-300", BAR_TONE[tone])}
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function Headline({
+  question,
+  value,
+  of,
+  caption,
+  tone = "neutral",
+}: {
+  question: string;
+  value: number;
+  of: number;
+  caption: string;
+  tone?: Tone;
+}) {
+  const percentage = percentOf(value, of);
+  return (
+    <div className="flex flex-col gap-2 p-5">
+      <p className="text-sm text-muted-foreground">{question}</p>
+      <p className="flex items-baseline gap-1.5 font-mono tabular-nums">
+        <span className="text-4xl font-semibold">{value.toLocaleString()}</span>
+        <span className="text-lg text-muted-foreground">
+          / {of.toLocaleString()}
+        </span>
+      </p>
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+        <div
+          className={cn("h-full transition-all duration-300", BAR_TONE[tone])}
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+      <p className="text-sm text-muted-foreground">
+        <span className="font-mono tabular-nums">{percentage}%</span> · {caption}
+      </p>
+    </div>
+  );
+}
 
 export function LiveMetricsDashboard({
   eventId,
@@ -116,41 +218,80 @@ export function LiveMetricsDashboard({
     };
   }, [eventId]);
 
-  const { overview, scanAttemptStats, checkInConflictStats, pendingDeviceSync, deliveryOutcomes, checkInsOverTime } = metrics;
+  const {
+    overview,
+    scanAttemptStats,
+    checkInConflictStats,
+    pendingDeviceSync,
+    deliveryOutcomes,
+    checkInsOverTime,
+  } = metrics;
+
+  // "Is anything wrong?" is one of the three questions this screen exists to
+  // answer, so it is computed rather than left for an Organizer to infer by
+  // scanning fourteen loose numbers.
+  const attention = [
+    {
+      label: "Unresolved Check-in Conflicts",
+      count: checkInConflictStats.unresolved,
+      tone: "destructive" as Tone,
+      href: `/events/${eventId}/check-in`,
+    },
+    {
+      label: "Scan Attempts awaiting synchronization",
+      count: pendingDeviceSync.offlineScanAttempts,
+      tone: "provisional" as Tone,
+      href: `/events/${eventId}/check-in`,
+    },
+    {
+      label: "Low-confidence device clocks",
+      count: pendingDeviceSync.lowConfidenceAttempts,
+      tone: "warning" as Tone,
+      href: `/events/${eventId}/audit`,
+    },
+    {
+      label: "Tickets that could not be delivered",
+      count: deliveryOutcomes.permanentFailure,
+      tone: "destructive" as Tone,
+      href: `/events/${eventId}/registrations`,
+    },
+  ].filter((item) => item.count > 0);
+
+  const maxHourly = Math.max(...checkInsOverTime.map((p) => p.count), 1);
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Live Polling Status Bar */}
-      <div className="flex flex-col gap-2 rounded-xl border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <span className="relative flex size-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2.5">
+          <span className="relative flex size-2.5" aria-hidden="true">
             {isPolling ? (
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-75 motion-reduce:animate-none" />
             ) : null}
             <span
-              className={`relative inline-flex size-3 rounded-full ${
-                isPolling ? "bg-emerald-500" : "bg-muted-foreground"
-              }`}
-            ></span>
+              className={cn(
+                "relative inline-flex size-2.5 rounded-full",
+                isPolling ? "bg-success" : "bg-muted-foreground",
+              )}
+            />
           </span>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold tracking-tight">
-                Live Operations Dashboard
-              </span>
-              <Badge variant="outline" className="gap-1.5 font-mono text-xs font-normal">
-                {isRefreshing ? (
-                  <IconRefresh aria-hidden="true" className="size-3 animate-spin text-muted-foreground" />
-                ) : (
-                  <IconClock aria-hidden="true" className="size-3 text-muted-foreground" />
-                )}
-                {isPolling ? "Live metrics (refreshes 5s)" : "Paused"}
-              </Badge>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Last updated {lastRefreshedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-            </p>
-          </div>
+          <Badge variant="outline" className="gap-1.5 font-normal">
+            {isRefreshing ? (
+              <IconRefresh
+                aria-hidden="true"
+                className="animate-spin motion-reduce:animate-none"
+              />
+            ) : (
+              <IconClock aria-hidden="true" />
+            )}
+            {isPolling ? "Live · refreshes every 5s" : "Paused"}
+          </Badge>
+          <span className="font-mono text-sm text-muted-foreground tabular-nums">
+            {lastRefreshedAt.toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            })}
+          </span>
         </div>
 
         {checkInConflictStats.unresolved > 0 ? (
@@ -165,112 +306,90 @@ export function LiveMetricsDashboard({
         ) : null}
       </div>
 
-      {/* Core Glossary Metrics Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {/* Confirmed Registrations */}
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs font-medium uppercase tracking-wider">
-              Confirmed Registrations
-            </span>
-            <IconUsers aria-hidden="true" className="size-4" />
-          </div>
-          <p className="mt-2 text-2xl font-bold tracking-tight">
-            {overview.confirmedRegistrations.toLocaleString()}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Verified email Attendees
-          </p>
+      {/* One grouped region with internal dividers, rather than fourteen numbers
+          spread across four floating cards. */}
+      <section
+        aria-label="Event status at a glance"
+        className="grid divide-y overflow-hidden rounded-lg border bg-card sm:grid-cols-2 sm:divide-y-0 lg:grid-cols-3 lg:divide-x"
+      >
+        <Headline
+          question="How full is it?"
+          value={overview.capacityUtilization.claimed}
+          of={overview.eventCapacity}
+          caption={`${overview.capacityUtilization.remaining.toLocaleString()} places left${
+            overview.waitlistEntries > 0
+              ? ` · ${overview.waitlistEntries.toLocaleString()} waitlisted`
+              : ""
+          }`}
+          tone={overview.capacityUtilization.percentage >= 100 ? "warning" : "neutral"}
+        />
+        <div className="border-t sm:border-t-0 sm:border-l lg:border-l-0">
+          <Headline
+            question="How many have arrived?"
+            value={overview.activeCheckIns}
+            of={overview.confirmedRegistrations}
+            caption="of confirmed Registrations checked in"
+            tone="success"
+          />
         </div>
-
-        {/* Event Capacity */}
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs font-medium uppercase tracking-wider">
-              Event Capacity
-            </span>
-            <IconTicket aria-hidden="true" className="size-4" />
-          </div>
-          <p className="mt-2 text-2xl font-bold tracking-tight">
-            {overview.eventCapacity.toLocaleString()}
-          </p>
-          <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-            <span>{overview.capacityUtilization.claimed} claimed</span>
-            <span>{overview.capacityUtilization.percentage}% used</span>
-          </div>
-          <div className="mt-1 h-1.5 w-full rounded-full bg-muted overflow-hidden">
-            <div
-              className="h-full bg-primary transition-all duration-300"
-              style={{ width: `${overview.capacityUtilization.percentage}%` }}
-            />
+        <div className="border-t sm:col-span-2 lg:col-span-1 lg:border-t-0 lg:border-l">
+          <div className="flex h-full flex-col gap-2 p-5">
+            <p className="text-sm text-muted-foreground">Is anything wrong?</p>
+            {attention.length === 0 ? (
+              <div className="flex flex-1 flex-col justify-center gap-1.5">
+                <p className="flex items-center gap-2 text-success-text">
+                  <IconCircleCheck aria-hidden="true" className="size-5" />
+                  <span className="text-lg font-semibold">Nothing to resolve</span>
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  No conflicts, no pending synchronization, no failed
+                  deliveries.
+                </p>
+              </div>
+            ) : (
+              <ul className="flex flex-col gap-1.5">
+                {attention.map((item) => (
+                  <li key={item.label}>
+                    <Link
+                      href={item.href}
+                      className="group flex items-baseline justify-between gap-3 rounded-md py-1 text-sm hover:underline"
+                    >
+                      <span className="text-muted-foreground group-hover:text-foreground">
+                        {item.label}
+                      </span>
+                      <span
+                        className={cn(
+                          "font-mono font-semibold tabular-nums",
+                          TEXT_TONE[item.tone],
+                        )}
+                      >
+                        {item.count.toLocaleString()}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
+      </section>
 
-        {/* Waitlist Entries */}
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs font-medium uppercase tracking-wider">
-              Waitlist Entries
-            </span>
-            <IconClock aria-hidden="true" className="size-4" />
-          </div>
-          <p className="mt-2 text-2xl font-bold tracking-tight">
-            {overview.waitlistEntries.toLocaleString()}
+      <section
+        aria-labelledby="arrivals-heading"
+        className="flex flex-col gap-4 rounded-lg border bg-card p-5"
+      >
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="arrivals-heading" className="font-medium">
+            Arrivals by hour
+          </h2>
+          <p className="font-mono text-sm text-muted-foreground tabular-nums">
+            {overview.activeCheckIns.toLocaleString()} total · peak{" "}
+            {maxHourly.toLocaleString()}/hr
           </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            FIFO queued for capacity
-          </p>
-        </div>
-
-        {/* Active Check-ins */}
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs font-medium uppercase tracking-wider">
-              Active Check-ins
-            </span>
-            <IconUserCheck aria-hidden="true" className="size-4" />
-          </div>
-          <p className="mt-2 text-2xl font-bold tracking-tight">
-            {overview.activeCheckIns.toLocaleString()}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Admitted attendees
-          </p>
-        </div>
-
-        {/* Attendance Rate */}
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs font-medium uppercase tracking-wider">
-              Attendance Rate
-            </span>
-            <IconScan aria-hidden="true" className="size-4" />
-          </div>
-          <p className="mt-2 text-2xl font-bold tracking-tight font-mono">
-            {overview.attendanceRate}%
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Check-ins / Confirmed
-          </p>
-        </div>
-      </div>
-
-      {/* Check-ins Over Time Chart */}
-      <section className="rounded-xl border bg-card p-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="font-semibold tracking-tight">Check-ins over time</h2>
-            <p className="text-xs text-muted-foreground">
-              Hourly volume of active attendee check-ins
-            </p>
-          </div>
-          <Badge variant="secondary" className="font-mono text-xs">
-            {overview.activeCheckIns} Total
-          </Badge>
         </div>
 
         {checkInsOverTime.length > 0 ? (
-          <div className="mt-6 flex flex-col gap-3">
+          <>
             {/*
               Values are always rendered rather than revealed on hover. Hover
               does not exist on a phone, which is where an Organizer actually
@@ -292,220 +411,149 @@ export function LiveMetricsDashboard({
                 </tr>
               </thead>
               <tbody className="flex h-36 items-end gap-2 border-b pt-4 pb-2">
-                {(() => {
-                  const maxCount = Math.max(
-                    ...checkInsOverTime.map((p) => p.count),
-                    1,
-                  );
-                  return checkInsOverTime.map((point) => {
-                    const heightPercent = Math.max(
-                      8,
-                      Math.round((point.count / maxCount) * 100),
-                    );
-                    return (
-                      <tr
-                        key={point.hourIso}
-                        className="flex h-full flex-1 flex-col items-center justify-end gap-1.5"
-                      >
-                        <td className="font-mono text-xs font-medium">
-                          {point.count}
-                        </td>
-                        <td
-                          aria-hidden="true"
-                          className="w-full max-w-12 rounded-t-sm bg-foreground/85"
-                          style={{ height: `${heightPercent}%` }}
-                        />
-                        <th
-                          scope="row"
-                          className="w-full truncate text-center font-mono text-[10px] font-normal text-muted-foreground"
-                        >
-                          {point.label}
-                        </th>
-                      </tr>
-                    );
-                  });
-                })()}
+                {checkInsOverTime.map((point) => (
+                  <tr
+                    key={point.hourIso}
+                    className="flex h-full flex-1 flex-col items-center justify-end gap-1.5"
+                  >
+                    <td className="font-mono text-xs font-medium tabular-nums">
+                      {point.count}
+                    </td>
+                    <td
+                      aria-hidden="true"
+                      className="w-full max-w-12 rounded-t-sm bg-primary/85"
+                      style={{
+                        height: `${Math.max(8, Math.round((point.count / maxHourly) * 100))}%`,
+                      }}
+                    />
+                    <th
+                      scope="row"
+                      className="w-full truncate text-center font-mono text-xs font-normal text-muted-foreground"
+                    >
+                      {point.label}
+                    </th>
+                  </tr>
+                ))}
               </tbody>
             </table>
-          </div>
+          </>
         ) : (
-          <div className="mt-6 flex h-28 items-center justify-center rounded-lg border border-dashed text-xs text-muted-foreground">
-            No check-ins recorded yet for this event.
-          </div>
+          <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+            No Check-ins recorded yet for this Event.
+          </p>
         )}
       </section>
 
-      {/* Operational Breakdown Grid */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {/* Invalid & Duplicate Attempts */}
-        <div className="flex flex-col justify-between rounded-xl border bg-card p-5">
-          <div>
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold tracking-tight">Scan Attempt Outcomes</h3>
-              <IconScan aria-hidden="true" className="size-4 text-muted-foreground" />
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Total scan attempt results
-            </p>
-
-            <dl className="mt-4 flex flex-col gap-2.5 text-xs">
-              <div className="flex items-center justify-between border-b pb-1.5">
-                <dt className="text-muted-foreground">Total Scan Attempts</dt>
-                <dd className="font-mono font-semibold">{scanAttemptStats.total}</dd>
-              </div>
-              <div className="flex items-center justify-between border-b pb-1.5">
-                <dt className="flex items-center gap-1.5">
-                  <IconCheck aria-hidden="true" className="size-3.5 text-emerald-600" />
-                  <span>Accepted</span>
-                </dt>
-                <dd className="font-mono font-semibold">{scanAttemptStats.accepted}</dd>
-              </div>
-              <div className="flex items-center justify-between border-b pb-1.5">
-                <dt className="flex items-center gap-1.5">
-                  <IconAlertTriangle aria-hidden="true" className="size-3.5 text-amber-600" />
-                  <span>Duplicates</span>
-                </dt>
-                <dd className="font-mono font-semibold text-amber-600">{scanAttemptStats.duplicate}</dd>
-              </div>
-              <div className="flex items-center justify-between">
-                <dt className="flex items-center gap-1.5">
-                  <IconAlertTriangle aria-hidden="true" className="size-3.5 text-destructive" />
-                  <span>Invalid Attempts</span>
-                </dt>
-                <dd className="font-mono font-semibold text-destructive">{scanAttemptStats.invalid}</dd>
-              </div>
-            </dl>
-          </div>
-        </div>
-
-        {/* Check-in Conflicts */}
-        <div className="flex flex-col justify-between rounded-xl border bg-card p-5">
-          <div>
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold tracking-tight">Check-in Conflicts</h3>
-              <IconAlertTriangle aria-hidden="true" className="size-4 text-muted-foreground" />
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Cross-device offline conflict resolution
-            </p>
-
-            <dl className="mt-4 flex flex-col gap-2.5 text-xs">
-              <div className="flex items-center justify-between border-b pb-1.5">
-                <dt className="text-muted-foreground">Unresolved Conflicts</dt>
-                <dd className="font-mono font-semibold text-destructive">
-                  {checkInConflictStats.unresolved}
-                </dd>
-              </div>
-              <div className="flex items-center justify-between border-b pb-1.5">
-                <dt className="text-muted-foreground">Auto-resolved (Timestamp)</dt>
-                <dd className="font-mono font-semibold">{checkInConflictStats.resolvedAuto}</dd>
-              </div>
-              <div className="flex items-center justify-between">
-                <dt className="text-muted-foreground">Manually Resolved</dt>
-                <dd className="font-mono font-semibold">{checkInConflictStats.resolvedManual}</dd>
-              </div>
-            </dl>
-          </div>
-
-          <div className="mt-4 pt-3 border-t">
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section
+          aria-labelledby="scan-outcomes-heading"
+          className="flex flex-col gap-4 rounded-lg border bg-card p-5"
+        >
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 id="scan-outcomes-heading" className="font-medium">
+              Scan Attempt outcomes
+            </h2>
             <Link
-              href={`/events/${eventId}/check-in`}
-              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+              href={`/events/${eventId}/audit`}
+              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground hover:underline"
             >
-              Check-in operations
+              Audit log
               <IconArrowRight aria-hidden="true" className="size-3.5" />
             </Link>
           </div>
-        </div>
-
-        {/* Pending Device Synchronization */}
-        <div className="flex flex-col justify-between rounded-xl border bg-card p-5">
-          <div>
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold tracking-tight">Device Synchronization</h3>
-              <IconDeviceMobile aria-hidden="true" className="size-4 text-muted-foreground" />
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Offline scanner synchronization status
-            </p>
-
-            <div className="mt-3">
-              {pendingDeviceSync.isSyncPending ? (
-                <Badge variant="destructive" className="text-[11px] gap-1">
-                  <IconAlertTriangle aria-hidden="true" className="size-3" />
-                  Sync Pending / Conflicts
-                </Badge>
-              ) : (
-                <Badge variant="secondary" className="text-[11px] gap-1 text-emerald-700 dark:text-emerald-400">
-                  <IconCheck aria-hidden="true" className="size-3" />
-                  Fully Synchronized
-                </Badge>
-              )}
-            </div>
-
-            <dl className="mt-4 flex flex-col gap-2.5 text-xs">
-              <div className="flex items-center justify-between border-b pb-1.5">
-                <dt className="text-muted-foreground">Offline Scan Attempts</dt>
-                <dd className="font-mono font-semibold">
-                  {pendingDeviceSync.offlineScanAttempts}
-                </dd>
-              </div>
-              <div className="flex items-center justify-between border-b pb-1.5">
-                <dt className="text-muted-foreground">Low Confidence Clock</dt>
-                <dd className="font-mono font-semibold">
-                  {pendingDeviceSync.lowConfidenceAttempts}
-                </dd>
-              </div>
-              <div className="flex items-center justify-between">
-                <dt className="text-muted-foreground">Unresolved Conflicts</dt>
-                <dd className="font-mono font-semibold">
-                  {pendingDeviceSync.unresolvedConflicts}
-                </dd>
-              </div>
-            </dl>
+          <p className="font-mono text-sm text-muted-foreground tabular-nums">
+            {scanAttemptStats.total.toLocaleString()} attempts ·{" "}
+            {scanAttemptStats.offlineCount.toLocaleString()} recorded offline
+          </p>
+          <div className="flex flex-col gap-3">
+            <ProportionRow
+              label="Accepted"
+              value={scanAttemptStats.accepted}
+              total={scanAttemptStats.total}
+              tone="success"
+            />
+            <ProportionRow
+              label="Already checked in"
+              value={scanAttemptStats.duplicate}
+              total={scanAttemptStats.total}
+              tone="warning"
+            />
+            <ProportionRow
+              label="Turned away"
+              value={
+                scanAttemptStats.invalid +
+                scanAttemptStats.unknown +
+                scanAttemptStats.canceled +
+                scanAttemptStats.replaced +
+                scanAttemptStats.expired +
+                scanAttemptStats.outsideWindow
+              }
+              total={scanAttemptStats.total}
+              tone="destructive"
+            />
+            <ProportionRow
+              label="Raised a conflict"
+              value={scanAttemptStats.conflict}
+              total={scanAttemptStats.total}
+              tone="provisional"
+            />
           </div>
-        </div>
+        </section>
 
-        {/* Delivery Outcomes */}
-        <div className="flex flex-col justify-between rounded-xl border bg-card p-5">
-          <div>
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold tracking-tight">Email Delivery</h3>
-              <IconMail aria-hidden="true" className="size-4 text-muted-foreground" />
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Transactional message outcomes
-            </p>
-
-            <dl className="mt-4 flex flex-col gap-2.5 text-xs">
-              <div className="flex items-center justify-between border-b pb-1.5">
-                <dt className="text-muted-foreground">Delivered / Sent</dt>
-                <dd className="font-mono font-semibold text-emerald-600">
-                  {deliveryOutcomes.delivered + deliveryOutcomes.sent}
-                </dd>
-              </div>
-              <div className="flex items-center justify-between border-b pb-1.5">
-                <dt className="text-muted-foreground">Pending / Submitted</dt>
-                <dd className="font-mono font-semibold">
-                  {deliveryOutcomes.pending + deliveryOutcomes.submitted}
-                </dd>
-              </div>
-              <div className="flex items-center justify-between border-b pb-1.5">
-                <dt className="text-muted-foreground">Transient Failure</dt>
-                <dd className="font-mono font-semibold text-amber-600">
-                  {deliveryOutcomes.transientFailure}
-                </dd>
-              </div>
-              <div className="flex items-center justify-between">
-                <dt className="text-muted-foreground">Permanent Failure</dt>
-                <dd className="font-mono font-semibold text-destructive">
-                  {deliveryOutcomes.permanentFailure}
-                </dd>
-              </div>
-            </dl>
+        <section
+          aria-labelledby="delivery-heading"
+          className="flex flex-col gap-4 rounded-lg border bg-card p-5"
+        >
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 id="delivery-heading" className="font-medium">
+              Ticket delivery
+            </h2>
+            <Link
+              href={`/events/${eventId}/registrations`}
+              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground hover:underline"
+            >
+              Registrations
+              <IconArrowRight aria-hidden="true" className="size-3.5" />
+            </Link>
           </div>
-        </div>
+          <p className="font-mono text-sm text-muted-foreground tabular-nums">
+            {deliveryOutcomes.total.toLocaleString()} messages
+          </p>
+          <div className="flex flex-col gap-3">
+            <ProportionRow
+              label="Delivered"
+              value={deliveryOutcomes.delivered + deliveryOutcomes.sent}
+              total={deliveryOutcomes.total}
+              tone="success"
+            />
+            <ProportionRow
+              label="In flight"
+              value={deliveryOutcomes.pending + deliveryOutcomes.submitted}
+              total={deliveryOutcomes.total}
+              tone="neutral"
+            />
+            <ProportionRow
+              label="Retrying"
+              value={deliveryOutcomes.transientFailure}
+              total={deliveryOutcomes.total}
+              tone="warning"
+            />
+            <ProportionRow
+              label="Permanently failed"
+              value={deliveryOutcomes.permanentFailure}
+              total={deliveryOutcomes.total}
+              tone="destructive"
+            />
+          </div>
+        </section>
       </div>
+
+      <p className="text-sm text-muted-foreground">
+        Conflict resolution: {checkInConflictStats.resolvedAuto.toLocaleString()}{" "}
+        resolved automatically by timestamp,{" "}
+        {checkInConflictStats.resolvedManual.toLocaleString()} by an Organizer,
+        of {checkInConflictStats.total.toLocaleString()} total.
+      </p>
     </div>
   );
 }

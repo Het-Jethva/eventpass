@@ -114,7 +114,7 @@ export function AuditView({
                       <TableCell className="font-medium">
                         <div>{record.actorName}</div>
                         {record.actorEmail ? (
-                          <div className="font-mono text-[11px] text-muted-foreground">
+                          <div className="font-mono text-xs text-muted-foreground">
                             {record.actorEmail}
                           </div>
                         ) : null}
@@ -129,7 +129,7 @@ export function AuditView({
                                 ? "secondary"
                                 : "default"
                           }
-                          className="text-[11px] font-normal"
+                          className="text-xs font-normal"
                         >
                           {record.actionLabel}
                         </Badge>
@@ -146,18 +146,18 @@ export function AuditView({
                               variant={
                                 record.source === "offline" ? "outline" : "secondary"
                               }
-                              className="font-mono text-[10px] capitalize"
+                              className="font-mono text-xs capitalize"
                             >
                               {record.source}
                             </Badge>
                             {record.timestampConfidence === "low" ? (
-                              <Badge variant="destructive" className="text-[10px]">
+                              <Badge variant="destructive" className="text-xs">
                                 Low confidence clock
                               </Badge>
                             ) : null}
                           </div>
                           {record.scannerDeviceId ? (
-                            <span className="max-w-32 truncate font-mono text-[10px] text-muted-foreground">
+                            <span className="max-w-32 truncate font-mono text-xs text-muted-foreground">
                               Device: {record.scannerDeviceId.slice(0, 8)}
                             </span>
                           ) : null}
@@ -169,7 +169,7 @@ export function AuditView({
                           <span className="text-foreground">{record.reason}</span>
                         ) : record.metadata &&
                           Object.keys(record.metadata).length > 0 ? (
-                          <span className="font-mono text-[10px]">
+                          <span className="font-mono text-xs">
                             {JSON.stringify(record.metadata)}
                           </span>
                         ) : (

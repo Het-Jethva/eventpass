@@ -164,7 +164,7 @@ export function SupportAccessView({
                         {reg.ticketCode ? (
                           <div className="flex items-center gap-2">
                             <span className="font-semibold text-foreground">{reg.ticketCode}</span>
-                            <Badge variant="secondary" className="text-[10px] capitalize">
+                            <Badge variant="secondary" className="text-xs capitalize">
                               {reg.ticketStatus}
                             </Badge>
                           </div>

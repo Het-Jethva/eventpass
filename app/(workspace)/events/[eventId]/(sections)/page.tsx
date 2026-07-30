@@ -65,6 +65,8 @@ export default async function EventOverviewPage({
 
   return (
     <>
+      <h1 className="font-heading text-3xl">Overview</h1>
+
       {isCanceled ? (
         <Alert variant="destructive">
           <IconClockQuestion aria-hidden="true" />

@@ -145,7 +145,7 @@ export function RosterTable({
                       {row.email}
                     </div>
                     {row.source === "imported" ? (
-                      <Badge variant="outline" className="mt-1.5 text-[10px]">
+                      <Badge variant="outline" className="mt-1.5 text-xs">
                         Imported Registration
                       </Badge>
                     ) : null}

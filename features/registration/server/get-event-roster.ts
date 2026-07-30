@@ -25,6 +25,7 @@ import {
   registrationField,
   ticket,
 } from "@/lib/db/schema";
+import type { RosterFilter } from "@/features/registration/roster-filters";
 import {
   resolveRosterStatus,
   type AdmissionOfferStatus,
@@ -48,34 +49,6 @@ import {
  */
 
 export const ROSTER_PAGE_SIZE = 25;
-
-export const ROSTER_FILTERS = [
-  "all",
-  "checked_in",
-  "confirmed",
-  "waitlisted",
-  "unconfirmed",
-  "expired",
-  "canceled",
-] as const;
-
-export type RosterFilter = (typeof ROSTER_FILTERS)[number];
-
-export const ROSTER_FILTER_LABELS: Record<RosterFilter, string> = {
-  all: "All",
-  checked_in: "Checked in",
-  confirmed: "Confirmed",
-  waitlisted: "Waitlisted",
-  unconfirmed: "Unconfirmed",
-  expired: "Expired",
-  canceled: "Canceled",
-};
-
-export function parseRosterFilter(value: string | undefined): RosterFilter {
-  return ROSTER_FILTERS.includes(value as RosterFilter)
-    ? (value as RosterFilter)
-    : "all";
-}
 
 export type RosterAnswer = {
   fieldId: string;

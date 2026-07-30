@@ -129,6 +129,7 @@ export default async function TicketPage({
           formattedCode={formattedCode}
           ticketCodeLabel={activeTicket?.code}
           action={activeTicket ? <PrintTicketButton /> : null}
+          surroundClassName="bg-muted"
         />
 
         {/* Everything below the Ticket is administration, not presentation. */}

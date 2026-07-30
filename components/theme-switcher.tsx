@@ -47,37 +47,37 @@ export function ThemeSwitcher() {
         type="button"
         variant={theme === "light" ? "secondary" : "ghost"}
         size="sm"
-        className="h-8 px-2.5 text-xs"
+        className="h-8 px-2 text-xs sm:px-2.5"
         onClick={() => applyTheme("light")}
         aria-pressed={theme === "light"}
         aria-label="Light theme"
       >
-        <IconSun className="mr-1.5 size-3.5" />
-        Light
+        <IconSun className="size-3.5" />
+        <span className="hidden sm:inline">Light</span>
       </Button>
       <Button
         type="button"
         variant={theme === "system" ? "secondary" : "ghost"}
         size="sm"
-        className="h-8 px-2.5 text-xs"
+        className="h-8 px-2 text-xs sm:px-2.5"
         onClick={() => applyTheme("system")}
         aria-pressed={theme === "system"}
         aria-label="System theme"
       >
-        <IconSunMoon className="mr-1.5 size-3.5" />
-        System
+        <IconSunMoon className="size-3.5" />
+        <span className="hidden sm:inline">System</span>
       </Button>
       <Button
         type="button"
         variant={theme === "dark" ? "secondary" : "ghost"}
         size="sm"
-        className="h-8 px-2.5 text-xs"
+        className="h-8 px-2 text-xs sm:px-2.5"
         onClick={() => applyTheme("dark")}
         aria-pressed={theme === "dark"}
         aria-label="Dark theme"
       >
-        <IconMoon className="mr-1.5 size-3.5" />
-        Dark
+        <IconMoon className="size-3.5" />
+        <span className="hidden sm:inline">Dark</span>
       </Button>
     </div>
   );

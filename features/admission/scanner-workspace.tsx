@@ -382,56 +382,62 @@ export function ScannerWorkspace({
                   Next scan
                 </Button>
                 {result.outcome === "accepted" && result.checkInId ? (
-            <ReasonedCheckInAction
-              label={
-                actorRole === "check_in_volunteer"
-                  ? "Quick Reversal"
-                  : "Reverse Check-in"
-              }
-              title="Make this Ticket admissible again?"
-              description="This invalidates the active Check-in without deleting the Check-in or Scan Attempt. The Ticket can then be admitted again."
-              reasonDescription="The correction and reason are retained in the immutable Audit Entry."
-              variant="destructive"
-              action={async (reason) => {
-                const reversed = await quickReverseCheckInAction({
-                  eventId,
-                  checkInId: result.checkInId!,
-                  reason,
-                });
-                return reversed.outcome === "reversed"
-                  ? { outcome: "reversed" as const }
-                  : reversed;
-              }}
-              onCompleted={() => {
-                setResult(null);
-                setSyncMessage("Check-in reversed. The Ticket is admissible again.");
-              }}
-            />
-          ) : null}
-          {(result.outcome === "outside_window" ||
-            result.outcome === "expired") &&
-          actorRole !== "check_in_volunteer" &&
-          lastInput ? (
-            <ReasonedCheckInAction
-              label="Admit with override"
-              title="Admit outside the Check-in Window?"
-              description="This creates an authoritative Check-in outside the configured window. Use it only for an accountable operational exception."
-              reasonDescription="Only Organizers can override the window. The reason is retained in the immutable Audit Entry."
-              action={async (reason) => {
-                const override = await submitInput(
-                  lastInput.value,
-                  lastInput.method,
-                  reason,
-                );
-                return override?.outcome === "accepted"
-                  ? { outcome: "completed" as const }
-                  : {
-                      outcome: "error" as const,
-                      message:
-                        "The override was not accepted. Confirm your Organizer access and connectivity.",
-                    };
-              }}
-            />
+                  <ReasonedCheckInAction
+                    label={
+                      actorRole === "check_in_volunteer"
+                        ? "Quick Reversal"
+                        : "Reverse Check-in"
+                    }
+                    title="Make this Ticket admissible again?"
+                    description="This invalidates the active Check-in without deleting the Check-in or Scan Attempt. The Ticket can then be admitted again."
+                    reasonDescription="The correction and reason are retained in the immutable Audit Entry."
+                    // Outline, not destructive: this sits on the mint success
+                    // surface, where a pink tint reads as an error rather than
+                    // as the secondary action it is. The confirm inside the
+                    // dialog still carries the weight.
+                    variant="outline"
+                    action={async (reason) => {
+                      const reversed = await quickReverseCheckInAction({
+                        eventId,
+                        checkInId: result.checkInId!,
+                        reason,
+                      });
+                      return reversed.outcome === "reversed"
+                        ? { outcome: "reversed" as const }
+                        : reversed;
+                    }}
+                    onCompleted={() => {
+                      setResult(null);
+                      setSyncMessage(
+                        "Check-in reversed. The Ticket is admissible again.",
+                      );
+                    }}
+                  />
+                ) : null}
+                {(result.outcome === "outside_window" ||
+                  result.outcome === "expired") &&
+                actorRole !== "check_in_volunteer" &&
+                lastInput ? (
+                  <ReasonedCheckInAction
+                    label="Admit with override"
+                    title="Admit outside the Check-in Window?"
+                    description="This creates an authoritative Check-in outside the configured window. Use it only for an accountable operational exception."
+                    reasonDescription="Only Organizers can override the window. The reason is retained in the immutable Audit Entry."
+                    action={async (reason) => {
+                      const override = await submitInput(
+                        lastInput.value,
+                        lastInput.method,
+                        reason,
+                      );
+                      return override?.outcome === "accepted"
+                        ? { outcome: "completed" as const }
+                        : {
+                            outcome: "error" as const,
+                            message:
+                              "The override was not accepted. Confirm your Organizer access and connectivity.",
+                          };
+                    }}
+                  />
                 ) : null}
               </>
             }

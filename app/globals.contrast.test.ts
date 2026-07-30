@@ -63,6 +63,23 @@ function tokensFor(selectors: string[]): Map<string, string> {
       }
     }
   }
+
+  // Tokens may point at another token — the light neutrals are named separately
+  // so `.signal-surface` can reference them without duplicating literals. Follow
+  // those references, or the audit quietly stops measuring real colours.
+  const resolve = (value: string, seen: Set<string>): string => {
+    const reference = value.match(/^var\(\s*(--[\w-]+)\s*\)$/);
+    if (!reference) return value;
+    const target = reference[1];
+    if (seen.has(target)) throw new Error(`Circular token reference: ${target}`);
+    const next = tokens.get(target);
+    if (!next) throw new Error(`Token ${target} is referenced but never defined`);
+    return resolve(next, new Set(seen).add(target));
+  };
+
+  for (const [property, value] of tokens) {
+    tokens.set(property, resolve(value, new Set([property])));
+  }
   return tokens;
 }
 
@@ -142,7 +159,6 @@ const SIGNALS = [
   "warning",
   "destructive",
   "provisional",
-  "neutral",
 ] as const;
 
 type Pair = { name: string; foreground: string; background: string; min: number };

@@ -132,7 +132,10 @@ export default function Home() {
               href="/sign-in"
               className={buttonVariants({ variant: "outline", size: "sm" })}
             >
-              Staff sign-in
+              {/* The mark, the theme group, and a full-width label did not fit
+                  a 375px viewport together, and the row scrolled sideways. */}
+              <span className="sm:hidden">Sign in</span>
+              <span className="hidden sm:inline">Staff sign-in</span>
             </Link>
           </div>
         </div>

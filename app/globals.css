@@ -86,8 +86,6 @@
   --color-signal-destructive-text: var(--signal-destructive-text);
   --color-signal-provisional: var(--signal-provisional);
   --color-signal-provisional-text: var(--signal-provisional-text);
-  --color-signal-neutral: var(--signal-neutral);
-  --color-signal-neutral-text: var(--signal-neutral-text);
 
   /* Three radii, named by role. The legacy scale names are mapped onto them so
      existing markup conforms without a sweep; prefer the role names in new
@@ -109,24 +107,39 @@
   --radius-container: 0.625rem;
   --radius-overlay: 0.875rem;
 
-  /* Neutral ramp, hue 260 at very low chroma. Never pure gray. */
-  --background: oklch(0.994 0.002 260);
-  --foreground: oklch(0.17 0.013 260);
+  /* Neutral ramp, hue 260 at very low chroma. Never pure gray.
+
+     The light values are named separately and never overridden in `.dark`, so
+     `.signal-surface` can re-point to them without duplicating literals that
+     would silently drift out of step with this block. */
+  --light-background: oklch(0.994 0.002 260);
+  --light-foreground: oklch(0.17 0.013 260);
+  --light-primary: oklch(0.21 0.015 260);
+  --light-primary-foreground: oklch(0.985 0.002 260);
+  --light-secondary: oklch(0.967 0.004 260);
+  --light-muted: oklch(0.967 0.004 260);
+  --light-muted-foreground: oklch(0.505 0.016 260);
+  --light-accent: oklch(0.955 0.006 260);
+  --light-border: oklch(0.916 0.005 260);
+  --light-ring: oklch(0.6 0.09 200);
+
+  --background: var(--light-background);
+  --foreground: var(--light-foreground);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.17 0.013 260);
+  --card-foreground: var(--light-foreground);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.17 0.013 260);
-  --primary: oklch(0.21 0.015 260);
-  --primary-foreground: oklch(0.985 0.002 260);
-  --secondary: oklch(0.967 0.004 260);
-  --secondary-foreground: oklch(0.21 0.015 260);
-  --muted: oklch(0.967 0.004 260);
-  --muted-foreground: oklch(0.505 0.016 260);
-  --accent: oklch(0.955 0.006 260);
-  --accent-foreground: oklch(0.21 0.015 260);
-  --border: oklch(0.916 0.005 260);
-  --input: oklch(0.916 0.005 260);
-  --ring: oklch(0.6 0.09 200);
+  --popover-foreground: var(--light-foreground);
+  --primary: var(--light-primary);
+  --primary-foreground: var(--light-primary-foreground);
+  --secondary: var(--light-secondary);
+  --secondary-foreground: var(--light-primary);
+  --muted: var(--light-muted);
+  --muted-foreground: var(--light-muted-foreground);
+  --accent: var(--light-accent);
+  --accent-foreground: var(--light-primary);
+  --border: var(--light-border);
+  --input: var(--light-border);
+  --ring: var(--light-ring);
 
   --brand: oklch(0.5 0.088 200);
   --brand-foreground: oklch(0.99 0.004 200);
@@ -179,8 +192,6 @@
   --signal-destructive-text: oklch(0.4 0.17 27);
   --signal-provisional: oklch(0.945 0.05 265);
   --signal-provisional-text: oklch(0.38 0.145 265);
-  --signal-neutral: oklch(0.965 0.004 260);
-  --signal-neutral-text: oklch(0.24 0.014 260);
 }
 
 .dark {
@@ -242,6 +253,30 @@
   --sidebar-ring: oklch(0.68 0.088 200);
 }
 
+/* A scan outcome is pinned to the light palette in both themes, but the
+   controls rendered inside it are not — in dark mode that put a near-black
+   button and a dark outline on a mint surface. Pinning the surface has to pin
+   everything sitting on it, so this re-points the neutral tokens for the whole
+   subtree. Outcome hues are untouched; only neutrals are overridden. */
+.signal-surface {
+  --background: var(--light-background);
+  --foreground: var(--light-foreground);
+  --card: var(--light-background);
+  --card-foreground: var(--light-foreground);
+  --primary: var(--light-primary);
+  --primary-foreground: var(--light-primary-foreground);
+  --secondary: var(--light-secondary);
+  --secondary-foreground: var(--light-primary);
+  --muted: var(--light-muted);
+  --muted-foreground: var(--light-muted-foreground);
+  --accent: var(--light-accent);
+  --accent-foreground: var(--light-primary);
+  --border: var(--light-border);
+  --input: var(--light-border);
+  --ring: var(--light-ring);
+  color-scheme: light;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -300,12 +335,30 @@
 }
 
 @media print {
-  /* A printed Ticket is a real artifact, not a screenshot of a web page. */
-  :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.17 0.013 260);
-  }
+  /* A printed Ticket is a real artifact, not a screenshot of a web page.
+     Resetting only background and foreground was not enough: a dark-mode
+     viewer printing a Ticket kept the dark --muted-foreground, so the schedule,
+     venue, and "Single entry" line came out pale grey on white. The whole
+     neutral set has to come back to light, by reference so the values stay
+     single-source. */
+  :root,
   .dark {
+    --background: oklch(1 0 0);
+    --foreground: var(--light-foreground);
+    --card: oklch(1 0 0);
+    --card-foreground: var(--light-foreground);
+    --popover: oklch(1 0 0);
+    --popover-foreground: var(--light-foreground);
+    --primary: var(--light-primary);
+    --primary-foreground: var(--light-primary-foreground);
+    --secondary: var(--light-secondary);
+    --secondary-foreground: var(--light-primary);
+    --muted: var(--light-muted);
+    --muted-foreground: var(--light-muted-foreground);
+    --accent: var(--light-accent);
+    --accent-foreground: var(--light-primary);
+    --border: var(--light-border);
+    --input: var(--light-border);
     color-scheme: light;
   }
 }

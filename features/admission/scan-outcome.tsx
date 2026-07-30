@@ -166,7 +166,11 @@ export function ScanOutcome({
       data-slot="scan-outcome"
       data-outcome={outcome}
       className={cn(
-        "flex h-full w-full flex-col items-center justify-center gap-5 px-6 py-10 text-center",
+        // `signal-surface` pins the neutral tokens for this subtree. The
+        // outcome surface is deliberately light in both themes, so any control
+        // rendered into `actions` has to be light too — otherwise dark mode
+        // drops a near-black button onto a mint background.
+        "signal-surface flex h-full w-full flex-col items-center justify-center gap-5 px-6 py-10 text-center",
         tone.surface,
         tone.text,
         className,

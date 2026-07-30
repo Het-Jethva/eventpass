@@ -14,17 +14,34 @@ import { cn } from "@/lib/utils";
 // Kept as a component so the landing page can render a real Ticket rather than
 // a screenshot.
 
-function TicketPerforation() {
+function TicketPerforation({ surroundClassName }: { surroundClassName: string }) {
   return (
     <div
       aria-hidden="true"
       className="relative h-6 w-full shrink-0 sm:h-auto sm:w-6 sm:self-stretch"
     >
       {/* Notches sit half outside the card so the tear line reads as a physical
-          cut rather than a divider. They carry the page colour, not the card's. */}
-      <span className="absolute left-0 top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-muted sm:left-1/2 sm:top-0 print:hidden" />
-      <span className="absolute left-full top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-muted sm:left-1/2 sm:top-full print:hidden" />
-      <div className="perforation-x absolute inset-x-4 top-1/2 h-0.5 -translate-y-1/2 sm:inset-x-auto sm:inset-y-4 sm:left-1/2 sm:h-auto sm:w-0.5 sm:-translate-x-1/2 sm:translate-y-0 sm:perforation-y" />
+          cut rather than a divider. They have to carry the colour of whatever
+          surrounds the Ticket, which differs by host — bg-muted on the ticket
+          page, the plain page background in the landing showcase — so the
+          caller supplies it rather than the component assuming. */}
+      <span
+        className={cn(
+          "absolute left-0 top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full sm:left-1/2 sm:top-0 print:hidden",
+          surroundClassName,
+        )}
+      />
+      <span
+        className={cn(
+          "absolute left-full top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full sm:left-1/2 sm:top-full print:hidden",
+          surroundClassName,
+        )}
+      />
+      {/* Two elements rather than `perforation-x sm:perforation-y`: both
+          utilities would apply at sm, and which background-repeat won would
+          depend on Tailwind's emit order rather than on the class list. */}
+      <div className="perforation-x absolute inset-x-4 top-1/2 h-0.5 -translate-y-1/2 sm:hidden" />
+      <div className="perforation-y absolute inset-y-4 left-1/2 hidden w-0.5 -translate-x-1/2 sm:block" />
     </div>
   );
 }
@@ -40,6 +57,7 @@ export function TicketStub({
   ticketCodeLabel,
   action,
   className,
+  surroundClassName = "bg-background",
 }: {
   eventName: string;
   attendeeName: string;
@@ -53,6 +71,8 @@ export function TicketStub({
   ticketCodeLabel?: string | null;
   action?: ReactNode;
   className?: string;
+  /** Background utility of whatever sits behind the Ticket, for the notches. */
+  surroundClassName?: string;
 }) {
   return (
     <article
@@ -99,7 +119,7 @@ export function TicketStub({
           </dl>
         </div>
 
-        <TicketPerforation />
+        <TicketPerforation surroundClassName={surroundClassName} />
 
         <div className="flex shrink-0 flex-col items-center gap-4 p-6 text-center sm:w-72 sm:p-8">
           {qrDataUrl && formattedCode ? (

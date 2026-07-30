@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, IBM_Plex_Mono, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 
@@ -54,6 +54,15 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "EventPass",
   },
+};
+
+// Browser chrome follows the active theme. The manifest cannot express this —
+// it carries a single colour — so the per-scheme values live here.
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fdfdfe" },
+    { media: "(prefers-color-scheme: dark)", color: "#1c1c22" },
+  ],
 };
 
 export default function RootLayout({

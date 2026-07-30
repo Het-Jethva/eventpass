@@ -13,8 +13,13 @@ extends.
 🏛 [Architecture decisions](docs/adr)
 
 > A portfolio project running on production infrastructure. There is no demo
-> mode, no seeded data, and no reset button — every record was created through
-> the same workflows a real organizer would use.
+> mode, no seeded data, and no reset button — every record in the database was
+> created through the same workflows a real organizer would use.
+>
+> The landing page is the one exception, and it says so on the page: the scan
+> outcomes and ticket shown there are the real components rendered with sample
+> props, so that what the product looks like does not depend on a stranger
+> having a live event.
 
 ---
 

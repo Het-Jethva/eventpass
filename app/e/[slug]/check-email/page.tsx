@@ -37,12 +37,12 @@ export default async function RegistrationCheckEmailPage({
           <p className="mt-6 text-sm font-medium text-muted-foreground">
             {event.name}
           </p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">
+          <h1 className="mt-2 text-3xl font-headline">
             Check your email
           </h1>
           <p className="mt-4 max-w-xl leading-7 text-muted-foreground">
             Use the single-use link we sent to verify your email address and
-            continue your Registration.
+            continue your registration.
           </p>
 
           <Alert className="mt-8">
@@ -64,8 +64,8 @@ export default async function RegistrationCheckEmailPage({
               <IconAlertTriangle aria-hidden="true" />
               <AlertTitle>Email delivery was not accepted</AlertTitle>
               <AlertDescription>
-                Your unconfirmed Registration was saved, but the provider did not
-                accept the email. Please contact the Event Organizer.
+                Your unconfirmed registration was saved, but the provider did not
+                accept the email. Please contact the event Organizer.
               </AlertDescription>
             </Alert>
           ) : null}
@@ -74,7 +74,7 @@ export default async function RegistrationCheckEmailPage({
             href={`/e/${slug}`}
             className={cn(buttonVariants({ variant: "outline" }), "mt-8")}
           >
-            Return to Event
+            Return to event
           </Link>
         </section>
       </main>

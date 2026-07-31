@@ -203,7 +203,7 @@ function RegistrationFormPreview({ fields }: { fields: OrganizerRegistrationFiel
                 ?.focus();
               return;
             }
-            setStatus("Validation passed. This preview does not submit a Registration.");
+            setStatus("Validation passed. This preview does not submit a registration.");
           }}
           onInvalid={() => setStatus("Complete the required fields to test validation.")}
         >
@@ -223,7 +223,7 @@ function RegistrationFormPreview({ fields }: { fields: OrganizerRegistrationFiel
                 required
               />
               <FieldDescription>
-                A verification link and Ticket will be sent here.
+                A verification link and ticket will be sent here.
               </FieldDescription>
             </Field>
             {activeFields.map((field) => (
@@ -358,7 +358,7 @@ function FieldEditor({
             <Input
               id={`field-${field.id}-label`}
               value={field.label}
-              placeholder="What should Attendees answer?"
+              placeholder="What should attendees answer?"
               maxLength={200}
               disabled={field.archived}
               onChange={(event) => onChange({ ...field, label: event.target.value })}
@@ -506,7 +506,7 @@ export function RegistrationFormBuilder({
 
         <div className="flex flex-col gap-3 rounded-2xl border border-dashed p-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-sm font-medium">Add an Event-specific question</h2>
+            <h2 className="text-sm font-medium">Add an event-specific question</h2>
             <p className="mt-1 text-sm text-muted-foreground">You can configure its answer type after adding it.</p>
           </div>
           <Button type="button" variant="outline" onClick={() => setFields((current) => [...current, newField("short_text")])}>

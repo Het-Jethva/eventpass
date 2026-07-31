@@ -36,7 +36,7 @@ export function PublicAuthShell({ children }: { children: ReactNode }) {
             <p className="text-sm font-medium text-muted-foreground">
               Staff workspace
             </p>
-            <h2 className="text-3xl font-semibold tracking-[-0.03em] text-balance">
+            <h2 className="text-3xl font-headline text-balance">
               Calm operations start with trustworthy access.
             </h2>
             <p className="max-w-sm text-base leading-7 text-muted-foreground text-pretty">

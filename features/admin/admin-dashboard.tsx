@@ -80,7 +80,7 @@ export function AdminDashboard({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b pb-6">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            <h1 className="text-2xl font-headline text-foreground">
               Platform Administration
             </h1>
             <Badge variant="outline" className="border-primary/40 bg-primary/5 text-primary gap-1">
@@ -100,7 +100,7 @@ export function AdminDashboard({
       {inspectingEventId ? (
         isLoadingSupportData ? (
           <div className="p-12 text-center text-sm text-muted-foreground animate-pulse">
-            Loading Support Access data...
+            Loading Support access data...
           </div>
         ) : (
           <SupportAccessView

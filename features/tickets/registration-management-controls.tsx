@@ -201,7 +201,7 @@ export function RegistrationManagementControls({
               Registration details
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Update attendee-authored details before Registration closes.
+              Update attendee-authored details before registration closes.
             </p>
           </div>
           <form action={editAction} className="mt-6 space-y-6">
@@ -246,7 +246,7 @@ export function RegistrationManagementControls({
       <section aria-labelledby="ticket-actions-heading" className="border-t pt-8">
         <h2 id="ticket-actions-heading" className="text-lg font-semibold">Ticket actions</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Resending keeps the current Ticket unchanged. Replacement permanently invalidates it.
+          Resending keeps the current ticket unchanged. Replacement permanently invalidates it.
         </p>
         <div className="mt-5 space-y-4">
           <Feedback state={resendState} />
@@ -254,7 +254,7 @@ export function RegistrationManagementControls({
           <form action={resendAction}>
             <Button type="submit" variant="outline" disabled={resendPending}>
               {resendPending ? <Spinner data-icon="inline-start" /> : <IconMailForward data-icon="inline-start" />}
-              {resendPending ? "Sending…" : "Resend existing Ticket"}
+              {resendPending ? "Sending…" : "Resend existing ticket"}
             </Button>
           </form>
           {canReplaceOrCancel ? (
@@ -265,13 +265,13 @@ export function RegistrationManagementControls({
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Replace this Ticket?</AlertDialogTitle>
+                  <AlertDialogTitle>Replace this ticket?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    The current QR representation and Ticket Code will stop working permanently. A new Ticket will be issued and emailed.
+                    The current QR code and ticket Code will stop working permanently. A new ticket will be issued and emailed.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Keep current Ticket</AlertDialogCancel>
+                  <AlertDialogCancel>Keep current ticket</AlertDialogCancel>
                   <form action={replaceAction}>
                     <AlertDialogAction type="submit" disabled={replacePending}>
                       Replace Ticket
@@ -286,29 +286,30 @@ export function RegistrationManagementControls({
 
       {canReplaceOrCancel ? (
         <section aria-labelledby="cancel-registration-heading" className="border-t pt-8">
-          <h2 id="cancel-registration-heading" className="text-lg font-semibold">Cancel Registration</h2>
+          <h2 id="cancel-registration-heading" className="text-lg font-semibold">Cancel registration</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Cancellation releases the place and permanently invalidates the Ticket.
+            This frees up the place and stops the ticket working, for good.
           </p>
           <div className="mt-5 space-y-4">
             <Feedback state={cancelState} />
             <AlertDialog>
               <AlertDialogTrigger render={<Button variant="destructive" />}>
                 <IconTicketOff data-icon="inline-start" />
-                Cancel Registration
+                Cancel registration
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Cancel this Registration?</AlertDialogTitle>
+                  <AlertDialogTitle>Cancel this registration?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This cannot be undone. The Ticket will stop working and the place may be offered to a verified waitlist Attendee.
+                    This cannot be undone. The ticket will stop working, and the
+                    place may go to someone on the waiting list.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Keep Registration</AlertDialogCancel>
+                  <AlertDialogCancel>Keep it</AlertDialogCancel>
                   <form action={cancelAction}>
                     <AlertDialogAction type="submit" variant="destructive" disabled={cancelPending}>
-                      Cancel Registration
+                      Cancel registration
                     </AlertDialogAction>
                   </form>
                 </AlertDialogFooter>

@@ -10,7 +10,7 @@ import { Spinner } from "@/components/ui/spinner";
 const DEBOUNCE_MS = 250;
 
 /**
- * Name search for the active Check-ins list, held in the URL so the query
+ * Name search for the active check-ins list, held in the URL so the query
  * survives the page reload a reversal triggers.
  */
 export function ActiveCheckInSearch({ initialQuery }: { initialQuery: string }) {
@@ -56,8 +56,8 @@ export function ActiveCheckInSearch({ initialQuery }: { initialQuery: string }) 
         type="search"
         value={query}
         onChange={(changeEvent) => setQuery(changeEvent.target.value)}
-        placeholder="Search active Check-ins by name"
-        aria-label="Search active Check-ins by attendee name"
+        placeholder="Search active check-ins by name"
+        aria-label="Search active check-ins by attendee name"
         className="pl-9"
       />
       {isPending ? (

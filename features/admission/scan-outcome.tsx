@@ -66,78 +66,79 @@ type Presentation = {
   qualifier?: string;
 };
 
+// Written to be read in one glance by someone with a queue in front of them.
+// Every line says what happened and, where there is one, what to do next —
+// never how the system arrived at the answer.
 export const outcomePresentation: Record<AdmissionOutcome, Presentation> = {
   accepted: {
     title: "Checked in",
-    description:
-      "Admission recorded. The Ticket cannot be used again while this Check-in is active.",
+    description: "Let them through. This ticket will not scan again.",
     icon: IconCircleCheck,
     tone: "success",
   },
   provisional: {
     title: "Checked in",
     description:
-      "Stored on this device. Synchronization will establish the authoritative Check-in when connectivity returns.",
+      "Let them through. Saved on this phone and confirmed automatically once you are back online.",
     icon: IconCloudUpload,
     tone: "provisional",
-    // The product's whole thesis in two words. It previously rendered in the
+    // The product's whole thesis in three words. It previously rendered in the
     // same colour as a confirmed acceptance.
-    qualifier: "Offline · provisional",
+    qualifier: "Offline · not confirmed yet",
   },
   duplicate: {
     title: "Already checked in",
     description:
-      "This Ticket already has an active Check-in. This attempt was recorded as a duplicate.",
+      "This ticket was used earlier. Check with the guest before letting them through.",
     icon: IconCopyCheck,
     tone: "warning",
   },
   invalid: {
-    title: "Invalid Ticket",
+    title: "Invalid ticket",
     description:
-      "The QR representation or Ticket Code is malformed or its signature is not valid.",
+      "This code was not issued by EventPass. Ask the guest to open their ticket email.",
     icon: IconAlertTriangle,
     tone: "destructive",
   },
   unknown: {
     title: "Ticket not found",
     description:
-      "No Ticket for this Event matches that QR representation or Ticket Code.",
+      "No ticket for this event matches that code. They may be at the wrong door.",
     icon: IconHelpHexagon,
     tone: "destructive",
   },
   canceled: {
     title: "Ticket canceled",
-    description: "This Ticket or Event was canceled and cannot be admitted.",
+    description: "This ticket was canceled and cannot be used for entry.",
     icon: IconCalendarCancel,
     tone: "destructive",
   },
   replaced: {
     title: "Ticket replaced",
     description:
-      "A newer Ticket was issued for this Registration. Ask the Attendee for the replacement.",
+      "A newer ticket was sent to this guest. Ask them to open their most recent email.",
     icon: IconRefresh,
     tone: "warning",
-    qualifier: "Ask for the newer Ticket",
+    qualifier: "Ask for the newer ticket",
   },
   expired: {
     title: "Check-in closed",
-    description:
-      "The Check-in Window has ended, so this Ticket is no longer admissible.",
+    description: "Check-in for this event has ended.",
     icon: IconClockX,
     tone: "destructive",
   },
   outside_window: {
     title: "Check-in not open",
     description:
-      "This Ticket is valid, but the Check-in Window has not opened yet.",
+      "The ticket is fine — check-in has not started yet. Ask them to come back shortly.",
     icon: IconClockExclamation,
     tone: "warning",
-    qualifier: "Valid Ticket, too early",
+    qualifier: "Valid ticket, too early",
   },
   unauthorized: {
-    title: "Scanner access unavailable",
+    title: "No scanner access",
     description:
-      "Your current staff access does not authorize admission for this Event.",
+      "Your account cannot admit guests for this event. Ask an organizer to add you.",
     icon: IconLock,
     tone: "destructive",
   },
@@ -149,6 +150,7 @@ export function ScanOutcome({
   ticketCode,
   actions,
   className,
+  titleAs: Title = "h2",
 }: {
   outcome: AdmissionOutcome;
   attendeeName?: string | null;
@@ -156,6 +158,12 @@ export function ScanOutcome({
   /** Exactly one next action belongs here. */
   actions?: ReactNode;
   className?: string;
+  /**
+   * A live outcome is a heading the screen reader announces. A demonstration of
+   * one on the landing page is not part of that page's outline, so the showcase
+   * passes `p` rather than putting "Checked in" in the document's heading tree.
+   */
+  titleAs?: "h2" | "h3" | "p";
 }) {
   const presentation = outcomePresentation[outcome];
   const tone = TONE_STYLES[presentation.tone];
@@ -181,7 +189,7 @@ export function ScanOutcome({
       {presentation.qualifier ? (
         <span
           className={cn(
-            "rounded-full px-3 py-1 text-sm font-semibold tracking-wide uppercase",
+            "rounded-full px-3 py-1 text-sm font-medium",
             tone.chip,
           )}
         >
@@ -189,11 +197,10 @@ export function ScanOutcome({
         </span>
       ) : null}
 
-      {/* Sans, never the display serif: arm's-length legibility is a safety
-          property, not a styling choice. */}
-      <h2 className="text-4xl leading-tight font-semibold text-balance sm:text-5xl">
+      {/* Weight, not size alone, carries this across a lit room. */}
+      <Title className="text-4xl font-semibold text-balance sm:text-5xl">
         {presentation.title}
-      </h2>
+      </Title>
 
       {attendeeName ? (
         <p className="text-2xl font-medium text-balance sm:text-3xl">
@@ -202,12 +209,12 @@ export function ScanOutcome({
       ) : null}
 
       {ticketCode ? (
-        <p className="font-mono text-lg tracking-[0.12em] opacity-80">
+        <p className="font-mono text-lg tracking-code opacity-80">
           {ticketCode}
         </p>
       ) : null}
 
-      <p className="max-w-md text-base leading-relaxed text-pretty opacity-90 sm:text-lg">
+      <p className="max-w-md text-base text-pretty opacity-90 sm:text-lg">
         {presentation.description}
       </p>
 

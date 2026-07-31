@@ -1,0 +1,510 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-31T00:00:00.000Z",
+  "title": "Design System: EventPass",
+  "extensions": {
+    "colorMeta": {
+      "background": {
+        "role": "neutral",
+        "displayName": "Cool Paper",
+        "canonical": "oklch(0.994 0.002 260)",
+        "darkValue": "oklch(0.155 0.012 260)",
+        "tonalRamp": [
+          "oklch(0.15 0.008 260)",
+          "oklch(0.26 0.008 260)",
+          "oklch(0.37 0.008 260)",
+          "oklch(0.48 0.008 260)",
+          "oklch(0.59 0.006 260)",
+          "oklch(0.7 0.005 260)",
+          "oklch(0.82 0.004 260)",
+          "oklch(0.95 0.002 260)"
+        ]
+      },
+      "foreground": {
+        "role": "neutral",
+        "displayName": "Cool Slate",
+        "canonical": "oklch(0.17 0.013 260)",
+        "darkValue": "oklch(0.975 0.003 260)",
+        "tonalRamp": [
+          "oklch(0.15 0.013 260)",
+          "oklch(0.26 0.013 260)",
+          "oklch(0.37 0.013 260)",
+          "oklch(0.48 0.013 260)",
+          "oklch(0.59 0.013 260)",
+          "oklch(0.7 0.013 260)",
+          "oklch(0.82 0.013 260)",
+          "oklch(0.95 0.013 260)"
+        ]
+      },
+      "muted-foreground": {
+        "role": "neutral",
+        "displayName": "Quiet Ink",
+        "canonical": "oklch(0.505 0.016 260)",
+        "darkValue": "oklch(0.735 0.015 260)",
+        "tonalRamp": [
+          "oklch(0.15 0.016 260)",
+          "oklch(0.26 0.016 260)",
+          "oklch(0.37 0.016 260)",
+          "oklch(0.48 0.016 260)",
+          "oklch(0.59 0.016 260)",
+          "oklch(0.7 0.016 260)",
+          "oklch(0.82 0.016 260)",
+          "oklch(0.95 0.016 260)"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "oklch(0.916 0.005 260)",
+        "darkValue": "oklch(0.3 0.014 260)",
+        "tonalRamp": [
+          "oklch(0.15 0.005 260)",
+          "oklch(0.26 0.005 260)",
+          "oklch(0.37 0.005 260)",
+          "oklch(0.48 0.005 260)",
+          "oklch(0.59 0.005 260)",
+          "oklch(0.7 0.005 260)",
+          "oklch(0.82 0.005 260)",
+          "oklch(0.95 0.005 260)"
+        ]
+      },
+      "primary": {
+        "role": "primary",
+        "displayName": "Ink",
+        "canonical": "oklch(0.21 0.015 260)",
+        "darkValue": "oklch(0.93 0.004 260)",
+        "note": "The strongest action is defined by contrast, not hue. Near-black in light, near-white in dark, so it can never be mistaken for a status.",
+        "tonalRamp": [
+          "oklch(0.15 0.015 260)",
+          "oklch(0.26 0.015 260)",
+          "oklch(0.37 0.015 260)",
+          "oklch(0.48 0.015 260)",
+          "oklch(0.59 0.015 260)",
+          "oklch(0.7 0.015 260)",
+          "oklch(0.82 0.015 260)",
+          "oklch(0.95 0.015 260)"
+        ]
+      },
+      "brand": {
+        "role": "primary",
+        "displayName": "Instrument Teal",
+        "canonical": "oklch(0.5 0.088 200)",
+        "darkValue": "oklch(0.78 0.09 200)",
+        "note": "Hue 200. Aliased as info-*; identity and informational register are the same register. Appears as focus ring, selection, and informational state, never as decoration.",
+        "tonalRamp": [
+          "oklch(0.15 0.088 200)",
+          "oklch(0.26 0.088 200)",
+          "oklch(0.37 0.088 200)",
+          "oklch(0.48 0.088 200)",
+          "oklch(0.59 0.088 200)",
+          "oklch(0.7 0.088 200)",
+          "oklch(0.82 0.07 200)",
+          "oklch(0.95 0.03 200)"
+        ]
+      },
+      "success": {
+        "role": "secondary",
+        "displayName": "Admitted Green",
+        "canonical": "oklch(0.49 0.112 150)",
+        "darkValue": "oklch(0.78 0.13 150)",
+        "note": "Hue 150. Accepted, confirmed, delivered, fully synchronized.",
+        "tonalRamp": [
+          "oklch(0.15 0.112 150)",
+          "oklch(0.26 0.112 150)",
+          "oklch(0.37 0.112 150)",
+          "oklch(0.48 0.112 150)",
+          "oklch(0.59 0.112 150)",
+          "oklch(0.7 0.112 150)",
+          "oklch(0.82 0.09 150)",
+          "oklch(0.95 0.035 150)"
+        ]
+      },
+      "warning": {
+        "role": "secondary",
+        "displayName": "Held Amber",
+        "canonical": "oklch(0.76 0.145 75)",
+        "darkValue": "oklch(0.82 0.14 75)",
+        "note": "Hue 75. Duplicate scan, transient failure, low-confidence clock, auto-resolved conflict.",
+        "tonalRamp": [
+          "oklch(0.15 0.145 75)",
+          "oklch(0.26 0.145 75)",
+          "oklch(0.37 0.145 75)",
+          "oklch(0.48 0.145 75)",
+          "oklch(0.59 0.145 75)",
+          "oklch(0.7 0.145 75)",
+          "oklch(0.82 0.12 75)",
+          "oklch(0.95 0.05 75)"
+        ]
+      },
+      "destructive": {
+        "role": "secondary",
+        "displayName": "Refused Red",
+        "canonical": "oklch(0.515 0.192 27)",
+        "darkValue": "oklch(0.7 0.175 27)",
+        "note": "Hue 27. Invalid, canceled, permanent failure, unresolved conflict, irreversible organizer action.",
+        "tonalRamp": [
+          "oklch(0.15 0.192 27)",
+          "oklch(0.26 0.192 27)",
+          "oklch(0.37 0.192 27)",
+          "oklch(0.48 0.192 27)",
+          "oklch(0.59 0.192 27)",
+          "oklch(0.7 0.175 27)",
+          "oklch(0.82 0.12 27)",
+          "oklch(0.95 0.04 27)"
+        ]
+      },
+      "provisional": {
+        "role": "secondary",
+        "displayName": "Unconfirmed Indigo",
+        "canonical": "oklch(0.485 0.155 265)",
+        "darkValue": "oklch(0.75 0.13 265)",
+        "note": "Hue 265. Offline acceptance, pending authority, snapshot in use. A first-class outcome, never a shade of success.",
+        "tonalRamp": [
+          "oklch(0.15 0.155 265)",
+          "oklch(0.26 0.155 265)",
+          "oklch(0.37 0.155 265)",
+          "oklch(0.48 0.155 265)",
+          "oklch(0.59 0.155 265)",
+          "oklch(0.7 0.14 265)",
+          "oklch(0.82 0.1 265)",
+          "oklch(0.95 0.04 265)"
+        ]
+      },
+      "signal-success": {
+        "role": "tertiary",
+        "displayName": "Signal Mint",
+        "canonical": "oklch(0.945 0.055 150)",
+        "note": "Pinned identical in light and dark. Scanner outcome surface only. Paired with signal-success-text at oklch(0.37 0.1 150).",
+        "tonalRamp": [
+          "oklch(0.15 0.055 150)",
+          "oklch(0.26 0.055 150)",
+          "oklch(0.37 0.055 150)",
+          "oklch(0.48 0.055 150)",
+          "oklch(0.59 0.055 150)",
+          "oklch(0.7 0.055 150)",
+          "oklch(0.82 0.055 150)",
+          "oklch(0.95 0.055 150)"
+        ]
+      },
+      "signal-provisional": {
+        "role": "tertiary",
+        "displayName": "Signal Periwinkle",
+        "canonical": "oklch(0.945 0.05 265)",
+        "note": "Pinned identical in light and dark. The offline-acceptance outcome surface. Paired with signal-provisional-text at oklch(0.38 0.145 265).",
+        "tonalRamp": [
+          "oklch(0.15 0.05 265)",
+          "oklch(0.26 0.05 265)",
+          "oklch(0.37 0.05 265)",
+          "oklch(0.48 0.05 265)",
+          "oklch(0.59 0.05 265)",
+          "oklch(0.7 0.05 265)",
+          "oklch(0.82 0.05 265)",
+          "oklch(0.95 0.05 265)"
+        ]
+      },
+      "signal-warning": {
+        "role": "tertiary",
+        "displayName": "Signal Straw",
+        "canonical": "oklch(0.95 0.068 75)",
+        "note": "Pinned identical in light and dark. Paired with signal-warning-text at oklch(0.39 0.095 75).",
+        "tonalRamp": [
+          "oklch(0.15 0.068 75)",
+          "oklch(0.26 0.068 75)",
+          "oklch(0.37 0.068 75)",
+          "oklch(0.48 0.068 75)",
+          "oklch(0.59 0.068 75)",
+          "oklch(0.7 0.068 75)",
+          "oklch(0.82 0.068 75)",
+          "oklch(0.95 0.068 75)"
+        ]
+      },
+      "signal-destructive": {
+        "role": "tertiary",
+        "displayName": "Signal Blush",
+        "canonical": "oklch(0.945 0.045 27)",
+        "note": "Pinned identical in light and dark. Paired with signal-destructive-text at oklch(0.4 0.17 27).",
+        "tonalRamp": [
+          "oklch(0.15 0.045 27)",
+          "oklch(0.26 0.045 27)",
+          "oklch(0.37 0.045 27)",
+          "oklch(0.48 0.045 27)",
+          "oklch(0.59 0.045 27)",
+          "oklch(0.7 0.045 27)",
+          "oklch(0.82 0.045 27)",
+          "oklch(0.95 0.045 27)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "The one page title per surface. Inter at --font-weight-headline: 560, a variable-font weight between the standard stops — 600 goes blunt at 48px, 500 goes weak. Applied as `font-headline`."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Section headings on public surfaces. Same 560 weight, one step down the scale."
+      },
+      "outcome": {
+        "displayName": "Outcome",
+        "purpose": "The scanner's resolved outcome headline, and the only place font-semibold (600) is used. Weight, not size alone, is what carries it across a lit room."
+      },
+      "subhead": {
+        "displayName": "Subhead",
+        "purpose": "The supporting sentence beneath a headline, and step titles in ordered lists. Body prose caps at roughly 65-75 characters."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Default running text. Runs with cv05 and cv08 enabled globally so Il1 cannot collapse into three identical strokes in an attendee name."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Buttons, navigation items, table headers, and every control string."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Metadata, list timestamps, helper text, badge content."
+      },
+      "code": {
+        "displayName": "Code",
+        "purpose": "Geist Mono on ticket codes, event slugs, web addresses, identifiers, and timestamps — text a person types, reads aloud, or compares character by character. Ticket codes add tracking-code (0.08em); Crockford Base32 already drops I, L, O, U, and the face keeps 5/S, 2/Z, 8/B, 6/G apart."
+      }
+    },
+    "shadows": [
+      {
+        "name": "overlay",
+        "value": "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)",
+        "purpose": "The only shadow in the system. Dialogs, select popups, and the mobile navigation drawer — the four places something genuinely passes over live content. Dialogs pair it with ring-1 in foreground/5 (foreground/10 in dark)."
+      },
+      {
+        "name": "scrim",
+        "value": "background: color-mix(in oklch, var(--foreground) 40%, transparent)",
+        "purpose": "Behind modal surfaces. Not a shadow, but the same job: signalling that what is beneath is inert."
+      }
+    ],
+    "motion": [
+      {
+        "name": "meter-fill",
+        "value": "meter-fill 1.1s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both",
+        "purpose": "The one authored animation in the entire product: the arrivals meter scaling from 0 to 1 on the X axis, transform-origin left. It carries no information the adjacent figure does not already state, which is exactly why it is safe to remove entirely."
+      },
+      {
+        "name": "state",
+        "value": "150-200ms",
+        "purpose": "State, focus, expansion, and overlay transitions. Applied via transition-all / transition-colors on controls."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "animation-duration: 0.01ms; animation-delay: 0s; transition-duration: 0.01ms; ::view-transition-* { animation: none }",
+        "purpose": "prefers-reduced-motion collapses durations AND resets animation-delay — without the second, a delayed animation still holds its empty from-state for the length of the delay. View transitions are browser-driven and must be killed at the pseudo-element level."
+      },
+      {
+        "name": "scan-outcome",
+        "value": "none",
+        "purpose": "A resolved scan outcome never animates in. A 200ms fade on a door decision is 200ms of a volunteer not knowing."
+      }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-default",
+      "description": "The single strongest action in a region. One per region, never two.",
+      "html": "<button class=\"ds-btn ds-btn-default\">Get started</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem; height: 2.25rem; padding: 0 0.75rem; border: 1px solid transparent; border-radius: var(--radius-control, 0.375rem); font-family: var(--font-inter, Inter), ui-sans-serif, system-ui, sans-serif; font-size: 0.875rem; line-height: 1.4286; letter-spacing: -0.006em; font-weight: 500; white-space: nowrap; transition: all 150ms; outline: none; user-select: none; cursor: pointer; } .ds-btn:focus-visible { border-color: var(--ring, oklch(0.6 0.09 200)); box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring, oklch(0.6 0.09 200)) 30%, transparent); } .ds-btn:active { transform: translateY(1px); } .ds-btn-default { background: var(--primary, oklch(0.21 0.015 260)); color: var(--primary-foreground, oklch(0.985 0.002 260)); } .ds-btn-default:hover { background: color-mix(in oklch, var(--primary, oklch(0.21 0.015 260)) 80%, transparent); }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Supporting actions beside a primary one — sign in, open public page, secondary hero action.",
+      "html": "<button class=\"ds-btn ds-btn-outline\">See a check-in</button>",
+      "css": ".ds-btn-outline { background: var(--background, oklch(0.994 0.002 260)); color: var(--foreground, oklch(0.17 0.013 260)); border-color: var(--border, oklch(0.916 0.005 260)); } .ds-btn-outline:hover { background: var(--muted, oklch(0.967 0.004 260)); color: var(--foreground, oklch(0.17 0.013 260)); }"
+    },
+    {
+      "name": "Destructive Trigger",
+      "kind": "button",
+      "refersTo": "button-destructive",
+      "description": "The quiet half of the destructive split. Sits in table rows and settings lists where a solid red button in every row would scream.",
+      "html": "<button class=\"ds-btn ds-btn-destructive\">Cancel ticket</button>",
+      "css": ".ds-btn-destructive { background: var(--destructive-subtle, oklch(0.965 0.021 27)); color: var(--destructive-text, oklch(0.475 0.186 27)); } .ds-btn-destructive:hover { background: color-mix(in oklch, var(--destructive-subtle, oklch(0.965 0.021 27)) 70%, transparent); } .ds-btn-destructive:focus-visible { border-color: color-mix(in oklch, var(--destructive, oklch(0.515 0.192 27)) 40%, transparent); box-shadow: 0 0 0 3px color-mix(in oklch, var(--destructive, oklch(0.515 0.192 27)) 25%, transparent); }"
+    },
+    {
+      "name": "Destructive Confirm",
+      "kind": "button",
+      "refersTo": "button-destructive-solid",
+      "description": "The loud half of the split. Only ever inside the dialog the tinted trigger opened. Quiet to reach for, loud to commit.",
+      "html": "<button class=\"ds-btn ds-btn-destructive-solid\">Cancel this ticket</button>",
+      "css": ".ds-btn-destructive-solid { background: var(--destructive, oklch(0.515 0.192 27)); color: var(--destructive-foreground, oklch(0.99 0.005 27)); } .ds-btn-destructive-solid:hover { background: color-mix(in oklch, var(--destructive, oklch(0.515 0.192 27)) 90%, transparent); } .ds-btn-destructive-solid:focus-visible { border-color: var(--destructive, oklch(0.515 0.192 27)); box-shadow: 0 0 0 3px color-mix(in oklch, var(--destructive, oklch(0.515 0.192 27)) 30%, transparent); }"
+    },
+    {
+      "name": "Provisional Badge",
+      "kind": "chip",
+      "refersTo": "badge-provisional",
+      "description": "The status chip for an acceptance saved on a phone and not yet landed. Never rendered in the success family.",
+      "html": "<span class=\"ds-badge ds-badge-provisional\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 13v9\"/><path d=\"m8 17 4-4 4 4\"/><path d=\"M6.657 18C4.085 18 2 15.993 2 13.517c0-2.475 2.085-4.482 4.657-4.482.393-1.762 1.794-3.2 3.675-3.773 1.88-.572 3.956-.193 5.444.996 1.488 1.19 2.162 3.007 1.77 4.769h.99C20.883 11.027 22 12.132 22 13.496 22 14.86 20.883 15.965 19.506 15.965h-.99\"/></svg>Not confirmed</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; justify-content: center; gap: 0.25rem; height: 1.25rem; width: fit-content; padding: 0.125rem 0.5rem; border: 1px solid transparent; border-radius: 9999px; font-family: var(--font-inter, Inter), ui-sans-serif, system-ui, sans-serif; font-size: 0.75rem; line-height: 1.3333; letter-spacing: 0.002em; font-weight: 500; white-space: nowrap; font-variant-numeric: tabular-nums; } .ds-badge > svg { width: 0.75rem; height: 0.75rem; flex-shrink: 0; } .ds-badge-provisional { background: var(--provisional-subtle, oklch(0.965 0.025 265)); color: var(--provisional-text, oklch(0.45 0.15 265)); border-color: var(--provisional-border, oklch(0.875 0.062 265)); }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Label above, help and error beside. No resting stroke; focus is the only time the field draws an edge.",
+      "html": "<input class=\"ds-input\" type=\"email\" placeholder=\"you@university.edu\" aria-label=\"Email address\" />",
+      "css": ".ds-input { height: 2.25rem; width: 100%; min-width: 0; padding: 0.25rem 0.75rem; border: 1px solid transparent; border-radius: var(--radius-overlay, 1rem); background: color-mix(in oklch, var(--border, oklch(0.916 0.005 260)) 50%, transparent); color: var(--foreground, oklch(0.17 0.013 260)); font-family: var(--font-inter, Inter), ui-sans-serif, system-ui, sans-serif; font-size: 0.875rem; line-height: 1.4286; letter-spacing: -0.006em; transition: color 150ms, box-shadow 150ms, background-color 150ms; outline: none; } .ds-input::placeholder { color: var(--muted-foreground, oklch(0.505 0.016 260)); } .ds-input:focus-visible { border-color: var(--ring, oklch(0.6 0.09 200)); box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring, oklch(0.6 0.09 200)) 30%, transparent); } .ds-input[aria-invalid=\"true\"] { border-color: var(--destructive, oklch(0.515 0.192 27)); box-shadow: 0 0 0 3px color-mix(in oklch, var(--destructive, oklch(0.515 0.192 27)) 20%, transparent); }"
+    },
+    {
+      "name": "Sidebar Nav Item",
+      "kind": "nav",
+      "refersTo": "nav-item-active",
+      "description": "One row of the organizer rail. All seven sections render at once; the active row takes the sidebar accent fill and aria-current=\"page\".",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Sections\"><a class=\"ds-nav-item ds-nav-item-active\" href=\"#\" aria-current=\"page\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"9\" rx=\"1\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"5\" rx=\"1\"/><rect x=\"14\" y=\"12\" width=\"7\" height=\"9\" rx=\"1\"/><rect x=\"3\" y=\"16\" width=\"7\" height=\"5\" rx=\"1\"/></svg>Overview</a><a class=\"ds-nav-item\" href=\"#\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 4h16v16H4z\"/><path d=\"M4 10h16\"/><path d=\"M10 4v16\"/></svg>Registrations</a></nav>",
+      "css": ".ds-nav { display: flex; flex-direction: column; gap: 0.125rem; padding: 0.5rem; background: var(--sidebar, oklch(0.975 0.004 260)); border-right: 1px solid var(--sidebar-border, oklch(0.912 0.005 260)); } .ds-nav-item { display: inline-flex; align-items: center; gap: 0.625rem; min-height: 2.25rem; padding: 0 0.625rem; border-radius: var(--radius-control, 0.375rem); font-family: var(--font-inter, Inter), ui-sans-serif, system-ui, sans-serif; font-size: 0.875rem; line-height: 1.4286; letter-spacing: -0.006em; font-weight: 500; text-decoration: none; color: var(--muted-foreground, oklch(0.505 0.016 260)); transition: color 150ms, background-color 150ms; } .ds-nav-item > svg { width: 1rem; height: 1rem; flex-shrink: 0; } .ds-nav-item:hover { background: color-mix(in oklch, var(--sidebar-accent, oklch(0.93 0.008 260)) 60%, transparent); color: var(--sidebar-accent-foreground, oklch(0.21 0.015 260)); } .ds-nav-item-active { background: var(--sidebar-accent, oklch(0.93 0.008 260)); color: var(--sidebar-accent-foreground, oklch(0.21 0.015 260)); }"
+    },
+    {
+      "name": "Scan Outcome — Provisional",
+      "kind": "custom",
+      "refersTo": "scan-outcome-provisional",
+      "description": "The signature interaction, in the state the product exists to draw. Full-screen takeover, pinned to the light signal palette in both themes, never animates in, persists until dismissed or replaced.",
+      "html": "<div class=\"ds-scan-outcome ds-scan-outcome-provisional\"><svg class=\"ds-scan-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 13v9\"/><path d=\"m8 17 4-4 4 4\"/><path d=\"M6.657 18C4.085 18 2 15.993 2 13.517c0-2.475 2.085-4.482 4.657-4.482.393-1.762 1.794-3.2 3.675-3.773 1.88-.572 3.956-.193 5.444.996 1.488 1.19 2.162 3.007 1.77 4.769h.99C20.883 11.027 22 12.132 22 13.496 22 14.86 20.883 15.965 19.506 15.965h-.99\"/></svg><span class=\"ds-scan-chip\">Offline &middot; not confirmed yet</span><p class=\"ds-scan-title\">Checked in</p><p class=\"ds-scan-name\">Leo Martinez</p><p class=\"ds-scan-code\">8RW2F&ndash;N6Q4A</p><p class=\"ds-scan-body\">Let them through. Saved on this phone and confirmed automatically once you are back online.</p></div>",
+      "css": ".ds-scan-outcome { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.25rem; padding: 2.5rem 1.5rem; text-align: center; color-scheme: light; font-family: var(--font-inter, Inter), ui-sans-serif, system-ui, sans-serif; } .ds-scan-outcome-provisional { background: var(--signal-provisional, oklch(0.945 0.05 265)); color: var(--signal-provisional-text, oklch(0.38 0.145 265)); } .ds-scan-icon { width: 6rem; height: 6rem; flex-shrink: 0; } .ds-scan-chip { border-radius: 9999px; padding: 0.25rem 0.75rem; font-size: 0.875rem; line-height: 1.4286; letter-spacing: -0.006em; font-weight: 500; background: color-mix(in oklch, currentColor 10%, transparent); } .ds-scan-title { font-size: 2.25rem; line-height: 1.1111; letter-spacing: -0.023em; font-weight: 600; text-wrap: balance; } .ds-scan-name { font-size: 1.5rem; line-height: 1.3333; letter-spacing: -0.019em; font-weight: 500; } .ds-scan-code { font-family: var(--font-geist-mono, \"Geist Mono\"), ui-monospace, monospace; font-size: 1.125rem; letter-spacing: 0.08em; opacity: 0.8; } .ds-scan-body { max-width: 28rem; font-size: 1rem; line-height: 1.5; letter-spacing: -0.011em; text-wrap: pretty; opacity: 0.9; }"
+    },
+    {
+      "name": "Arrivals Meter",
+      "kind": "custom",
+      "refersTo": "meter",
+      "description": "Proportion, not a bare count. Every number gets a denominator, and the fill is the one authored animation in the product.",
+      "html": "<div class=\"ds-meter\"><div class=\"ds-meter-head\"><div><p class=\"ds-meter-label\">Arrivals</p><p class=\"ds-meter-sub\">183 of 240 registered</p></div><p class=\"ds-meter-value\">76%</p></div><div class=\"ds-meter-track\" role=\"progressbar\" aria-label=\"Arrivals\" aria-valuemin=\"0\" aria-valuemax=\"240\" aria-valuenow=\"183\"><div class=\"ds-meter-fill\" style=\"width: 76.25%\"></div></div></div>",
+      "css": "@keyframes ds-meter-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } } .ds-meter { padding: 1.25rem; border: 1px solid var(--border, oklch(0.916 0.005 260)); border-radius: var(--radius-container, 0.75rem); background: var(--card, oklch(1 0 0)); font-family: var(--font-inter, Inter), ui-sans-serif, system-ui, sans-serif; } .ds-meter-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; } .ds-meter-label { font-size: 0.875rem; line-height: 1.4286; letter-spacing: -0.006em; font-weight: 500; color: var(--foreground, oklch(0.17 0.013 260)); } .ds-meter-sub { margin-top: 0.25rem; font-size: 0.875rem; line-height: 1.4286; color: var(--muted-foreground, oklch(0.505 0.016 260)); } .ds-meter-value { font-family: var(--font-geist-mono, \"Geist Mono\"), ui-monospace, monospace; font-size: 1.5rem; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--foreground, oklch(0.17 0.013 260)); } .ds-meter-track { margin-top: 1rem; height: 0.375rem; overflow: hidden; border-radius: 9999px; background: var(--muted, oklch(0.967 0.004 260)); } .ds-meter-fill { height: 100%; border-radius: 9999px; background: var(--foreground, oklch(0.17 0.013 260)); transform-origin: left; animation: ds-meter-fill 1.1s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both; } @media (prefers-reduced-motion: reduce) { .ds-meter-fill { animation-duration: 0.01ms; animation-delay: 0s; } }"
+    },
+    {
+      "name": "Ticket Stub",
+      "kind": "card",
+      "refersTo": "ticket-code",
+      "description": "The one object the product asks someone to keep. Perforated tear line with half-visible notches, QR in a fixed white chamber in both themes, code and QR leading on every viewport.",
+      "html": "<article class=\"ds-ticket\"><div class=\"ds-ticket-body\"><span class=\"ds-badge ds-badge-success\">Valid</span><h3 class=\"ds-ticket-title\">Robotics Society Winter Showcase</h3><p class=\"ds-ticket-sub\">Ticket for <strong>Priya Raman</strong></p></div><div class=\"ds-ticket-perf\"><span class=\"ds-ticket-notch ds-ticket-notch-top\"></span><span class=\"ds-ticket-notch ds-ticket-notch-bottom\"></span><div class=\"ds-ticket-holes\"></div></div><div class=\"ds-ticket-stub\"><div class=\"ds-ticket-qr\"></div><p class=\"ds-ticket-caption\">Ticket code</p><p class=\"ds-ticket-code\">7QM4X&ndash;K3B9T</p><p class=\"ds-ticket-caption\">Single entry &middot; This event only</p></div></article>",
+      "css": ".ds-ticket { display: flex; overflow: hidden; border: 1px solid var(--border, oklch(0.916 0.005 260)); border-radius: var(--radius-container, 0.75rem); background: var(--background, oklch(0.994 0.002 260)); font-family: var(--font-inter, Inter), ui-sans-serif, system-ui, sans-serif; color: var(--foreground, oklch(0.17 0.013 260)); } .ds-ticket-body { flex: 1; display: flex; flex-direction: column; gap: 1rem; padding: 1.5rem; } .ds-ticket-title { font-size: 1.875rem; line-height: 1.2; letter-spacing: -0.021em; font-weight: 560; text-wrap: balance; } .ds-ticket-sub { font-size: 1rem; line-height: 1.5; letter-spacing: -0.011em; color: var(--muted-foreground, oklch(0.505 0.016 260)); } .ds-ticket-sub strong { font-weight: 500; color: var(--foreground, oklch(0.17 0.013 260)); } .ds-badge-success { background: var(--success-subtle, oklch(0.965 0.024 150)); color: var(--success-text, oklch(0.44 0.105 150)); border-color: var(--success-border, oklch(0.875 0.052 150)); } .ds-ticket-perf { position: relative; width: 1.5rem; flex-shrink: 0; align-self: stretch; } .ds-ticket-notch { position: absolute; left: 50%; width: 1rem; height: 1rem; border-radius: 9999px; background: var(--background, oklch(0.994 0.002 260)); transform: translate(-50%, -50%); } .ds-ticket-notch-top { top: 0; } .ds-ticket-notch-bottom { top: 100%; } .ds-ticket-holes { position: absolute; top: 1rem; bottom: 1rem; left: 50%; width: 0.125rem; transform: translateX(-50%); background-image: radial-gradient(circle at center, var(--border, oklch(0.916 0.005 260)) 0 0.09375rem, transparent 0.09375rem); background-position: center; background-repeat: repeat-y; background-size: 0.5rem 0.5rem; } .ds-ticket-stub { display: flex; flex-direction: column; align-items: center; gap: 1rem; width: 18rem; flex-shrink: 0; padding: 1.5rem; text-align: center; } .ds-ticket-qr { width: 10rem; height: 10rem; border-radius: var(--radius-control, 0.375rem); background: #ffffff; border: 0.75rem solid #ffffff; background-image: repeating-conic-gradient(#111 0 25%, #fff 0 50%); background-size: 1.25rem 1.25rem; } .ds-ticket-caption { font-size: 0.75rem; line-height: 1.3333; letter-spacing: 0.002em; color: var(--muted-foreground, oklch(0.505 0.016 260)); } .ds-ticket-code { font-family: var(--font-geist-mono, \"Geist Mono\"), ui-monospace, monospace; font-size: 1.5rem; font-weight: 500; letter-spacing: 0.08em; font-variant-numeric: tabular-nums; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Control Desk",
+    "overview": "EventPass is an instrument, not a publication. It is the surface a club organizer configures an event on, and the surface a volunteer stares at across a lit gymnasium with a queue behind them — and those are the same product, drawn from the same tokens, speaking in the same voice. The system is deliberately quiet: near-monochrome neutrals on flat surfaces separated by hairlines, with no gradient, no ornament, and no second typeface competing for the eye. Everything saturated in this product is a report about the world, not a decoration on it.\n\nThe system speaks with one voice. Inter — variable, loaded once — carries headlines, body copy, tables, forms, buttons, and every scanner string. There is no display face and no --font-heading token; hierarchy is built from size, weight, and spacing, which is the only hierarchy that survives a dense table. Optical treatment is not a per-component decision: leading and letter-spacing are bound to every step of the --text-* scale in @theme inline, so a component that sets tracking-* or leading-* is overriding a decision that was already made correctly. Geist Mono is narrowed to a single job — strings a human types, reads aloud, or compares character by character.\n\nColour discipline is the system's other load-bearing rule. Five hue families exist, each carrying the same five roles, and each appears only where the product is reporting a state: accepted, not yet confirmed, repeated, refused. The brand hue survives as focus ring, selection, and informational register — never as brand paint. The distinction the product exists to draw is that an offline yes is not a confirmed yes, so provisional is a first-class outcome with its own hue, never a shade of success. Every pair is verified against WCAG 2.2 AA by app/globals.contrast.test.ts, which fails the build when a token drifts.",
+    "keyCharacteristics": [
+      "One typeface (Inter) across marketing, organizer, scanner, and attendee surfaces",
+      "Near-monochrome neutrals, flat, region boundaries drawn with 1px hairlines",
+      "Saturated colour only where a state is being reported; never decorative",
+      "Five hue families, five roles each, machine-audited for contrast in both themes",
+      "Scanner outcome surfaces pinned identical in light and dark",
+      "Unmodified shadcn primitives; every value from a global token",
+      "Exactly one authored animation in the entire product"
+    ],
+    "rules": [
+      {
+        "name": "The Colour Is State Rule",
+        "body": "Saturated colour appears only where the product is reporting something the user must act on. There is no accent fill, no coloured hero, no tinted section for visual interest. If you cannot name the state a colour is reporting, it does not belong on the screen.",
+        "section": "colors"
+      },
+      {
+        "name": "The Two Kinds of Yes Rule",
+        "body": "provisional never renders in the colour of success. An offline acceptance is a qualified yes and must be distinguishable at a glance, across a room, from a confirmed one. Audit test: remove the labels from two adjacent outcomes and you can still tell a confirmed check-in from an unconfirmed one.",
+        "section": "colors"
+      },
+      {
+        "name": "The Pinned Signal Rule",
+        "body": "Scan outcome surfaces use the signal-* pair and are identical in light and dark. Ambient venue light beats theme preference at a door; a rejection rendered as dark red on black is unreadable in a lit gym. Any subtree carrying a signal surface also carries .signal-surface, which re-points the neutral tokens to their light values so a control rendered inside it is not a near-black button on a mint background.",
+        "section": "colors"
+      },
+      {
+        "name": "The Audited Palette Rule",
+        "body": "No colour ships without a corresponding pair in app/globals.contrast.test.ts. The suite verifies both themes against WCAG 2.2 AA (4.5:1 text, 3:1 focus indicator), asserts every neutral carries a tint, asserts the five hues stay at least 35 degrees apart, and fails the build if any saturated violet reappears from the stock preset.",
+        "section": "colors"
+      },
+      {
+        "name": "The Never-Colour-Alone Rule",
+        "body": "Every outcome pairs its colour with an icon and a concise label, and on the scanner with optional sound and vibration. Strip all colour from any screen and it must remain fully usable.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Voice Rule",
+        "body": "Inter carries every heading, control, table cell, and door decision. There is no display face, no --font-heading, and no second family introduced for tone. Arm's-length legibility in bright light is a safety property; nothing decorative may touch it.",
+        "section": "typography"
+      },
+      {
+        "name": "The Bound Optics Rule",
+        "body": "Leading and letter-spacing are properties of a size, not decisions to re-make per component. Both are declared on every step of the --text-* scale, so text-4xl already knows it wants line-height 1.1111 and tracking -0.023em. A tracking-*, leading-*, or text-[...] class in a product component is a bug — the scale is wrong, fix it there.",
+        "section": "typography"
+      },
+      {
+        "name": "The Mono Is For Dictation Rule",
+        "body": "Geist Mono appears on ticket codes, event slugs, web addresses, identifiers, and timestamps: text a human types, reads aloud, or compares character by character. It never carries prose, headings, labels, or a \"technical\" mood.",
+        "section": "typography"
+      },
+      {
+        "name": "The Sentence Case Rule",
+        "body": "Sentence case throughout, with concrete status language: \"Checked in\", \"Already checked in\", \"Ticket not found\". No uppercase tracking-out labels, no eyebrows or kickers above headings — a heading that needs a label above it to be understood is the wrong heading.",
+        "section": "typography"
+      },
+      {
+        "name": "The Hairline Rhythm Rule",
+        "body": "Space separates things that belong together; a hairline separates things that don't. Reach for border-b / divide-y before reaching for a bigger gap, and never for both at full strength.",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat-By-Default Rule",
+        "body": "Decorative elevation is not permitted. A shadow appears only where an element physically passes over content that remains present. If the thing beneath it is gone, so is the shadow.",
+        "section": "elevation"
+      },
+      {
+        "name": "The One Region Rule",
+        "body": "Related controls and data share one bordered region with internal dividers. Do not wrap every content group in an independent floating card — that assembles a dashboard out of confetti and is a named product anti-reference.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Buttons Are Not Pills Rule",
+        "body": "A primary action is a decision, not a chip. Buttons take the control radius. rounded-full on an action is out.",
+        "section": "shapes"
+      },
+      {
+        "name": "The One Authored Moment Rule",
+        "body": "The product contains exactly one authored animation, running in two beats on a single exponential ease-out: the newest row arrives in the activity list (.animate-scan-arrive, 0.55s), then the arrivals meter answers it (.animate-meter-fill, 1.1s, delayed past the arrival so the count reads as its consequence). It dramatizes the one thing the product claims, a door being worked, rather than decorating the page entrance, and the activity row is not a scan outcome: a door decision still appears instantly and never animates. It carries no information the adjacent figures do not already state, which is precisely why it is safe to remove entirely. Everything else that moves is either a 150-200 ms state transition, a <Suspense> reveal, or a browser-driven view transition on a shared element. prefers-reduced-motion collapses durations and resets animation-delay to zero — without the second part, a delayed animation still holds its empty from state for the length of the delay.",
+        "section": "components"
+      },
+      {
+        "name": "The Real Component Rule",
+        "body": "Marketing surfaces render the actual product components with static props — the ticket, the scan outcome, the operations frame — never a screenshot and never a mock-up. A screenshot goes stale silently; a rendered component cannot. Every saturated colour on the landing page therefore belongs to a real component reporting a real state.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "Do take every colour, radius, weight, and type size from app/globals.css.",
+      "Do let hierarchy come from size, weight, and spacing — headings at 560, scanner outcomes at 600, everything else at 400/500.",
+      "Do reserve font-semibold for the scanner outcome, where weight has to carry across a lit room.",
+      "Do use the mono face only for ticket codes, slugs, web addresses, identifiers, and timestamps, and pair ticket codes with tracking-code.",
+      "Do treat provisional as a distinct outcome everywhere it can occur, and show offline state, snapshot age, pending synchronization, and conflicts explicitly.",
+      "Do give every number a denominator.",
+      "Do draw regions with a hairline and one step of tonal shift.",
+      "Do add every new colour pair to app/globals.contrast.test.ts in the same change that introduces it.",
+      "Do pass titleAs when embedding a component that owns an h1 or h2 on its own page.",
+      "Do use progressive disclosure for advanced or dangerous actions, with the tinted destructive trigger and the solid destructive confirm."
+    ],
+    "donts": [
+      "Don't introduce a second typeface, a display face, or a --font-heading token. There is one voice.",
+      "Don't set tracking-*, leading-*, or an arbitrary text-[...] size in a product component. The scale already carries its optics.",
+      "Don't put a kicker, eyebrow, or uppercase label above a heading. If the heading needs one, rewrite the heading.",
+      "Don't use saturated colour as decoration — no coloured heroes, accent fills, tinted sections for interest, or gradients.",
+      "Don't render an offline acceptance in the colour of a confirmed one.",
+      "Don't move a signal-* token into .dark, or render a scan outcome that changes with the theme.",
+      "Don't introduce raw colour values or Tailwind palette classes such as text-emerald-600 in components.",
+      "Don't add a shadow to anything that isn't passing over live content, and don't wrap every content group in an independent floating card.",
+      "Don't animate a scan outcome, or add a second authored animation without deleting one.",
+      "Don't make a button a pill.",
+      "Don't hide important state behind hover, colour alone, or a transient toast.",
+      "Don't resemble a dark security console, a crypto product, or a purple-gradient SaaS template — the contrast audit actively fails on saturated violet."
+    ]
+  }
+}

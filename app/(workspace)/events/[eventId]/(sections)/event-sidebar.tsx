@@ -77,7 +77,7 @@ function SidebarBody({
           Events
         </Link>
         <div className="flex flex-col gap-1.5">
-          {/* Paired with the same name in the Events list. Only the persistent
+          {/* Paired with the same name in the events list. Only the persistent
               rail claims it — the drawer renders the same body, and two live
               elements sharing one view-transition-name is a conflict. */}
           {morph ? (

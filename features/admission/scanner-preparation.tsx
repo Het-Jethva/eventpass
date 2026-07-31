@@ -144,7 +144,7 @@ export function ScannerPreparation({ eventId }: { eventId: string }) {
       });
       if (result.outcome === "unauthorized") {
         setError(
-          "Current Check-in Volunteer access is required to prepare this Event for offline admission.",
+          "Current Check-in volunteer access is required to prepare this event for offline admission.",
         );
         return;
       }
@@ -181,7 +181,7 @@ export function ScannerPreparation({ eventId }: { eventId: string }) {
     try {
       await persistPreparedSnapshot(replacement.snapshot, true);
     } catch {
-      setError("The cached Event could not be replaced. Try again.");
+      setError("The cached event could not be replaced. Try again.");
     } finally {
       setPending(false);
     }
@@ -201,7 +201,7 @@ export function ScannerPreparation({ eventId }: { eventId: string }) {
           </h2>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
             Name this browser, issue its Scanner Authorization, and cache the
-            minimum Ticket data needed for offline admission.
+            minimum ticket data needed for offline admission.
           </p>
         </div>
         <Badge variant={online ? "secondary" : "destructive"}>
@@ -239,7 +239,7 @@ export function ScannerPreparation({ eventId }: { eventId: string }) {
             <IconDatabase />
             <AlertTitle>{snapshot.event.name} is cached</AlertTitle>
             <AlertDescription>
-              Preparing this Event requires confirmation before replacing the
+              Preparing this event requires confirmation before replacing the
               browser&apos;s current Offline Event Snapshot.
             </AlertDescription>
           </Alert>
@@ -309,15 +309,15 @@ export function ScannerPreparation({ eventId }: { eventId: string }) {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Replace the cached Event?</AlertDialogTitle>
+            <AlertDialogTitle>Replace the cached event?</AlertDialogTitle>
             <AlertDialogDescription>
               This browser currently has {replacement?.currentEventName} cached.
-              Its Offline Event Snapshot will be replaced. {replacement?.pendingAttemptCount ?? 0} unsynchronized Scan Attempt
+              Its Offline Event Snapshot will be replaced. {replacement?.pendingAttemptCount ?? 0} unsynchronized scan Attempt
               {(replacement?.pendingAttemptCount ?? 0) === 1 ? "" : "s"} will be preserved for later synchronization.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={pending}>Keep current Event</AlertDialogCancel>
+            <AlertDialogCancel disabled={pending}>Keep current event</AlertDialogCancel>
             <AlertDialogAction
               disabled={pending}
               onClick={() => void confirmReplacement()}

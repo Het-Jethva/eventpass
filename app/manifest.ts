@@ -5,15 +5,15 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "EventPass",
     short_name: "EventPass",
     description:
-      "Trustworthy offline-first Event registration and admission operations.",
+      "Event registration, tickets, and door check-in that keeps working offline.",
     start_url: "/events",
     display: "standalone",
     // These were both #09090b, so the install splash was always dark even for a
     // viewer whose system — and therefore the app — is light. A manifest cannot
     // vary by colour scheme, so it takes the light surface, and the per-theme
     // browser chrome is handled by the media-scoped theme-color in layout.tsx.
-    background_color: "#fdfdfe",
-    theme_color: "#fdfdfe",
+    background_color: "#fcfdfe",
+    theme_color: "#fcfdfe",
     icons: [
       {
         src: "/icon-192.png",

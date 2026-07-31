@@ -42,12 +42,12 @@ import {
 } from "./actions";
 import { acceptOwnershipTransferAction } from "./transfer-actions";
 
-export const metadata: Metadata = { title: "Event Staff" };
+export const metadata: Metadata = { title: "Staff" };
 
 const ROLE_LABELS = {
-  owner: "Event Owner",
+  owner: "event owner",
   organizer: "Organizer",
-  check_in_volunteer: "Check-in Volunteer",
+  check_in_volunteer: "Check-in volunteer",
 } as const;
 
 function formatDeadline(value: Date) {
@@ -88,10 +88,10 @@ export default async function EventStaffPage({
   return (
     <>
       <div className="flex flex-col gap-2">
-        <h1 className="font-heading text-3xl">Event Staff</h1>
+        <h1 className="text-2xl font-headline">Staff</h1>
         <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
           Assign Event-scoped access. Every invitation, role change, removal,
-          and Ownership Transfer is recorded in immutable Audit Entries.
+          and every ownership change is kept permanently.
         </p>
       </div>
 
@@ -114,7 +114,7 @@ export default async function EventStaffPage({
         <div className="border-b p-5 sm:p-6">
           <div className="flex items-center gap-2">
             <IconUsers aria-hidden="true" className="size-5" />
-            <h2 id="current-staff-heading" className="font-medium">Current Event Staff</h2>
+            <h2 id="current-staff-heading" className="font-medium">Current Staff</h2>
           </div>
         </div>
         <ul className="divide-y">
@@ -149,7 +149,7 @@ export default async function EventStaffPage({
           <div className="mb-6 flex items-start gap-3">
             <IconMailForward aria-hidden="true" className="mt-0.5 size-5" />
             <div>
-              <h2 className="font-medium">Send Staff Invitation</h2>
+              <h2 className="font-medium">Send Staff invitation</h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
                 The single-use link is bound to this email and expires after 24 hours.
               </p>
@@ -172,15 +172,15 @@ export default async function EventStaffPage({
                       {staffing.actorRole === "owner" ? (
                         <SelectItem value="organizer">Organizer</SelectItem>
                       ) : null}
-                      <SelectItem value="check_in_volunteer">Check-in Volunteer</SelectItem>
+                      <SelectItem value="check_in_volunteer">Check-in volunteer</SelectItem>
                     </SelectGroup>
                   </SelectContent>
                 </Select>
                 <FieldDescription>
-                  Organizers manage configuration and volunteers. Check-in Volunteers receive admission access only.
+                  Organizers manage configuration and volunteers. Check-in volunteers receive admission access only.
                 </FieldDescription>
               </Field>
-              <Button type="submit">Send Staff Invitation</Button>
+              <Button type="submit">Send Staff invitation</Button>
             </FieldGroup>
           </form>
         </div>
@@ -189,14 +189,14 @@ export default async function EventStaffPage({
           <div className="mb-6 flex items-start gap-3">
             <IconClock aria-hidden="true" className="mt-0.5 size-5" />
             <div>
-              <h2 className="font-medium">Pending Staff Invitations</h2>
+              <h2 className="font-medium">Pending Staff invitations</h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
                 Revoke any invitation that should no longer grant access.
               </p>
             </div>
           </div>
           {staffing.invitations.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No pending Staff Invitations.</p>
+            <p className="text-sm text-muted-foreground">No pending Staff invitations.</p>
           ) : (
             <ul className="flex flex-col gap-4">
               {staffing.invitations.map((invitation) => (
@@ -241,7 +241,7 @@ export default async function EventStaffPage({
                     <FieldLabel htmlFor="proposed-owner">Existing Organizer</FieldLabel>
                     <Select name="proposedOwnerUserId" required>
                       <SelectTrigger id="proposed-owner" className="w-full sm:max-w-md">
-                        <SelectValue placeholder="Choose an Organizer" />
+                        <SelectValue placeholder="Choose an organizer" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
@@ -254,7 +254,7 @@ export default async function EventStaffPage({
                       </SelectContent>
                     </Select>
                     <FieldDescription>
-                      The proposal expires after 24 hours. Ownership changes only when that Organizer accepts.
+                      The proposal expires after 24 hours. Ownership changes only when that organizer accepts.
                     </FieldDescription>
                   </Field>
                   <Button type="submit" variant="outline">Propose Ownership Transfer</Button>
@@ -262,7 +262,7 @@ export default async function EventStaffPage({
               </form>
             ) : (
               <p className="mt-3 text-sm text-muted-foreground">
-                Invite an Organizer before proposing Ownership Transfer.
+                Invite an organizer before proposing Ownership Transfer.
               </p>
             )
           ) : null}

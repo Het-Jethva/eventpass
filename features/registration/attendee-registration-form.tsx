@@ -278,7 +278,7 @@ export function AttendeeRegistrationForm({
         you received a 15-minute Capacity Hold or need to verify for the waitlist.
       </p>
       <p className="sr-only" aria-live="polite">
-        {pending ? "Submitting your Registration." : ""}
+        {pending ? "Submitting your registration." : ""}
       </p>
     </form>
   );

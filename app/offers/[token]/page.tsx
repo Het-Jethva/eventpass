@@ -41,31 +41,31 @@ export default async function AdmissionOfferPage({
           {offer ? (
             <>
               <p className="text-sm font-medium text-muted-foreground">{offer.eventName}</p>
-              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-balance">
+              <h1 className="mt-2 text-3xl font-headline text-balance">
                 A place is ready for you
               </h1>
               <p className="mt-4 max-w-2xl text-muted-foreground">
                 {offer.attendeeName}, you reached the front of the verified waitlist. Claiming
-                this Admission Offer confirms your Registration and issues your Ticket.
+                this Admission Offer confirms your registration and issues your ticket.
               </p>
               <Alert className="mt-8">
                 <IconClock aria-hidden="true" />
                 <AlertTitle>Time-limited offer</AlertTitle>
                 <AlertDescription>
                   Claim by {offer.expiresAt.toLocaleString("en", { timeZone: "UTC", timeZoneName: "short" })}.
-                  After this deadline the place moves to the next Attendee.
+                  After this deadline the place goes to the next person waiting.
                 </AlertDescription>
               </Alert>
               <form action={claimAdmissionOfferAction.bind(null, token)} className="mt-8">
                 <Button type="submit" size="lg">
                   <IconTicket aria-hidden="true" />
-                  Claim place and issue Ticket
+                  Claim place and issue ticket
                 </Button>
               </form>
             </>
           ) : (
             <>
-              <h1 className="text-3xl font-semibold tracking-tight text-balance">
+              <h1 className="text-3xl font-headline text-balance">
                 {outcome === "consumed"
                   ? "Offer already claimed"
                   : outcome === "canceled"
@@ -74,10 +74,10 @@ export default async function AdmissionOfferPage({
               </h1>
               <p className="mt-4 text-muted-foreground">
                 {outcome === "consumed"
-                  ? "This private claim link has already been used. Open the Ticket email that was sent after the claim."
+                  ? "This private claim link has already been used. Open the ticket email that was sent after the claim."
                   : outcome === "canceled"
-                    ? "This Event was canceled, so the Admission Offer cannot be claimed and no Ticket can be issued."
-                    : "The claim deadline passed, so this Registration expired and the place may have moved to the next Attendee."}
+                    ? "This Event was canceled, so the Admission Offer cannot be claimed and no ticket can be issued."
+                    : "The claim deadline passed, so this registration expired and the place may have gone to the next person waiting."}
               </p>
             </>
           )}
@@ -85,7 +85,7 @@ export default async function AdmissionOfferPage({
             href={offer ? `/e/${offer.eventSlug}` : "/"}
             className={cn(buttonVariants({ variant: "outline" }), "mt-8")}
           >
-            {offer ? "Return to Event" : "Go to EventPass"}
+            {offer ? "Return to event" : "Go to EventPass"}
           </Link>
         </section>
       </main>

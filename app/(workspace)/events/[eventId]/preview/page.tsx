@@ -26,10 +26,10 @@ export default async function EventPreviewPage({
     <div className="relative">
       <div className="sticky top-0 z-10 border-b bg-foreground text-background">
         <div className="mx-auto flex min-h-12 max-w-5xl items-center justify-between gap-4 px-4 py-2 text-sm sm:px-6">
-          <p><span className="font-medium">Preview:</span> this page is visible only to Organizers.</p>
+          <p><span className="font-medium">Preview:</span> this page is visible only to organizers.</p>
           <Link href={`/events/${event.id}`} className={buttonVariants({ variant: "secondary", size: "sm" })}>
             <IconArrowLeft data-icon="inline-start" />
-            Back to Event
+            Back to event
           </Link>
         </div>
       </div>

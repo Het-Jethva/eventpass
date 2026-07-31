@@ -26,22 +26,22 @@ export function DeleteEventControl({
     <AlertDialog>
       <AlertDialogTrigger render={<Button variant="destructive" />}>
         <IconTrash data-icon="inline-start" />
-        Delete Draft Event
+        Delete draft
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete {eventName}?</AlertDialogTitle>
           <AlertDialogDescription>
-            This permanently removes the empty Draft Event and its Event Staff
+            This permanently removes the empty draft Event and its event Staff
             assignments. This action cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Keep Draft Event</AlertDialogCancel>
+          <AlertDialogCancel>Keep draft</AlertDialogCancel>
           <form action={action}>
             <AlertDialogAction type="submit" variant="destructive">
               <IconTrash data-icon="inline-start" />
-              Delete Draft Event
+              Delete draft
             </AlertDialogAction>
           </form>
         </AlertDialogFooter>

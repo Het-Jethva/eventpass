@@ -29,20 +29,20 @@ export default async function StaffInvitationPage({
       ? normalizeStaffEmail(session.user.email) === invitation.normalizedEmail
       : false;
   const roleLabel =
-    invitation?.role === "organizer" ? "Organizer" : "Check-in Volunteer";
+    invitation?.role === "organizer" ? "Organizer" : "Check-in volunteer";
 
   return (
     <PublicAuthShell>
       <div className="flex flex-col gap-7">
         <div className="flex flex-col gap-3">
           <IconUsers aria-hidden="true" className="size-8" />
-          <h1 className="text-3xl font-semibold tracking-[-0.03em]">Staff Invitation</h1>
+          <h1 className="text-3xl font-headline">Staff invitation</h1>
         </div>
 
         {!invitation || query.error ? (
           <Alert variant="destructive">
             <IconAlertCircle aria-hidden="true" />
-            <AlertTitle>This Staff Invitation is unavailable</AlertTitle>
+            <AlertTitle>This Staff invitation is unavailable</AlertTitle>
             <AlertDescription>
               It may have expired, been revoked, already been used, or belong to another signed-in email.
             </AlertDescription>
@@ -73,7 +73,7 @@ export default async function StaffInvitationPage({
               </div>
             ) : emailMatches ? (
               <form action={acceptStaffInvitationAction.bind(null, token)}>
-                <Button className="w-full" type="submit">Accept Staff Invitation</Button>
+                <Button className="w-full" type="submit">Accept Staff invitation</Button>
               </form>
             ) : (
               <Alert variant="destructive">

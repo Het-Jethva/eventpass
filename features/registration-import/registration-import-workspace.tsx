@@ -108,7 +108,7 @@ export function RegistrationImportWorkspace({ eventId }: { eventId: string }) {
           : preview.rows.length;
       setMessage({
         kind: "success",
-        text: `${importedCount.toLocaleString()} Registration${importedCount === 1 ? "" : "s"} and signed Ticket${importedCount === 1 ? "" : "s"} imported.`,
+        text: `${importedCount.toLocaleString()} Registration${importedCount === 1 ? "" : "s"} and signed ticket${importedCount === 1 ? "" : "s"} imported.`,
       });
     } catch (error) {
       setMessage({
@@ -136,7 +136,7 @@ export function RegistrationImportWorkspace({ eventId }: { eventId: string }) {
             />
             <FieldDescription>
               Up to 500 rows and 512 KB. Include name and email headers; custom
-              columns may use a Registration Field label or ID. Separate
+              columns may use a registration Field label or ID. Separate
               multiple-choice answers with semicolons.
             </FieldDescription>
           </Field>

@@ -107,8 +107,8 @@ export function RosterTable({
             </EmptyTitle>
             <EmptyDescription>
               {hasActiveSearch
-                ? "Every Registration for this Event was searched, not just the visible page. Try a shorter search or a different status."
-                : "Registrations appear here once Attendees register, or once you import them from a CSV below."}
+                ? "Every Registration for this event was searched, not just the visible page. Try a shorter search or a different status."
+                : "Registrations appear here once attendees register, or once you import them from a CSV below."}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>

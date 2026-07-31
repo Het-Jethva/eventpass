@@ -71,7 +71,7 @@ export function AdminActionDialog({
               </div>
             )}
             <div>
-              <h2 id="admin-dialog-title" className="text-lg font-semibold tracking-tight">
+              <h2 id="admin-dialog-title" className="text-lg font-semibold">
                 {title}
               </h2>
               <p className="text-xs text-muted-foreground">{description}</p>

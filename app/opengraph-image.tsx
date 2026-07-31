@@ -62,7 +62,7 @@ export default function OpenGraphImage() {
               maxWidth: "960px",
             }}
           >
-            Event check-in that stays trustworthy when the internet does not.
+            Keep the line moving when the Wi-Fi doesn’t.
           </div>
           <div
             style={{
@@ -72,8 +72,7 @@ export default function OpenGraphImage() {
               maxWidth: "900px",
             }}
           >
-            Signed single-entry tickets, a bounded offline scanner, and
-            conflict resolution you can audit.
+            Registration, tickets, and door check-in for in-person events.
           </div>
         </div>
 
@@ -87,13 +86,13 @@ export default function OpenGraphImage() {
             paddingTop: "28px",
           }}
         >
-          <span>Next.js</span>
+          <span>Registration</span>
           <span>·</span>
-          <span>PostgreSQL</span>
+          <span>Tickets</span>
           <span>·</span>
-          <span>ECDSA P-256 tickets</span>
+          <span>Door check-in</span>
           <span>·</span>
-          <span>Offline-capable PWA</span>
+          <span>Works offline</span>
         </div>
       </div>
     ),

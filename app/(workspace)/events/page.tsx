@@ -27,9 +27,9 @@ export const metadata: Metadata = {
 };
 
 const ROLE_LABELS: Record<string, string> = {
-  owner: "Event Owner",
+  owner: "event owner",
   organizer: "Organizer",
-  check_in_volunteer: "Check-in Volunteer",
+  check_in_volunteer: "Check-in volunteer",
 };
 
 function formatSchedule(startsAt: Date, endsAt: Date, timeZone: string) {
@@ -59,9 +59,9 @@ export default async function EventsPage() {
     <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-col gap-2">
-          <h1 className="font-heading text-3xl">Events</h1>
+          <h1 className="text-2xl font-headline">Events</h1>
           <p className="text-sm text-muted-foreground">
-            Events where you are assigned as Event Staff.
+            Events where you are assigned as Staff.
           </p>
         </div>
         <Link href="/events/new" className={buttonVariants()}>
@@ -78,14 +78,14 @@ export default async function EventsPage() {
             </EmptyMedia>
             <EmptyTitle>No Events yet</EmptyTitle>
             <EmptyDescription>
-              Create a Draft Event to configure registration, staffing, and
-              check-in before anything becomes visible to Attendees.
+              Create a draft Event to configure registration, staffing, and
+              check-in before anything becomes visible to attendees.
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
             <Link href="/events/new" className={buttonVariants()}>
               <IconPlus data-icon="inline-start" />
-              Create your first Event
+              Create your first event
             </Link>
           </EmptyContent>
         </Empty>
@@ -98,8 +98,8 @@ export default async function EventsPage() {
             >
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  {/* Morphs into the Event name in the workspace rail, so
-                      opening an Event reads as the same thing moving rather
+                  {/* Morphs into the event name in the workspace rail, so
+                      opening an event reads as the same thing moving rather
                       than one page replacing another. The `event-` prefix
                       matters: a view-transition-name is a CSS custom-ident and
                       cannot begin with a digit, which a bare UUID may. */}
@@ -107,7 +107,7 @@ export default async function EventsPage() {
                     <h2 className="truncate font-medium">{eventItem.name}</h2>
                   </ViewTransition>
                   <Badge variant={eventItem.status === "draft" ? "secondary" : "default"}>
-                    {eventItem.status === "draft" ? "Draft Event" : "Published Event"}
+                    {eventItem.status === "draft" ? "draft" : "Published Event"}
                   </Badge>
                   <Badge variant="outline">
                     {ROLE_LABELS[eventItem.role] ?? eventItem.role}

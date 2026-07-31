@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense, ViewTransition } from "react";
 import { notFound, redirect } from "next/navigation";
-import { IconHistory } from "@tabler/icons-react";
 
 import { AuditView } from "@/features/audit/audit-view";
 import { AuditViewSkeleton } from "@/features/audit/audit-view-skeleton";
@@ -48,15 +47,14 @@ export default async function EventAuditPage(props: {
 
   return (
     <>
-      <div className="flex items-center gap-3">
-        <IconHistory aria-hidden="true" className="size-6 text-muted-foreground" />
-        <div>
-          <h1 className="font-heading text-3xl">Audit log</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Immutable, append-only records of privileged changes and Scan
-            Attempts.
-          </p>
-        </div>
+      {/* No icon beside the title: every other section header in the workspace
+          is the word alone, and one decorated heading reads as an accident. */}
+      <div>
+        <h1 className="text-2xl font-headline">Audit log</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          A permanent record of who changed what, and every scan at the door.
+          Nothing here can be edited or removed.
+        </p>
       </div>
 
       {/* Two of the three permitted motion patterns land on the same boundary:

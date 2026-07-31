@@ -32,8 +32,8 @@ export function StaffRemoveControl({
         <AlertDialogHeader>
           <AlertDialogTitle>Remove {name}?</AlertDialogTitle>
           <AlertDialogDescription>
-            Their access to this Event ends immediately. The removal remains in
-            the immutable Audit Entries.
+            Their access to this event ends immediately. The removal remains in
+            the permanent record.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

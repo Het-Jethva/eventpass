@@ -6,17 +6,17 @@ import { getActiveStaffSession } from "@/lib/staff-session";
 
 import { EventSidebar } from "./event-sidebar";
 
-// Every section of the Event workspace shares this shell, so the Event's
+// Every section of the event workspace shares this shell, so the event's
 // identity and the way back are structural rather than something each page
 // remembers to render. Before this existed the nav was copy-pasted into five
 // pages and missing from three, and `edit` — reachable from the Settings tab —
 // had neither nav nor a back link, leaving no way out but the browser button.
 //
 // The shell is a rail rather than a stack of header bands: the back-link, the
-// section nav, and the Event title used to occupy three rows above every page,
+// section nav, and the event title used to occupy three rows above every page,
 // under the global header, for four bands of chrome before any content. The
 // rail carries all of that and hands the content column its width back, which
-// the Registrations and Audit tables needed most.
+// the registrations and Audit tables needed most.
 //
 // `preview` deliberately sits outside this route group: it exists to show the
 // Organizer the attendee-facing page, so workspace chrome would defeat it.
@@ -45,7 +45,7 @@ export default async function EventWorkspaceSectionsLayout({
         eventSlug={event.slug}
         statusLabel={
           isDraft
-            ? "Draft Event"
+            ? "draft"
             : isCanceled
               ? "Canceled Event"
               : "Published Event"

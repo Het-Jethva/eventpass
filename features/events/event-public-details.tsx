@@ -62,9 +62,9 @@ export function EventPublicDetails({
       <main className="mx-auto grid w-full max-w-6xl flex-1 gap-10 px-4 py-10 sm:px-6 sm:py-14 lg:grid-cols-[minmax(0,0.85fr)_minmax(22rem,1fr)] lg:gap-14">
         <div className="min-w-0">
           <p className="mb-3 text-sm font-medium text-muted-foreground">
-            In-person Event
+            In-person event
           </p>
-          <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+          <h1 className="text-3xl font-headline text-balance sm:text-4xl">
             {event.name}
           </h1>
           <p className="mt-6 max-w-2xl whitespace-pre-wrap text-base leading-7 text-muted-foreground">
@@ -105,7 +105,7 @@ export function EventPublicDetails({
         </div>
 
         <aside className="h-fit rounded-2xl border bg-background p-5 sm:p-6">
-          <h2 className="text-xl font-semibold tracking-tight">Registration</h2>
+          <h2 className="text-xl font-semibold">Registration</h2>
           <div className="mt-5 flex gap-3">
             <IconClock aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
             <div>

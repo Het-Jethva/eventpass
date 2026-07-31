@@ -50,11 +50,11 @@ export default async function RegistrationsPage(props: {
         <div>
           <div className="flex items-center gap-2">
             <IconFileSpreadsheet aria-hidden="true" className="size-6" />
-            <h1 className="font-heading text-3xl">Registrations</h1>
+            <h1 className="text-2xl font-headline">Registrations</h1>
           </div>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Who registered, whether they hold a valid Ticket, and whether they
-            have been admitted. Search covers every Registration for this Event.
+            Who registered, whether they hold a valid ticket, and whether they
+            have been admitted. Search covers every registration for this event.
           </p>
         </div>
         <a
@@ -94,8 +94,8 @@ export default async function RegistrationsPage(props: {
       <div>
         <h3 className="font-medium">Import Registrations</h3>
         <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-          Preview a bounded CSV before creating Organizer-attested
-          Registrations. Imports are all-or-nothing and stay within the Event
+          Preview a bounded CSV before creating organizer-attested
+          Registrations. Imports are all-or-nothing and stay within the event
           Capacity.
         </p>
         <div className="mt-5">
@@ -131,7 +131,7 @@ async function RosterResults({
     cursor: decodeRosterCursor(cursorParam),
   });
 
-  // Only an Organizer or Owner reaches this page, and `getOrganizerEvent`
+  // Only an organizer or owner reaches this page, and `getOrganizerEvent`
   // already enforced that — so a null here means the assignment changed
   // mid-request rather than an ordinary denial.
   if (!roster) notFound();

@@ -1,84 +1,90 @@
 "use client";
 
-import { useState } from "react";
+import { useSyncExternalStore } from "react";
 import { IconMoon, IconSun, IconSunMoon } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 
 type ThemeMode = "light" | "system" | "dark";
 
+const STORAGE_KEY = "eventpass-theme";
+
+// The stored preference lives in localStorage, which the server cannot read.
+// Reading it while rendering made the server and the client disagree about
+// which button was pressed and produced a hydration mismatch on every page, so
+// it is modelled as what it actually is: an external store with its own server
+// snapshot. The inline script in the root layout has already applied the class
+// by this point; the only thing left to reconcile is this control's own state.
+const listeners = new Set<() => void>();
+
+function subscribe(onStoreChange: () => void) {
+  listeners.add(onStoreChange);
+  // Another tab changing the preference is the same event as this one changing
+  // it, so both paths notify through here.
+  window.addEventListener("storage", onStoreChange);
+  return () => {
+    listeners.delete(onStoreChange);
+    window.removeEventListener("storage", onStoreChange);
+  };
+}
+
+// Returns a primitive, so React's identity check is stable without caching.
+function getSnapshot(): ThemeMode {
+  const stored = localStorage.getItem(STORAGE_KEY);
+  return stored === "light" || stored === "dark" ? stored : "system";
+}
+
+function getServerSnapshot(): ThemeMode {
+  return "system";
+}
+
+const OPTIONS = [
+  { mode: "light", icon: IconSun, label: "Light theme" },
+  { mode: "system", icon: IconSunMoon, label: "Match system theme" },
+  { mode: "dark", icon: IconMoon, label: "Dark theme" },
+] as const;
+
 export function ThemeSwitcher() {
-  const [theme, setTheme] = useState<ThemeMode>(() => {
-    if (typeof window === "undefined") return "system";
-    const stored = localStorage.getItem("eventpass-theme") as ThemeMode | null;
-    return stored === "light" || stored === "dark" || stored === "system"
-      ? stored
-      : "system";
-  });
+  const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   function applyTheme(mode: ThemeMode) {
-    setTheme(mode);
+    const isDark =
+      mode === "dark" ||
+      (mode === "system" &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches);
+
     if (mode === "system") {
-      localStorage.removeItem("eventpass-theme");
-      const systemDark = window.matchMedia(
-        "(prefers-color-scheme: dark)",
-      ).matches;
-      if (systemDark) {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-      }
+      localStorage.removeItem(STORAGE_KEY);
     } else {
-      localStorage.setItem("eventpass-theme", mode);
-      if (mode === "dark") {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-      }
+      localStorage.setItem(STORAGE_KEY, mode);
     }
+
+    document.documentElement.classList.toggle("dark", isDark);
+    for (const listener of listeners) listener();
   }
 
   return (
     <div
       role="group"
       aria-label="Theme selection"
-      className="flex items-center gap-1 rounded-lg border bg-muted/50 p-1"
+      className="flex items-center gap-0.5 rounded-lg border p-0.5"
     >
-      <Button
-        type="button"
-        variant={theme === "light" ? "secondary" : "ghost"}
-        size="sm"
-        className="h-8 px-2 text-xs sm:px-2.5"
-        onClick={() => applyTheme("light")}
-        aria-pressed={theme === "light"}
-        aria-label="Light theme"
-      >
-        <IconSun className="size-3.5" />
-        <span className="hidden sm:inline">Light</span>
-      </Button>
-      <Button
-        type="button"
-        variant={theme === "system" ? "secondary" : "ghost"}
-        size="sm"
-        className="h-8 px-2 text-xs sm:px-2.5"
-        onClick={() => applyTheme("system")}
-        aria-pressed={theme === "system"}
-        aria-label="System theme"
-      >
-        <IconSunMoon className="size-3.5" />
-        <span className="hidden sm:inline">System</span>
-      </Button>
-      <Button
-        type="button"
-        variant={theme === "dark" ? "secondary" : "ghost"}
-        size="sm"
-        className="h-8 px-2 text-xs sm:px-2.5"
-        onClick={() => applyTheme("dark")}
-        aria-pressed={theme === "dark"}
-        aria-label="Dark theme"
-      >
-        <IconMoon className="size-3.5" />
-        <span className="hidden sm:inline">Dark</span>
-      </Button>
+      {/* Icon only. Three spelled-out labels made a preference control the
+          widest thing in the header, ahead of the product's own name. */}
+      {OPTIONS.map(({ icon: Icon, label, mode }) => (
+        <Button
+          key={mode}
+          type="button"
+          variant={theme === mode ? "secondary" : "ghost"}
+          size="icon-sm"
+          className="size-7"
+          onClick={() => applyTheme(mode)}
+          aria-pressed={theme === mode}
+          aria-label={label}
+          title={label}
+        >
+          <Icon className="size-4" />
+        </Button>
+      ))}
     </div>
   );
 }

@@ -12,7 +12,7 @@ export default function CheckEmailPage() {
           <IconMailCheck aria-hidden="true" className="size-6" />
         </span>
         <div className="flex flex-col gap-3">
-          <h1 className="text-3xl font-semibold tracking-[-0.03em] text-balance">
+          <h1 className="text-3xl font-headline text-balance">
             Check your email
           </h1>
           <p className="max-w-sm text-base leading-7 text-muted-foreground text-pretty">

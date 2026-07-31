@@ -4,15 +4,15 @@ import { ScanOutcome } from "@/features/admission/scan-outcome";
 import { formatTicketCode } from "@/features/tickets/ticket-code";
 import { TicketStub } from "@/features/tickets/ticket-stub";
 
-// These are the real components from the product, rendered with static props —
-// not screenshots. They stay theme-aware, stay responsive, cannot drift out of
-// date as the components change, and cost no image bytes on an offline-first
-// PWA.
+// These are the product's own components rendered with example props — not
+// screenshots. They stay theme-aware, stay responsive, cannot drift out of date
+// as the components change, and cost no image bytes on a page that has to load
+// on venue Wi-Fi.
 //
-// They are labelled as sample data. This product's entire pitch is that it does
-// not overstate what it knows, and README.md makes a point of there being no
-// seeded data; an unlabelled scan result for a person who does not exist would
-// be a small crack in exactly that.
+// The event and the guest are invented, and each surface says so where it is
+// read. Relying on the hero frame's caption to cover the whole page meant a
+// visitor met a scannable code, a named guest and a dated venue two viewports
+// later with nothing marking them as an example.
 
 const SAMPLE = {
   attendeeName: "Priya Raman",
@@ -24,32 +24,41 @@ const SAMPLE = {
 
 export async function ScanOutcomeShowcase() {
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      <div className="overflow-hidden rounded-lg border">
-        <div className="flex items-center justify-between gap-3 border-b bg-background px-4 py-3">
-          <p className="text-sm font-medium">Online authority</p>
-          <span className="text-xs text-muted-foreground">Final immediately</span>
+    <figure className="flex flex-col gap-3">
+      <div className="grid gap-5 sm:grid-cols-2">
+        <div className="overflow-hidden rounded-xl border">
+          <div className="flex items-center justify-between gap-3 border-b bg-background px-4 py-3">
+            <p className="text-sm font-medium">With a signal</p>
+            <span className="text-sm text-muted-foreground">
+              Settled at once
+            </span>
+          </div>
+          <ScanOutcome
+            outcome="accepted"
+            attendeeName={SAMPLE.attendeeName}
+            titleAs="p"
+            className="min-h-96"
+          />
         </div>
-        <ScanOutcome
-          outcome="accepted"
-          attendeeName={SAMPLE.attendeeName}
-          className="min-h-96"
-        />
-      </div>
-      <div className="overflow-hidden rounded-lg border">
-        <div className="flex items-center justify-between gap-3 border-b bg-background px-4 py-3">
-          <p className="text-sm font-medium">Offline continuity</p>
-          <span className="text-xs text-muted-foreground">
-            Final after sync
-          </span>
+        <div className="overflow-hidden rounded-xl border">
+          <div className="flex items-center justify-between gap-3 border-b bg-background px-4 py-3">
+            <p className="text-sm font-medium">Without a signal</p>
+            <span className="text-sm text-muted-foreground">
+              Settles when you reconnect
+            </span>
+          </div>
+          <ScanOutcome
+            outcome="provisional"
+            attendeeName={SAMPLE.attendeeName}
+            titleAs="p"
+            className="min-h-96"
+          />
         </div>
-        <ScanOutcome
-          outcome="provisional"
-          attendeeName={SAMPLE.attendeeName}
-          className="min-h-96"
-        />
       </div>
-    </div>
+      <figcaption className="text-xs text-muted-foreground">
+        Example guest.
+      </figcaption>
+    </figure>
   );
 }
 
@@ -60,24 +69,22 @@ export async function TicketShowcase() {
   );
 
   return (
-    <TicketStub
-      eventName={SAMPLE.eventName}
-      attendeeName={SAMPLE.attendeeName}
-      scheduleLabel={SAMPLE.schedule}
-      venueName={SAMPLE.venue}
-      status={{ label: "Registration confirmed", variant: "success" }}
-      qrDataUrl={qrDataUrl}
-      formattedCode={formatTicketCode(SAMPLE.ticketCode.replace("-", ""))}
-      ticketCodeLabel={SAMPLE.ticketCode.replace("-", "")}
-    />
-  );
-}
-
-export function ShowcaseCaption() {
-  return (
-    <p className="text-sm text-muted-foreground">
-      Real EventPass components, rendered here with sample data — not
-      screenshots.
-    </p>
+    <figure className="flex flex-col gap-3">
+      <TicketStub
+        eventName={SAMPLE.eventName}
+        attendeeName={SAMPLE.attendeeName}
+        scheduleLabel={SAMPLE.schedule}
+        venueName={SAMPLE.venue}
+        status={{ label: "Registered", variant: "success" }}
+        qrDataUrl={qrDataUrl}
+        formattedCode={formatTicketCode(SAMPLE.ticketCode.replace("-", ""))}
+        ticketCodeLabel={SAMPLE.ticketCode.replace("-", "")}
+        surroundClassName="bg-muted"
+        titleAs="h3"
+      />
+      <figcaption className="text-xs text-muted-foreground">
+        Example ticket. The code shown is not valid for any event.
+      </figcaption>
+    </figure>
   );
 }

@@ -11,7 +11,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
  * A Volunteer hitting this is standing in a queue, so it has to be readable at
  * arm's length and unambiguous about the one thing that matters: no admission
  * was recorded. Touch targets stay at the 44px minimum the scanner uses
- * everywhere else, and the route back to the Event workspace is explicit.
+ * everywhere else, and the route back to the event workspace is explicit.
  */
 export default function ScannerError({
   error,
@@ -24,11 +24,11 @@ export default function ScannerError({
     <main className="flex min-h-svh flex-col items-center justify-center gap-6 px-6 py-12 text-center">
       <IconAlertTriangle aria-hidden="true" className="size-12 text-destructive" />
       <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="text-2xl font-headline">
           The scanner could not start
         </h1>
         <p className="mx-auto max-w-md text-base leading-6 text-muted-foreground">
-          No admission was recorded. Nothing about this Attendee&apos;s Ticket
+          No admission was recorded. Nothing about this attendee&apos;s ticket
           changed, so it can still be scanned once the scanner reloads.
         </p>
       </div>
@@ -41,7 +41,7 @@ export default function ScannerError({
           href="/events"
           className={buttonVariants({ variant: "outline", size: "lg" })}
         >
-          Back to Events
+          Back to events
         </Link>
       </div>
       {error.digest ? (

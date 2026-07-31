@@ -129,10 +129,10 @@ export function AdminEventsList({
                         size="sm"
                         variant="outline"
                         onClick={() => onInspectAttendeeData(ev.id)}
-                        title="Inspect Attendee Data under Support Access"
+                        title="View attendee details with support access"
                       >
                         <IconEye className="mr-1.5 h-3.5 w-3.5" />
-                        Inspect Attendees
+                        View attendees
                       </Button>
 
                       {ev.suspended ? (

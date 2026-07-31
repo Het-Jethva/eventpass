@@ -29,7 +29,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
     <PublicAuthShell>
       <div className="flex flex-col gap-8">
         <div className="flex flex-col gap-3">
-          <h1 className="text-3xl font-semibold tracking-[-0.03em] text-balance">
+          <h1 className="text-3xl font-headline text-balance">
             Sign in to EventPass
           </h1>
           <p className="max-w-sm text-base leading-7 text-muted-foreground text-pretty">

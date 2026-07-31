@@ -34,8 +34,8 @@ export function CancelEventControl({
         <AlertDialogHeader>
           <AlertDialogTitle>Cancel {eventName}?</AlertDialogTitle>
           <AlertDialogDescription>
-            This immediately invalidates every active Ticket and blocks new
-            Registration and admission. Records are preserved, and the Event
+            This immediately invalidates every active ticket and blocks new
+            Registration and admission. Records are preserved, and the event
             cannot be restored.
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -50,7 +50,7 @@ export function CancelEventControl({
               maxLength={1_000}
               rows={4}
               required
-              placeholder="Explain the cancellation to Attendees and staff."
+              placeholder="Explain the cancellation to attendees and staff."
             />
             <FieldDescription>
               This reason is recorded in Audit and shared with affected

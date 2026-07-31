@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 // management form, meaning an attendee had to scroll past a cancellation
 // control to reach the thing they came to show. DESIGN.md § Components.
 //
-// Kept as a component so the landing page can render a real Ticket rather than
+// Kept as a component so the landing page can render a real ticket rather than
 // a screenshot.
 
 function TicketPerforation({ surroundClassName }: { surroundClassName: string }) {
@@ -22,7 +22,7 @@ function TicketPerforation({ surroundClassName }: { surroundClassName: string })
     >
       {/* Notches sit half outside the card so the tear line reads as a physical
           cut rather than a divider. They have to carry the colour of whatever
-          surrounds the Ticket, which differs by host — bg-muted on the ticket
+          surrounds the ticket, which differs by host — bg-muted on the ticket
           page, the plain page background in the landing showcase — so the
           caller supplies it rather than the component assuming. */}
       <span
@@ -58,21 +58,29 @@ export function TicketStub({
   action,
   className,
   surroundClassName = "bg-background",
+  titleAs: Title = "h1",
 }: {
   eventName: string;
   attendeeName: string;
   scheduleLabel: string;
   venueName: string;
   status: { label: string; variant: "success" | "warning" | "destructive" };
-  /** Omit to render the inactive state, where no admissible Ticket exists. */
+  /** Omit to render the inactive state, where no admissible ticket exists. */
   qrDataUrl?: string | null;
   formattedCode?: string | null;
   /** Unformatted code, announced instead of the grouped display form. */
   ticketCodeLabel?: string | null;
   action?: ReactNode;
   className?: string;
-  /** Background utility of whatever sits behind the Ticket, for the notches. */
+  /** Background utility of whatever sits behind the ticket, for the notches. */
   surroundClassName?: string;
+  /**
+   * The ticket owns the page it normally appears on, so the event name is an
+   * `h1` by default. Where the ticket is embedded inside another page's
+   * outline — the landing showcase — the host passes a lower level so the
+   * document does not end up with two `h1`s.
+   */
+  titleAs?: "h1" | "h2" | "h3";
 }) {
   return (
     <article
@@ -82,7 +90,7 @@ export function TicketStub({
       )}
     >
       {/* Reversed on mobile so the stub renders first on a phone while the DOM
-          keeps the Event name ahead of the QR for screen readers. */}
+          keeps the event name ahead of the QR for screen readers. */}
       <div className="flex flex-col-reverse sm:flex-row">
         <div className="flex flex-1 flex-col gap-4 p-6 sm:p-8">
           <div className="flex flex-wrap items-center gap-2">
@@ -91,10 +99,9 @@ export function TicketStub({
           </div>
 
           <div className="flex flex-col gap-1">
-            {/* One of the four places the display serif is permitted. */}
-            <h1 className="font-heading text-3xl leading-tight text-balance sm:text-4xl">
+            <Title className="text-3xl font-headline text-balance sm:text-4xl">
               {eventName}
-            </h1>
+            </Title>
             <p className="text-base text-muted-foreground">
               Ticket for{" "}
               <span className="font-medium text-foreground">{attendeeName}</span>
@@ -129,7 +136,7 @@ export function TicketStub({
               <div className="rounded-md bg-white p-3">
                 <Image
                   src={qrDataUrl}
-                  alt={`QR representation of Ticket ${formattedCode}`}
+                  alt={`QR code of ticket ${formattedCode}`}
                   width={320}
                   height={320}
                   unoptimized
@@ -138,27 +145,25 @@ export function TicketStub({
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                  Ticket Code
-                </p>
+                <p className="text-xs text-muted-foreground">Ticket code</p>
                 <p
-                  className="font-mono text-2xl font-semibold tracking-[0.14em]"
+                  className="font-mono text-2xl font-medium tracking-code"
                   aria-label={ticketCodeLabel ?? formattedCode}
                 >
                   {formattedCode}
                 </p>
               </div>
-              <p className="text-xs leading-5 text-muted-foreground">
-                Single entry · Valid only for this Event
+              <p className="text-xs text-muted-foreground">
+                Single entry · This event only
               </p>
             </>
           ) : (
             <div className="flex flex-col items-center gap-3 py-8">
               <IconTicketOff aria-hidden="true" className="size-10 text-muted-foreground" />
-              <p className="text-sm font-medium">No admissible Ticket</p>
-              <p className="max-w-xs text-xs leading-5 text-muted-foreground">
-                The previous Ticket is retained in history and cannot be
-                presented for admission.
+              <p className="text-sm font-medium">No active ticket</p>
+              <p className="max-w-xs text-xs text-muted-foreground">
+                This ticket was replaced. Only the current one will be admitted
+                at the door.
               </p>
             </div>
           )}

@@ -26,12 +26,12 @@ export default async function RegistrationFormPage({
   return (
     <>
       <div className="flex flex-col gap-2">
-        <h1 className="font-heading text-3xl">
+        <h1 className="text-2xl font-headline">
           Registration form
         </h1>
         <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-          Name and email are always collected. Add only the Event-specific
-          questions Attendees need to answer.
+          Name and email are always collected. Add only the event-specific
+          questions attendees need to answer.
         </p>
       </div>
 

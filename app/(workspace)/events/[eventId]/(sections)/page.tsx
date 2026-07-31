@@ -65,14 +65,14 @@ export default async function EventOverviewPage({
 
   return (
     <>
-      <h1 className="font-heading text-3xl">Overview</h1>
+      <h1 className="text-2xl font-headline">Overview</h1>
 
       {isCanceled ? (
         <Alert variant="destructive">
           <IconClockQuestion aria-hidden="true" />
           <AlertTitle>This Event was canceled</AlertTitle>
           <AlertDescription>
-            {event.cancellationReason} All active Tickets are invalid, and
+            {event.cancellationReason} All active tickets are invalid, and
             Registration and admission are closed. Operational history remains
             available.
           </AlertDescription>
@@ -131,9 +131,9 @@ export default async function EventOverviewPage({
       {isDraft ? (
         <section className="flex flex-col gap-5 border-t pt-8 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="font-medium">Publish this Event</h2>
+            <h2 className="font-medium">Publish this event</h2>
             <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-              Publishing makes the Event link-accessible and freezes its Event
+              Publishing makes the event link-accessible and freezes its event
               Slug. It will not be added to a public discovery index.
             </p>
           </div>
@@ -153,13 +153,13 @@ export default async function EventOverviewPage({
           <div>
             <h2 className="font-medium">Return to Draft</h2>
             <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-              This hides the public page. The Event Slug remains frozen. Once an
-              Event has a Registration, it can no longer return to Draft.
+              This hides the public page. The web address stays reserved. Once an
+              Event has a registration, it can no longer return to Draft.
             </p>
           </div>
           <form action={returnEventToDraftAction.bind(null, event.id)}>
             <button className={buttonVariants({ variant: "outline" })}>
-              Return to Draft
+              Return to draft
             </button>
           </form>
         </section>
@@ -168,9 +168,9 @@ export default async function EventOverviewPage({
       {isPublished && isOwner ? (
         <section className="flex flex-col gap-5 border-t pt-8 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="font-medium">Cancel this Event</h2>
+            <h2 className="font-medium">Cancel this event</h2>
             <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-              Only the Event Owner can cancel. Cancellation is immediate and
+              Only the event owner can cancel. Cancellation is immediate and
               irreversible, but preserves all records.
             </p>
           </div>
@@ -184,9 +184,9 @@ export default async function EventOverviewPage({
       {isDraft && isOwner ? (
         <section className="flex flex-col gap-5 border-t pt-8 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="font-medium">Delete Draft Event</h2>
+            <h2 className="font-medium">Delete draft</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Only the Event Owner can permanently delete this empty Draft
+              Only the event owner can permanently delete this empty draft
               Event.
             </p>
           </div>

@@ -57,7 +57,7 @@ export default async function PublicEventPage({
           <AttendeeRegistrationForm slug={slug} fields={fields} />
         ) : (
           <p className="text-sm leading-6 text-muted-foreground">
-            Registration is not currently open for this Event.
+            Registration is not currently open for this event.
           </p>
         )
       }

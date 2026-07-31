@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { IconHistory, IconShield } from "@tabler/icons-react";
+import { IconHistory } from "@tabler/icons-react";
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -38,26 +38,9 @@ export function AuditView({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3 rounded-xl border bg-card p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <IconHistory className="size-5 text-muted-foreground" aria-hidden="true" />
-            <h3 className="text-lg font-semibold tracking-tight">
-              Immutable audit log
-            </h3>
-          </div>
-          <Badge variant="outline" className="gap-1.5 font-mono text-xs font-normal">
-            <IconShield className="size-3.5" aria-hidden="true" />
-            Append-only, enforced by the database
-          </Badge>
-        </div>
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          Every security-relevant change, Organizer configuration action,
-          check-in reversal, conflict resolution, and Scan Attempt is appended
-          immutably with actor, time, target, device, and reason.
-        </p>
-      </div>
-
+      {/* The page header already says what this log is. A second card repeating
+          it in longer words was the only thing between the title and the
+          controls someone came here to use. */}
       <AuditFilterControls
         category={category}
         source={source}
@@ -151,14 +134,20 @@ export function AuditView({
                               {record.source}
                             </Badge>
                             {record.timestampConfidence === "low" ? (
-                              <Badge variant="destructive" className="text-xs">
-                                Low confidence clock
+                              // "Low confidence clock" named the mechanism. The
+                              // organizer needs the consequence: this row's time
+                              // is the phone's, and the phone's may be wrong.
+                              <Badge variant="warning" className="text-xs">
+                                Time may be off
                               </Badge>
                             ) : null}
                           </div>
                           {record.scannerDeviceId ? (
-                            <span className="max-w-32 truncate font-mono text-xs text-muted-foreground">
-                              Device: {record.scannerDeviceId.slice(0, 8)}
+                            <span className="max-w-32 truncate text-xs text-muted-foreground">
+                              Phone{" "}
+                              <span className="font-mono">
+                                {record.scannerDeviceId.slice(0, 6)}
+                              </span>
                             </span>
                           ) : null}
                         </div>
@@ -169,8 +158,15 @@ export function AuditView({
                           <span className="text-foreground">{record.reason}</span>
                         ) : record.metadata &&
                           Object.keys(record.metadata).length > 0 ? (
-                          <span className="font-mono text-xs">
-                            {JSON.stringify(record.metadata)}
+                          // Was a raw JSON.stringify in the cell. The same
+                          // facts, read as a sentence instead of as a payload.
+                          <span>
+                            {Object.entries(record.metadata)
+                              .map(
+                                ([key, value]) =>
+                                  `${key.replace(/[_-]/g, " ")}: ${String(value)}`,
+                              )
+                              .join(" · ")}
                           </span>
                         ) : (
                           <span className="text-muted-foreground">—</span>
@@ -198,13 +194,13 @@ export function AuditView({
       ) : (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed bg-card p-12 text-center">
           <IconHistory className="size-10 text-muted-foreground/60" aria-hidden="true" />
-          <h4 className="mt-4 font-semibold tracking-tight">
+          <h4 className="mt-4 font-semibold">
             No audit entries found
           </h4>
           <p className="mt-1 max-w-sm text-xs text-muted-foreground">
             {isFiltered || initialQuery
               ? "The whole log was searched, not just the visible page. Try a shorter search or a different filter."
-              : "No privileged actions or Scan Attempts have been recorded yet for this Event."}
+              : "Nothing has been recorded for this event yet."}
           </p>
         </div>
       )}

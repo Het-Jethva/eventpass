@@ -70,10 +70,10 @@ export function SupportAccessView({
       <div className="flex items-center justify-between gap-4 border-b pb-4">
         <div className="flex items-center gap-3">
           <Button variant="outline" size="sm" onClick={onBack}>
-            <IconArrowLeft className="mr-1.5 h-4 w-4" /> Back to Events
+            <IconArrowLeft className="mr-1.5 h-4 w-4" /> Back to events
           </Button>
           <div>
-            <h2 className="text-xl font-bold tracking-tight">Support Access: {eventName}</h2>
+            <h2 className="text-xl font-bold">Support access: {eventName}</h2>
             <p className="text-xs text-muted-foreground font-mono">Event ID: {eventId}</p>
           </div>
         </div>
@@ -85,13 +85,13 @@ export function SupportAccessView({
             <IconShieldLock className="h-6 w-6" />
           </div>
           <div className="space-y-1 max-w-md mx-auto">
-            <h3 className="text-base font-semibold">Reasoned Support Access Required</h3>
+            <h3 className="text-base font-semibold">A reason is required</h3>
             <p className="text-xs text-muted-foreground">
               Platform Administrators do not have implicit access to attendee data. You must explicitly record a reasoned, time-limited elevation for support investigations.
             </p>
           </div>
           <Button onClick={() => setShowGrantModal(true)} variant="default">
-            <IconShield className="mr-1.5 h-4 w-4" /> Request Time-Limited Support Access
+            <IconShield className="mr-1.5 h-4 w-4" /> Request Time-Limited Support access
           </Button>
         </div>
       ) : (
@@ -101,7 +101,7 @@ export function SupportAccessView({
               <IconShield className="h-5 w-5 text-primary shrink-0" />
               <div>
                 <div className="text-xs font-semibold text-primary uppercase tracking-wider">
-                  Active Support Access — Audited
+                  Active Support access — Audited
                 </div>
                 <div className="text-sm font-medium text-foreground">
                   Reason: &quot;{activeSupportAccess.reason}&quot;
@@ -145,7 +145,7 @@ export function SupportAccessView({
                 {filteredRegistrations.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
-                      No attendee records found for this Event.
+                      No attendee records found for this event.
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -187,9 +187,9 @@ export function SupportAccessView({
 
       {showGrantModal && (
         <AdminActionDialog
-          title={`Grant Support Access (${eventName})`}
-          description="Granting Support Access allows inspecting attendee data for this specific event for 60 minutes. An immutable audit entry will be generated."
-          actionLabel="Grant Support Access"
+          title={`Grant Support access (${eventName})`}
+          description="Support access lets you view attendee details for this event for 60 minutes. The reason you give is kept permanently."
+          actionLabel="Grant Support access"
           isDestructive={false}
           isOpen={true}
           onClose={() => setShowGrantModal(false)}

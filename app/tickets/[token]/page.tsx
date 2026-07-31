@@ -99,7 +99,7 @@ export default async function TicketPage({
               Your Ticket is ready, but its email was not accepted
             </AlertTitle>
             <AlertDescription>
-              Save or print this page now. The confirmed Registration and Ticket
+              Save or print this page now. The confirmed registration and ticket
               remain valid.
             </AlertDescription>
           </Alert>
@@ -132,7 +132,7 @@ export default async function TicketPage({
           surroundClassName="bg-muted"
         />
 
-        {/* Everything below the Ticket is administration, not presentation. */}
+        {/* Everything below the ticket is administration, not presentation. */}
         <section className="flex flex-col gap-5 border-t pt-8 print:hidden">
           <h2 className="text-lg font-semibold">Event details</h2>
           <dl className="divide-y border-y">
@@ -166,8 +166,8 @@ export default async function TicketPage({
             <IconShieldCheck aria-hidden="true" />
             <AlertTitle>Keep this management link private</AlertTitle>
             <AlertDescription>
-              It provides access to this Registration. Share only the QR
-              representation or Ticket Code when checking in.
+              It provides access to this registration. Share only the QR
+              representation or ticket Code when checking in.
             </AlertDescription>
           </Alert>
 

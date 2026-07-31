@@ -128,7 +128,7 @@ export function ScannerWorkspace({
         }
         if (lostConflicts > 0) {
           resolutionParts.push(
-            `${lostConflicts} provisional acceptance${lostConflicts === 1 ? " did" : "s did"} not become the authoritative Check-in`,
+            `${lostConflicts} provisional acceptance${lostConflicts === 1 ? " did" : "s did"} not become the authoritative check-in`,
           );
         }
         if (acceptedConflicts > 0) {
@@ -143,7 +143,7 @@ export function ScannerWorkspace({
               ? ` ${synchronized.changed} reconciled with authoritative server state.`
               : "";
         setSyncMessage(
-          `${synchronized.acknowledged} Scan Attempt${synchronized.acknowledged === 1 ? "" : "s"} synchronized.${resolution}`,
+          `${synchronized.acknowledged} scan attempt${synchronized.acknowledged === 1 ? "" : "s"} synchronized.${resolution}`,
         );
       }
       await refreshPendingCount();
@@ -155,13 +155,13 @@ export function ScannerWorkspace({
         );
         if (purged) {
           setSyncMessage(
-            "Check-in closed and all attempts acknowledged: cached Event data purged.",
+            "Check-in closed and all attempts acknowledged: cached event data purged.",
           );
         }
       }
     } catch {
       setSyncMessage(
-        "Pending Scan Attempts remain safely stored. Retry when connectivity is stable.",
+        "Pending scan attempts remain safely stored. Retry when connectivity is stable.",
       );
     } finally {
       syncingRef.current = false;
@@ -262,7 +262,7 @@ export function ScannerWorkspace({
       controlsRef.current = null;
       setCameraActive(false);
       setCameraError(
-        "Camera scanning is unavailable or permission was denied. Enter the Ticket Code below instead.",
+        "Camera scanning is unavailable or permission was denied. Enter the ticket Code below instead.",
       );
     }
   }
@@ -286,7 +286,7 @@ export function ScannerWorkspace({
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <section className="flex flex-wrap items-start justify-between gap-4 border-b pb-5">
         <div>
-          <h1 className="text-xl font-semibold text-balance">Scan Tickets</h1>
+          <h1 className="text-xl font-headline text-balance">Scan tickets</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
             Decisions are authoritative while this device is online. Check-in
             Window: {checkInWindow}.
@@ -317,12 +317,12 @@ export function ScannerWorkspace({
 
       {pendingAttemptCount > 0 || syncMessage ? (
         <section
-          aria-label="Scan Attempt synchronization"
+          aria-label="scan attempt synchronization"
           className="flex flex-wrap items-center justify-between gap-3 border-b pb-6"
         >
           <p className="text-sm text-muted-foreground" aria-live="polite">
             {pendingAttemptCount > 0
-              ? `${pendingAttemptCount} pending Scan Attempt${pendingAttemptCount === 1 ? "" : "s"} stored on this device.`
+              ? `${pendingAttemptCount} pending scan Attempt${pendingAttemptCount === 1 ? "" : "s"} stored on this device.`
               : syncMessage}
           </p>
           <Button
@@ -388,9 +388,9 @@ export function ScannerWorkspace({
                         ? "Quick Reversal"
                         : "Reverse Check-in"
                     }
-                    title="Make this Ticket admissible again?"
-                    description="This invalidates the active Check-in without deleting the Check-in or Scan Attempt. The Ticket can then be admitted again."
-                    reasonDescription="The correction and reason are retained in the immutable Audit Entry."
+                    title="Make this ticket admissible again?"
+                    description="This invalidates the active check-in without deleting the check-in or scan Attempt. The Ticket can then be admitted again."
+                    reasonDescription="The correction, and your reason for it, are kept permanently."
                     // Outline, not destructive: this sits on the mint success
                     // surface, where a pink tint reads as an error rather than
                     // as the secondary action it is. The confirm inside the
@@ -420,9 +420,9 @@ export function ScannerWorkspace({
                 lastInput ? (
                   <ReasonedCheckInAction
                     label="Admit with override"
-                    title="Admit outside the Check-in Window?"
-                    description="This creates an authoritative Check-in outside the configured window. Use it only for an accountable operational exception."
-                    reasonDescription="Only Organizers can override the window. The reason is retained in the immutable Audit Entry."
+                    title="Admit outside the check-in Window?"
+                    description="This creates an authoritative check-in outside the configured window. Use it only for an accountable operational exception."
+                    reasonDescription="Only Organizers can override the window. The reason is retained in the permanent record."
                     action={async (reason) => {
                       const override = await submitInput(
                         lastInput.value,
@@ -434,7 +434,7 @@ export function ScannerWorkspace({
                         : {
                             outcome: "error" as const,
                             message:
-                              "The override was not accepted. Confirm your Organizer access and connectivity.",
+                              "The override was not accepted. Confirm your organizer access and connectivity.",
                           };
                     }}
                   />
@@ -464,7 +464,7 @@ export function ScannerWorkspace({
             Camera
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Point the rear camera at the Ticket QR representation.
+            Point the rear camera at the ticket QR code.
           </p>
         </div>
         <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border bg-muted">
@@ -499,7 +499,7 @@ export function ScannerWorkspace({
             disabled={cameraActive || isPending}
           >
             <IconCamera data-icon="inline-start" />
-            {result ? "Scan next Ticket" : "Start camera"}
+            {result ? "Scan next ticket" : "Start camera"}
           </Button>
           {cameraActive ? (
             <Button
@@ -529,7 +529,7 @@ export function ScannerWorkspace({
             className="flex items-center gap-2 font-medium"
           >
             <IconKeyboard aria-hidden="true" className="size-5" />
-            Enter Ticket Code
+            Enter ticket code
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Always available when a camera is unsupported, unavailable, or
@@ -539,7 +539,7 @@ export function ScannerWorkspace({
         <form onSubmit={handleManualSubmit} noValidate>
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="ticket-code">Ticket Code</FieldLabel>
+              <FieldLabel htmlFor="ticket-code">ticket code</FieldLabel>
               <Input
                 id="ticket-code"
                 name="ticketCode"

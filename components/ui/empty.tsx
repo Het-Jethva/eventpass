@@ -60,7 +60,10 @@ function EmptyTitle({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="empty-title"
       className={cn(
-        "text-lg font-medium tracking-tight",
+        // No tracking override: the preset shipped one, and letting a shared
+        // primitive re-set letter-spacing puts every empty state in the product
+        // outside the bound type scale.
+        "text-lg font-medium",
         className
       )}
       {...props}

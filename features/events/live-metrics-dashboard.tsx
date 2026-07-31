@@ -228,7 +228,7 @@ export function LiveMetricsDashboard({
   } = metrics;
 
   // "Is anything wrong?" is one of the three questions this screen exists to
-  // answer, so it is computed rather than left for an Organizer to infer by
+  // answer, so it is computed rather than left for an organizer to infer by
   // scanning fourteen loose numbers.
   const attention = [
     {
@@ -238,7 +238,7 @@ export function LiveMetricsDashboard({
       href: `/events/${eventId}/check-in`,
     },
     {
-      label: "Scan Attempts awaiting synchronization",
+      label: "scan attempts awaiting synchronization",
       count: pendingDeviceSync.offlineScanAttempts,
       tone: "provisional" as Tone,
       href: `/events/${eventId}/check-in`,
@@ -328,7 +328,7 @@ export function LiveMetricsDashboard({
             question="How many have arrived?"
             value={overview.activeCheckIns}
             of={overview.confirmedRegistrations}
-            caption="of confirmed Registrations checked in"
+            caption="of confirmed registrations checked in"
             tone="success"
           />
         </div>
@@ -392,7 +392,7 @@ export function LiveMetricsDashboard({
           <>
             {/*
               Values are always rendered rather than revealed on hover. Hover
-              does not exist on a phone, which is where an Organizer actually
+              does not exist on a phone, which is where an organizer actually
               watches a door, so the chart previously had no numbers at all
               there — and DESIGN.md rules out hiding state behind hover.
 
@@ -402,7 +402,7 @@ export function LiveMetricsDashboard({
             */}
             <table className="w-full">
               <caption className="sr-only">
-                Active Check-ins per hour, in the Event Time Zone
+                Active Check-ins per hour, in the event Time Zone
               </caption>
               <thead className="sr-only">
                 <tr>
@@ -439,7 +439,7 @@ export function LiveMetricsDashboard({
           </>
         ) : (
           <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
-            No Check-ins recorded yet for this Event.
+            No Check-ins recorded yet for this event.
           </p>
         )}
       </section>
@@ -451,7 +451,7 @@ export function LiveMetricsDashboard({
         >
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 id="scan-outcomes-heading" className="font-medium">
-              Scan Attempt outcomes
+              scan attempt outcomes
             </h2>
             <Link
               href={`/events/${eventId}/audit`}
@@ -551,7 +551,7 @@ export function LiveMetricsDashboard({
       <p className="text-sm text-muted-foreground">
         Conflict resolution: {checkInConflictStats.resolvedAuto.toLocaleString()}{" "}
         resolved automatically by timestamp,{" "}
-        {checkInConflictStats.resolvedManual.toLocaleString()} by an Organizer,
+        {checkInConflictStats.resolvedManual.toLocaleString()} by an organizer,
         of {checkInConflictStats.total.toLocaleString()} total.
       </p>
     </div>

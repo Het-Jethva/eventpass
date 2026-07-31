@@ -148,7 +148,7 @@ export function CreateEventForm({
             </EventField>
             <EventField
               field="slug"
-              label="Event Slug"
+              label="Web address"
               state={state}
               description="Used in the public link. You can change it until publication."
             >
@@ -255,7 +255,7 @@ export function CreateEventForm({
         <FieldSet className="rounded-2xl border bg-background p-5 sm:p-6">
           <FieldLegend>Venue and capacity</FieldLegend>
           <FieldDescription>
-            Describe the in-person Venue and the maximum Event Capacity.
+            Describe the in-person Venue and the maximum event Capacity.
           </FieldDescription>
           <FieldGroup className="grid gap-5 sm:grid-cols-2">
             <EventField field="venueName" label="Venue name" state={state}>
@@ -320,7 +320,7 @@ export function CreateEventForm({
         <FieldSet className="rounded-2xl border bg-background p-5 sm:p-6">
           <FieldLegend>Operational windows</FieldLegend>
           <FieldDescription>
-            Enter local times in the Event Time Zone selected above.
+            Enter local times in the event Time Zone selected above.
           </FieldDescription>
           <FieldGroup className="grid gap-5 sm:grid-cols-2">
             <EventField
@@ -405,14 +405,14 @@ export function CreateEventForm({
               <Spinner data-icon="inline-start" />
               {isEditing
                 ? `Saving ${published ? "Published" : "Draft"} Event…`
-                : "Creating Draft Event…"}
+                : "Creating draft…"}
             </>
           ) : (
             <>
               <IconPlus data-icon="inline-start" />
               {isEditing
                 ? `Save ${published ? "Published" : "Draft"} Event`
-                : "Create Draft Event"}
+                : "Create draft"}
             </>
           )}
         </Button>
@@ -421,7 +421,7 @@ export function CreateEventForm({
         {isPending
           ? isEditing
             ? `Saving the ${published ? "Published" : "Draft"} Event configuration.`
-            : "Creating the Draft Event and Event Owner assignment."
+            : "Creating the draft Event and event owner assignment."
           : ""}
       </p>
     </form>

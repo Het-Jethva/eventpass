@@ -76,7 +76,7 @@ export default async function CheckInConflictsPage({
     <>
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="font-heading text-3xl">
+          <h1 className="text-2xl font-headline">
             Check-in operations
           </h1>
           <Badge variant={conflicts.length > 0 ? "destructive" : "secondary"}>
@@ -84,9 +84,9 @@ export default async function CheckInConflictsPage({
           </Badge>
         </div>
         <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-          Isolated Scanner Devices cannot prevent the same Ticket from being
+          Isolated Scanner Devices cannot prevent the same ticket from being
           accepted at separate entrances. Offline acceptance remains provisional
-          until synchronization compares every Scan Attempt.
+          until synchronization compares every scan Attempt.
         </p>
       </div>
 
@@ -112,8 +112,8 @@ export default async function CheckInConflictsPage({
               Active Check-ins
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Organizer corrections preserve the original Check-in and every
-              Scan Attempt while making the Ticket admissible again.
+              Organizer corrections preserve the original check-in and every
+              scan attempt while making the ticket admissible again.
             </p>
           </div>
           <Badge variant="secondary">
@@ -125,23 +125,23 @@ export default async function CheckInConflictsPage({
           <ActiveCheckInSearch initialQuery={checkInSearch} />
           {/*
             States what was searched, not just what is shown. The list is capped
-            because it exists to correct one specific Check-in, and an
+            because it exists to correct one specific check-in, and an
             Organizer should never be left wondering whether the person they
             searched for was simply below the cut.
           */}
           <p className="text-sm text-muted-foreground" role="status" aria-live="polite">
             {checkInSearch
-              ? `${activeCheckIns.matchingCount.toLocaleString()} of ${activeCheckIns.totalCount.toLocaleString()} active Check-ins match`
+              ? `${activeCheckIns.matchingCount.toLocaleString()} of ${activeCheckIns.totalCount.toLocaleString()} active check-ins match`
               : activeCheckIns.matchingCount > activeCheckIns.limit
                 ? `Showing the ${activeCheckIns.limit} most recent of ${activeCheckIns.totalCount.toLocaleString()} active Check-ins. Search by name to find any of them.`
-                : `${activeCheckIns.totalCount.toLocaleString()} active Check-in${activeCheckIns.totalCount === 1 ? "" : "s"}`}
+                : `${activeCheckIns.totalCount.toLocaleString()} active check-in${activeCheckIns.totalCount === 1 ? "" : "s"}`}
           </p>
         </div>
 
         {activeCheckIns.rows.length === 0 ? (
           <div className="border-y bg-background px-5 py-8 text-center text-sm text-muted-foreground">
             {checkInSearch
-              ? "No active Check-ins match that name. Every active Check-in was searched, not just the visible page."
+              ? "No active check-ins match that name. Every active check-in was searched, not just the visible page."
               : "No active Check-ins."}
           </div>
         ) : (
@@ -163,9 +163,9 @@ export default async function CheckInConflictsPage({
                 </div>
                 <ReasonedCheckInAction
                   label="Reverse Check-in"
-                  title={`Reverse ${activeCheckIn.attendeeName}'s Check-in?`}
-                  description="This invalidates the active Check-in without deleting its history. The Ticket can be admitted again."
-                  reasonDescription="The correction and reason are retained in the immutable Audit Entry."
+                  title={`Reverse ${activeCheckIn.attendeeName}'s check-in?`}
+                  description="This invalidates the active check-in without deleting its history. The Ticket can be admitted again."
+                  reasonDescription="The correction, and your reason for it, are kept permanently."
                   variant="destructive"
                   action={reverseOrganizerCheckInAction.bind(
                     null,
@@ -181,11 +181,11 @@ export default async function CheckInConflictsPage({
 
       {conflicts.length === 0 ? (
         <section className="border-y bg-background px-5 py-10 text-center sm:px-6">
-          <h2 className="font-medium">No unresolved Check-in Conflicts</h2>
+          <h2 className="font-medium">No unresolved check-in Conflicts</h2>
           <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
             High-confidence cross-device collisions are resolved automatically
             by the earliest device-recorded attempt. Conflicts appear here only
-            when Timestamp Confidence requires Organizer review.
+            when Timestamp Confidence requires organizer review.
           </p>
         </section>
       ) : (
@@ -224,7 +224,7 @@ export default async function CheckInConflictsPage({
                 <FieldGroup>
                   <fieldset>
                     <legend className="text-sm font-medium">
-                      Select the authoritative Scan Attempt
+                      Select the authoritative scan Attempt
                     </legend>
                     <p className="mt-1 text-sm leading-6 text-muted-foreground">
                       Device time is not sufficiently reliable to choose
@@ -297,7 +297,7 @@ export default async function CheckInConflictsPage({
                     />
                     <FieldDescription>
                       The selected attempt and this reason are retained in the
-                      immutable Audit Entry.
+                      permanent record.
                     </FieldDescription>
                   </Field>
                   <Button type="submit" className="min-h-11 sm:self-start">

@@ -1,24 +1,32 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
+  IconArrowDown,
+  IconArrowRight,
   IconBrandGithub,
-  IconCalendarEvent,
-  IconChecks,
+  IconCloudCheck,
   IconDeviceMobile,
+  IconFingerprint,
   IconHistory,
+  IconKey,
+  IconLockCheck,
   IconQrcode,
+  IconShieldCheck,
   IconTicket,
+  IconUserCheck,
+  IconUsersGroup,
   IconWifiOff,
 } from "@tabler/icons-react";
 
 import { EventPassMark } from "@/components/eventpass-mark";
+import { ThemeSwitcher } from "@/components/theme-switcher";
+import { buttonVariants } from "@/components/ui/button";
 import {
   ScanOutcomeShowcase,
   ShowcaseCaption,
   TicketShowcase,
 } from "@/features/landing/product-showcase";
-import { ThemeSwitcher } from "@/components/theme-switcher";
-import { buttonVariants } from "@/components/ui/button";
+import { OperationsPreview } from "@/features/landing/operations-preview";
 
 const REPOSITORY_URL = "https://github.com/Het-Jethva/eventpass";
 
@@ -27,113 +35,154 @@ export const metadata: Metadata = {
     absolute: "EventPass — event check-in that works without Wi-Fi",
   },
   description:
-    "EventPass handles registration, QR tickets, and door check-in for in-person events, with a scanner that keeps working when the venue network does not.",
+    "EventPass handles registration, signed QR tickets, and door check-in for in-person events, with a scanner that keeps working when the venue network does not.",
 };
 
-const roles = [
+const proofPoints = [
   {
-    icon: IconCalendarEvent,
-    role: "Organizers",
-    summary: "Set the event up and watch it run.",
-    points: [
-      "Set venue, schedule, capacity, and when registration and check-in open.",
-      "Build your own registration form in a few clicks.",
-      "Invite co-organizers and door volunteers to a single event.",
-      "Watch arrivals live and see exactly what happened afterwards.",
-    ],
-  },
-  {
-    icon: IconTicket,
-    role: "Attendees",
-    summary: "Register and get in without an account.",
-    points: [
-      "Sign up in under a minute — no password, no account to create.",
-      "Confirm by email and get a QR ticket plus a short backup code.",
-      "Join the waitlist and move up automatically when a spot opens.",
-      "Change, resend, or cancel a registration from one private link.",
-    ],
-  },
-  {
-    icon: IconDeviceMobile,
-    role: "Volunteers",
-    summary: "Keep the door moving.",
-    points: [
-      "Scan with a phone camera, or type the code when scanning won't cooperate.",
-      "Get one clear answer per scan: let them in, already used, or not valid.",
-      "Keep checking people in even when the venue Wi-Fi drops.",
-      "Undo an accidental check-in within 30 seconds.",
-    ],
-  },
-];
-
-const promises = [
-  {
-    icon: IconQrcode,
-    title: "Tickets that can't be faked",
-    description:
-      "Each ticket is issued to one person and works once. A screenshot passed to a friend gets turned away at the door, and the ticket itself carries nothing personal about the guest.",
+    icon: IconFingerprint,
+    title: "Signed at issue time",
+    description: "ECDSA P-256",
   },
   {
     icon: IconWifiOff,
-    title: "The door never stops",
-    description:
-      "Before doors open, volunteers download the guest list to their phone. If the network drops mid-event, scanning carries on as normal — and the screen always shows whether it's working online or from the downloaded copy.",
+    title: "Useful without a network",
+    description: "Bounded offline access",
   },
   {
-    icon: IconChecks,
-    title: "Everything syncs back up",
-    description:
-      "When phones reconnect, every scan is merged back into one list. If two doors admitted the same ticket, EventPass flags it for you instead of silently picking a winner.",
+    icon: IconCloudCheck,
+    title: "Safe to retry",
+    description: "Idempotent sync",
   },
   {
     icon: IconHistory,
-    title: "A record you can trust",
-    description:
-      "Every check-in, reversal, and staff change is logged with who did it, when, and why — and nothing in that log can be edited or deleted after the fact.",
+    title: "Every correction retained",
+    description: "Append-only audit",
   },
 ];
 
-const steps = [
+const roles = [
+  {
+    icon: IconUsersGroup,
+    title: "Organize",
+    summary:
+      "Configure the event, capacity, registration form, staff access, and check-in window from one workspace.",
+    detail: "For club organizers",
+  },
+  {
+    icon: IconTicket,
+    title: "Register",
+    summary:
+      "Attendees confirm by email and receive a signed QR ticket without creating another account or password.",
+    detail: "For attendees",
+  },
+  {
+    icon: IconUserCheck,
+    title: "Admit",
+    summary:
+      "Volunteers get one unmistakable answer per scan, with explicit provisional states whenever the network is gone.",
+    detail: "For door teams",
+  },
+];
+
+const trustModel = [
+  {
+    icon: IconKey,
+    title: "The ticket proves itself",
+    description:
+      "Each QR representation carries a P-256 signature that can be verified without exposing attendee details in the code.",
+  },
+  {
+    icon: IconDeviceMobile,
+    title: "Offline access is time-bounded",
+    description:
+      "A volunteer prepares the scanner while connected. The downloaded authorization and event snapshot expire instead of granting permanent offline power.",
+  },
+  {
+    icon: IconCloudCheck,
+    title: "Synchronization preserves uncertainty",
+    description:
+      "Offline scans are provisional until the server accepts them. Conflicts surface for review instead of being silently overwritten.",
+  },
+  {
+    icon: IconLockCheck,
+    title: "Privileged changes leave evidence",
+    description:
+      "Check-ins, reversals, role changes, and support access are retained with actor, time, and reason.",
+  },
+];
+
+const workflow = [
   {
     step: "01",
-    title: "Create the event",
+    title: "Configure",
     description:
-      "Add the details, set your capacity, and design the registration form your guests will fill in.",
+      "Create the event, set capacity and windows, build the form, and invite staff.",
   },
   {
     step: "02",
-    title: "Share the link",
+    title: "Register",
     description:
-      "Guests register and get a QR ticket by email. Once you're full, everyone else joins the waitlist.",
+      "Guests verify their email and receive a signed, single-entry ticket.",
   },
   {
     step: "03",
-    title: "Scan at the door",
+    title: "Prepare",
     description:
-      "Volunteers open the scanner on their phones and admit people, online or off.",
+      "Door volunteers download a time-bounded snapshot before the crowd arrives.",
   },
   {
     step: "04",
-    title: "See how it went",
+    title: "Admit and reconcile",
     description:
-      "Attendance, no-shows, and a full check-in history, ready the moment the event ends.",
+      "Scan online or off, synchronize safely, and review every exception afterwards.",
   },
 ];
 
 export default function Home() {
   return (
     <div className="flex min-h-svh flex-col">
-      <header className="border-b bg-background">
-        <div className="mx-auto flex h-16 w-full max-w-6xl items-center gap-4 px-4 sm:px-6">
-          <EventPassMark />
-          <div className="ml-auto flex items-center gap-2 sm:gap-3">
+      <header className="sticky top-0 z-20 border-b bg-background/95">
+        <div className="mx-auto flex h-16 w-full max-w-7xl items-center gap-5 px-4 sm:px-6">
+          <Link
+            href="/"
+            aria-label="EventPass home"
+            className="rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
+          >
+            <EventPassMark />
+          </Link>
+          <nav
+            className="hidden items-center gap-5 border-l pl-5 text-sm text-muted-foreground md:flex"
+            aria-label="Landing page"
+          >
+            <a className="transition-colors hover:text-foreground" href="#product">
+              Product
+            </a>
+            <a className="transition-colors hover:text-foreground" href="#trust">
+              Trust model
+            </a>
+            <a className="transition-colors hover:text-foreground" href="#workflow">
+              Workflow
+            </a>
+          </nav>
+          <div className="ml-auto flex items-center gap-2">
             <ThemeSwitcher />
+            <span className="hidden sm:block">
+              <a
+                href={REPOSITORY_URL}
+                aria-label="View EventPass source on GitHub"
+                className={buttonVariants({
+                  variant: "ghost",
+                  size: "icon-sm",
+                })}
+              >
+                <IconBrandGithub aria-hidden="true" />
+              </a>
+            </span>
             <Link
               href="/sign-in"
               className={buttonVariants({ variant: "outline", size: "sm" })}
             >
-              {/* The mark, the theme group, and a full-width label did not fit
-                  a 375px viewport together, and the row scrolled sideways. */}
               <span className="sm:hidden">Sign in</span>
               <span className="hidden sm:inline">Staff sign-in</span>
             </Link>
@@ -142,51 +191,87 @@ export default function Home() {
       </header>
 
       <main className="flex-1">
-        <section className="border-b">
-          <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-16 sm:px-6 sm:py-24">
-            <div className="flex flex-col gap-5">
-              <p className="text-sm font-medium text-muted-foreground">
-                Registration, ticketing, and check-in for in-person events
-              </p>
-              <h1 className="max-w-3xl font-heading text-5xl leading-[1.05] text-balance sm:text-6xl">
-                Event check-in that keeps working when the Wi-Fi doesn&apos;t.
-              </h1>
-              <p className="max-w-2xl text-base leading-7 text-muted-foreground text-pretty sm:text-lg sm:leading-8">
-                Basements, gyms, lecture halls — the places events actually
-                happen rarely have reliable internet. EventPass sends every
-                guest a QR ticket, keeps the queue moving when the signal
-                disappears, and gives you a clean attendance record afterwards.
+        <section className="overflow-hidden border-b bg-brand-subtle/20">
+          <div className="mx-auto grid w-full max-w-7xl gap-12 px-4 py-14 sm:px-6 sm:py-20 lg:grid-cols-[0.82fr_1.18fr] lg:items-center lg:gap-14 lg:py-24">
+            <div className="flex flex-col gap-7">
+              <div className="flex flex-col gap-5">
+                <h1 className="max-w-2xl font-heading text-5xl leading-none text-balance sm:text-6xl lg:text-7xl">
+                  Keep the door moving, even when the network stops.
+                </h1>
+                <p className="max-w-xl text-base leading-7 text-muted-foreground text-pretty sm:text-lg sm:leading-8">
+                  EventPass brings registration, signed QR tickets, and
+                  trustworthy door check-in into one system. Volunteers keep
+                  admitting guests through bad venue Wi-Fi, while organizers
+                  keep an honest record of what happened.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <a
+                  href="#product"
+                  className={buttonVariants({ size: "lg" })}
+                >
+                  See the product
+                  <IconArrowDown data-icon="inline-end" />
+                </a>
+                <a
+                  href={REPOSITORY_URL}
+                  className={buttonVariants({ variant: "outline", size: "lg" })}
+                >
+                  <IconBrandGithub data-icon="inline-start" />
+                  View source
+                </a>
+              </div>
+
+              <p className="max-w-lg text-sm leading-6 text-muted-foreground">
+                Built as a production-capable portfolio project with synthetic
+                data, real persistence, and no mocked core workflow.
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <Link href="/sign-in" className={buttonVariants({ size: "lg" })}>
-                Staff sign-in
-              </Link>
-              <a
-                href="#how-it-works"
-                className={buttonVariants({ variant: "outline", size: "lg" })}
-              >
-                See how it works
-              </a>
-            </div>
+            <OperationsPreview />
           </div>
         </section>
 
-        {/* The product itself, rather than three thousand words describing it.
-            These are the real components with static props — see
-            features/landing/product-showcase.tsx. */}
-        <section aria-labelledby="showcase-heading" className="border-b">
-          <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 py-16 sm:px-6 sm:py-20">
-            <div className="flex flex-col gap-3">
-              <h2 id="showcase-heading" className="font-heading text-4xl sm:text-5xl">
-                One scan, two honest answers
+        <section aria-label="Technical highlights" className="border-b bg-background">
+          <div className="mx-auto grid w-full max-w-7xl sm:grid-cols-2 lg:grid-cols-4">
+            {proofPoints.map(({ description, icon: Icon, title }, index) => (
+              <div
+                className="flex items-center gap-3 border-b px-4 py-5 sm:px-6 lg:border-b-0 lg:border-r lg:last:border-r-0"
+                key={title}
+              >
+                <Icon
+                  aria-hidden="true"
+                  className="size-5 shrink-0 text-brand-text"
+                />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">{title}</p>
+                  <p className="text-xs text-muted-foreground">{description}</p>
+                </div>
+                <span className="sr-only">Item {index + 1} of 4</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section
+          aria-labelledby="product-heading"
+          className="border-b"
+          id="product"
+        >
+          <div className="mx-auto flex w-full max-w-7xl flex-col gap-12 px-4 py-16 sm:px-6 sm:py-24">
+            <div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr] lg:items-end">
+              <h2
+                id="product-heading"
+                className="max-w-xl font-heading text-4xl leading-tight text-balance sm:text-5xl"
+              >
+                The difference between a confirmed yes and a qualified one.
               </h2>
-              <p className="max-w-2xl text-base leading-7 text-muted-foreground text-pretty">
+              <p className="max-w-2xl text-base leading-7 text-muted-foreground text-pretty lg:justify-self-end">
                 Online, a check-in is final the moment it happens. Offline, it
-                is stored on the phone and clearly marked provisional until it
-                syncs. EventPass never shows you the first when it only means
-                the second.
+                is stored on the volunteer&apos;s device and clearly marked
+                provisional until synchronization establishes authority.
+                EventPass never presents those states as the same thing.
               </p>
             </div>
 
@@ -195,15 +280,19 @@ export default function Home() {
               <ShowcaseCaption />
             </div>
 
-            <div className="flex flex-col gap-6 border-t pt-10">
-              <div className="flex flex-col gap-3">
-                <h3 className="font-heading text-3xl sm:text-4xl">
-                  A ticket worth keeping
+            <div className="grid gap-8 border-t pt-12 lg:grid-cols-[0.65fr_1.35fr] lg:items-center">
+              <div className="flex flex-col gap-4">
+                <IconQrcode
+                  aria-hidden="true"
+                  className="size-8 text-brand-text"
+                />
+                <h3 className="font-heading text-3xl leading-tight text-balance sm:text-4xl">
+                  A ticket designed for the phone at the door.
                 </h3>
-                <p className="max-w-2xl text-base leading-7 text-muted-foreground text-pretty">
-                  Every guest gets a QR representation and a short code they can
-                  read out if scanning won&apos;t cooperate. It prints, and it
-                  works on a phone at the door without an account.
+                <p className="max-w-lg text-base leading-7 text-muted-foreground text-pretty">
+                  The QR representation, short backup code, attendee, and event
+                  identity lead on every viewport. The code scans from a phone,
+                  prints cleanly, and contains no personal attendee data.
                 </p>
               </div>
               <TicketShowcase />
@@ -211,115 +300,136 @@ export default function Home() {
           </div>
         </section>
 
-        <section
-          aria-labelledby="roles-heading"
-          className="border-b bg-muted/20"
-        >
-          <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
-            <div className="flex flex-col gap-3">
+        <section aria-labelledby="roles-heading" className="border-b bg-muted/20">
+          <div className="mx-auto w-full max-w-7xl px-4 py-16 sm:px-6 sm:py-24">
+            <div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr] lg:items-end">
               <h2
                 id="roles-heading"
-                className="font-heading text-4xl sm:text-5xl"
+                className="max-w-xl font-heading text-4xl leading-tight text-balance sm:text-5xl"
               >
-                Built for everyone at the event
+                One event, three focused experiences.
               </h2>
-              <p className="max-w-2xl text-base leading-7 text-muted-foreground text-pretty">
-                Everyone sees exactly what they need for their part of the
-                night, and nothing else.
+              <p className="max-w-2xl text-base leading-7 text-muted-foreground text-pretty lg:justify-self-end">
+                Each role gets the information and actions required for the
+                moment they are in—without carrying the complexity of everyone
+                else&apos;s job.
               </p>
             </div>
 
-            <div className="mt-10 grid border-t sm:grid-cols-3 sm:divide-x">
-              {roles.map(({ icon: Icon, points, role, summary }) => (
-                <div
-                  className="flex flex-col gap-4 border-b py-8 sm:px-6 sm:first:pl-0 sm:last:pr-0"
-                  key={role}
+            <ol className="mt-12 border-t">
+              {roles.map(({ detail, icon: Icon, summary, title }) => (
+                <li
+                  className="grid gap-4 border-b py-7 sm:grid-cols-[3rem_0.55fr_1.45fr] sm:items-start sm:gap-6 sm:py-8"
+                  key={title}
                 >
-                  <span className="flex size-9 items-center justify-center rounded-lg border bg-background">
+                  <span className="flex size-10 items-center justify-center rounded-md border bg-background">
                     <Icon aria-hidden="true" className="size-5" />
                   </span>
-                  <div className="flex flex-col gap-1">
-                    <h3 className="text-base font-semibold">{role}</h3>
-                    <p className="text-sm leading-6 text-muted-foreground">
-                      {summary}
+                  <div>
+                    <h3 className="font-heading text-3xl">{title}</h3>
+                    <p className="mt-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                      {detail}
                     </p>
                   </div>
-                  <ul className="flex flex-col gap-2.5">
-                    {points.map((point) => (
-                      <li
-                        className="text-sm leading-6 text-muted-foreground"
-                        key={point}
-                      >
-                        {point}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section aria-labelledby="promises-heading" className="border-b">
-          <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
-            <div className="flex flex-col gap-3">
-              <h2
-                id="promises-heading"
-                className="font-heading text-4xl sm:text-5xl"
-              >
-                Why the door stays calm
-              </h2>
-              <p className="max-w-2xl text-base leading-7 text-muted-foreground text-pretty">
-                Four things you shouldn&apos;t have to think about on the night.
-              </p>
-            </div>
-
-            <div className="mt-10 grid border-t sm:grid-cols-2 sm:gap-x-10">
-              {promises.map(({ description, icon: Icon, title }) => (
-                <div className="flex flex-col gap-3 border-b py-8" key={title}>
-                  <div className="flex items-center gap-3">
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-background">
-                      <Icon aria-hidden="true" className="size-5" />
-                    </span>
-                    <h3 className="text-base font-semibold text-balance">
-                      {title}
-                    </h3>
-                  </div>
-                  <p className="text-sm leading-6 text-muted-foreground text-pretty">
-                    {description}
+                  <p className="max-w-2xl text-base leading-7 text-muted-foreground text-pretty">
+                    {summary}
                   </p>
-                </div>
+                </li>
               ))}
-            </div>
+            </ol>
           </div>
         </section>
 
         <section
-          aria-labelledby="how-it-works-heading"
-          className="bg-muted/20"
-          id="how-it-works"
+          aria-labelledby="trust-heading"
+          className="border-b"
+          id="trust"
         >
-          <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
-            <div className="flex flex-col gap-3">
+          <div className="mx-auto grid w-full max-w-7xl gap-12 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-[0.72fr_1.28fr]">
+            <div className="flex flex-col items-start gap-5 lg:sticky lg:top-24 lg:self-start">
+              <IconShieldCheck
+                aria-hidden="true"
+                className="size-9 text-brand-text"
+              />
               <h2
-                id="how-it-works-heading"
-                className="font-heading text-4xl sm:text-5xl"
+                id="trust-heading"
+                className="max-w-lg font-heading text-4xl leading-tight text-balance sm:text-5xl"
               >
-                From first invite to final headcount
+                Trust is a chain of explicit decisions.
               </h2>
-              <p className="max-w-2xl text-base leading-7 text-muted-foreground text-pretty">
-                Four steps, and no spreadsheet at the door.
+              <p className="max-w-lg text-base leading-7 text-muted-foreground text-pretty">
+                EventPass treats offline operation as a security boundary, not
+                a cache trick. Each stage preserves the distinction between
+                what the device observed and what the server has confirmed.
+              </p>
+              <a
+                href={`${REPOSITORY_URL}/tree/main/docs/adr`}
+                className={buttonVariants({ variant: "outline" })}
+              >
+                Read the architecture decisions
+                <IconArrowRight data-icon="inline-end" />
+              </a>
+            </div>
+
+            <ol className="border-t">
+              {trustModel.map(
+                ({ description, icon: Icon, title }, index) => (
+                  <li
+                    className="grid gap-4 border-b py-7 sm:grid-cols-[3rem_1fr] sm:gap-6 sm:py-8"
+                    key={title}
+                  >
+                    <span className="flex size-10 items-center justify-center rounded-md bg-brand-subtle text-brand-text">
+                      <Icon aria-hidden="true" className="size-5" />
+                    </span>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-baseline justify-between gap-4">
+                        <h3 className="text-lg font-semibold">{title}</h3>
+                        <span className="font-mono text-xs text-muted-foreground">
+                          0{index + 1}
+                        </span>
+                      </div>
+                      <p className="max-w-2xl text-sm leading-6 text-muted-foreground text-pretty">
+                        {description}
+                      </p>
+                    </div>
+                  </li>
+                ),
+              )}
+            </ol>
+          </div>
+        </section>
+
+        <section
+          aria-labelledby="workflow-heading"
+          className="bg-primary text-primary-foreground"
+          id="workflow"
+        >
+          <div className="mx-auto w-full max-w-7xl px-4 py-16 sm:px-6 sm:py-24">
+            <div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr] lg:items-end">
+              <h2
+                id="workflow-heading"
+                className="max-w-xl font-heading text-4xl leading-tight text-balance sm:text-5xl"
+              >
+                From first form field to final headcount.
+              </h2>
+              <p className="max-w-2xl text-base leading-7 text-primary-foreground/70 text-pretty lg:justify-self-end">
+                The happy path stays simple. The engineering depth appears when
+                networks fail, tickets are reused, staff access changes, or an
+                operator needs to correct a mistake.
               </p>
             </div>
 
-            <ol className="mt-10 grid border-t sm:grid-cols-2 sm:gap-x-10 lg:grid-cols-4 lg:gap-x-8">
-              {steps.map(({ description, step, title }) => (
-                <li className="flex flex-col gap-2 border-b py-8" key={step}>
-                  <span className="text-xs font-medium tracking-wide text-muted-foreground">
+            <ol className="mt-12 grid border-t border-primary-foreground/20 sm:grid-cols-2 lg:grid-cols-4">
+              {workflow.map(({ description, step, title }) => (
+                <li
+                  className="flex flex-col gap-4 border-b border-primary-foreground/20 py-7 sm:px-6 sm:first:pl-0 lg:border-r lg:last:border-r-0 lg:last:pr-0"
+                  key={step}
+                >
+                  <span className="font-mono text-xs text-primary-foreground/55">
                     {step}
                   </span>
-                  <h3 className="text-base font-semibold">{title}</h3>
-                  <p className="text-sm leading-6 text-muted-foreground text-pretty">
+                  <h3 className="text-lg font-semibold">{title}</h3>
+                  <p className="text-sm leading-6 text-primary-foreground/70 text-pretty">
                     {description}
                   </p>
                 </li>
@@ -327,34 +437,66 @@ export default function Home() {
             </ol>
           </div>
         </section>
+
+        <section className="border-b bg-brand-subtle/35">
+          <div className="mx-auto flex w-full max-w-7xl flex-col gap-7 px-4 py-14 sm:flex-row sm:items-end sm:justify-between sm:px-6 sm:py-16">
+            <div className="flex max-w-2xl flex-col gap-3">
+              <h2 className="font-heading text-4xl leading-tight text-balance sm:text-5xl">
+                Built to be inspected, not just demoed.
+              </h2>
+              <p className="text-base leading-7 text-muted-foreground text-pretty">
+                Explore the source, architecture decisions, test suite, and
+                operational edge cases behind the interface.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <a
+                href={REPOSITORY_URL}
+                className={buttonVariants({ size: "lg" })}
+              >
+                <IconBrandGithub data-icon="inline-start" />
+                Explore the repository
+              </a>
+              <Link
+                href="/sign-in"
+                className={buttonVariants({ variant: "outline", size: "lg" })}
+              >
+                Staff sign-in
+              </Link>
+            </div>
+          </div>
+        </section>
       </main>
 
-      <footer className="border-t bg-background">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-8 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <p className="text-sm text-muted-foreground">
-            EventPass — built by{" "}
+      <footer className="bg-background">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-8 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div className="flex items-center gap-3">
+            <EventPassMark />
+            <span className="hidden text-muted-foreground sm:inline">·</span>
+            <p className="text-sm text-muted-foreground">
+              Built by{" "}
+              <a
+                className="text-foreground underline-offset-4 hover:underline"
+                href="https://github.com/Het-Jethva"
+              >
+                Het Jethva
+              </a>
+            </p>
+          </div>
+          <div className="flex items-center gap-5 text-sm">
             <a
-              className="text-foreground underline-offset-4 hover:underline"
-              href="https://github.com/Het-Jethva"
+              className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+              href={`${REPOSITORY_URL}#readme`}
             >
-              Het Jethva
+              Documentation
             </a>
-            .
-          </p>
-          <div className="flex items-center gap-4 text-sm">
             <a
-              className="flex items-center gap-1.5 text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+              className="inline-flex items-center gap-1.5 text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
               href={REPOSITORY_URL}
             >
               <IconBrandGithub aria-hidden="true" className="size-4" />
               GitHub
             </a>
-            <Link
-              className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
-              href="/sign-in"
-            >
-              Staff sign-in
-            </Link>
           </div>
         </div>
       </footer>

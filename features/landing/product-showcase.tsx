@@ -26,6 +26,10 @@ export async function ScanOutcomeShowcase() {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <div className="overflow-hidden rounded-lg border">
+        <div className="flex items-center justify-between gap-3 border-b bg-background px-4 py-3">
+          <p className="text-sm font-medium">Online authority</p>
+          <span className="text-xs text-muted-foreground">Final immediately</span>
+        </div>
         <ScanOutcome
           outcome="accepted"
           attendeeName={SAMPLE.attendeeName}
@@ -33,6 +37,12 @@ export async function ScanOutcomeShowcase() {
         />
       </div>
       <div className="overflow-hidden rounded-lg border">
+        <div className="flex items-center justify-between gap-3 border-b bg-background px-4 py-3">
+          <p className="text-sm font-medium">Offline continuity</p>
+          <span className="text-xs text-muted-foreground">
+            Final after sync
+          </span>
+        </div>
         <ScanOutcome
           outcome="provisional"
           attendeeName={SAMPLE.attendeeName}

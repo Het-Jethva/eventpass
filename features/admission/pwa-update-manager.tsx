@@ -135,7 +135,7 @@ export function PwaUpdateManager() {
           <AlertDescription className="mt-1 text-sm flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <span>
               {pendingAttempts > 0
-                ? `${pendingAttempts} unsynchronized scan Attempt${pendingAttempts === 1 ? "" : "s"} stored on this device. Update will apply after synchronization.`
+                ? `${pendingAttempts} scan${pendingAttempts === 1 ? "" : "s"} on this device have not synced yet. The update applies once they do.`
                 : "An update is ready for installation."}
             </span>
             {pendingAttempts === 0 ? (

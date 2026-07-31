@@ -1,9 +1,27 @@
 "use client";
 
 import { useState } from "react";
-import { IconAlertTriangle, IconCheck, IconX } from "@tabler/icons-react";
+import { IconAlertTriangle, IconShieldCheck } from "@tabler/icons-react";
 
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+} from "@/components/ui/field";
+import { Spinner } from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
 
 interface AdminActionDialogProps {
   title: string;
@@ -15,6 +33,17 @@ interface AdminActionDialogProps {
   onConfirm: (reason: string) => Promise<void>;
 }
 
+/**
+ * Privileged administrator actions, gated behind a reason that is kept forever.
+ *
+ * This used to be a hand-rolled fixed-position div: no focus trap, no Escape,
+ * no restore of focus on close, a scrim picked outside the palette, and a bare
+ * textarea with a focus ring unlike every other field in the product. Also —
+ * against the
+ * system's own rule — the *tinted* destructive variant on the confirm, which is
+ * the variant reserved for the trigger. It is the same dialog now, built from
+ * the primitives that already solved all of that.
+ */
 export function AdminActionDialog({
   title,
   description,
@@ -28,13 +57,11 @@ export function AdminActionDialog({
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (!isOpen) return null;
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSubmit(submitEvent: React.FormEvent) {
+    submitEvent.preventDefault();
     const trimmed = reason.trim();
     if (!trimmed) {
-      setError("An explicit reason is required.");
+      setError("A reason is required.");
       return;
     }
 
@@ -44,88 +71,78 @@ export function AdminActionDialog({
       await onConfirm(trimmed);
       setReason("");
       onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An unexpected error occurred.");
+    } catch (caught) {
+      setError(
+        caught instanceof Error ? caught.message : "Something went wrong.",
+      );
     } finally {
       setIsSubmitting(false);
     }
   }
 
   return (
-    <div
-      aria-modal="true"
-      role="dialog"
-      aria-labelledby="admin-dialog-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-in fade-in duration-150"
+    <AlertDialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open && !isSubmitting) onClose();
+      }}
     >
-      <div className="w-full max-w-lg rounded-xl border bg-background p-6 shadow-xl space-y-4">
-        <div className="flex items-start justify-between gap-4 border-b pb-4">
-          <div className="flex items-center gap-3">
-            {isDestructive ? (
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-                <IconAlertTriangle className="h-5 w-5" />
-              </div>
-            ) : (
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <IconCheck className="h-5 w-5" />
-              </div>
-            )}
-            <div>
-              <h2 id="admin-dialog-title" className="text-lg font-semibold">
-                {title}
-              </h2>
-              <p className="text-xs text-muted-foreground">{description}</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close dialog"
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            <IconX className="h-4 w-4" />
-          </button>
-        </div>
+      <AlertDialogContent>
+        <form onSubmit={handleSubmit} className="grid gap-6">
+          <AlertDialogHeader>
+            <AlertDialogMedia
+              className={
+                isDestructive
+                  ? "bg-destructive-subtle text-destructive-text"
+                  : "bg-info-subtle text-info-text"
+              }
+            >
+              {isDestructive ? (
+                <IconAlertTriangle aria-hidden="true" />
+              ) : (
+                <IconShieldCheck aria-hidden="true" />
+              )}
+            </AlertDialogMedia>
+            <AlertDialogTitle>{title}</AlertDialogTitle>
+            <AlertDialogDescription>{description}</AlertDialogDescription>
+          </AlertDialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <label htmlFor="admin-reason-input" className="text-xs font-medium text-foreground">
-              Explicit Reason <span className="text-destructive">*</span>
-            </label>
-            <textarea
+          <Field data-invalid={Boolean(error)}>
+            <FieldLabel htmlFor="admin-reason-input">Reason</FieldLabel>
+            <Textarea
               id="admin-reason-input"
+              name="reason"
               rows={3}
               value={reason}
-              onChange={(e) => {
-                setReason(e.target.value);
+              onChange={(changeEvent) => {
+                setReason(changeEvent.target.value);
                 if (error) setError(null);
               }}
-              placeholder="State the explicit operational or support reason..."
-              className="w-full rounded-md border bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-ring"
+              placeholder="Why is this action being taken?"
+              aria-invalid={Boolean(error)}
+              aria-describedby="admin-reason-help"
+              disabled={isSubmitting}
               required
             />
-            {error && <p className="text-xs text-destructive">{error}</p>}
-          </div>
+            <FieldDescription id="admin-reason-help">
+              Kept permanently against your account.
+            </FieldDescription>
+            <FieldError>{error}</FieldError>
+          </Field>
 
-          <div className="flex justify-end gap-3 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
             <Button
               type="submit"
-              variant={isDestructive ? "destructive" : "default"}
+              variant={isDestructive ? "destructive-solid" : "default"}
               disabled={isSubmitting || !reason.trim()}
             >
-              {isSubmitting ? "Processing..." : actionLabel}
+              {isSubmitting ? <Spinner /> : null}
+              {actionLabel}
             </Button>
-          </div>
+          </AlertDialogFooter>
         </form>
-      </div>
-    </div>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

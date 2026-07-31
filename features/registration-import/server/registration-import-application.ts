@@ -30,7 +30,7 @@ import {
   type PublicRegistrationField,
   type ValidatedRegistrationSubmission,
 } from "../../registration/registration-submission";
-import { createTicketCode as createRandomTicketCode } from "../../tickets/ticket-code";
+import { createTicketCode as createRandomTicketCode } from "../../tickets/server/create-ticket-code";
 import { signTicket } from "../../tickets/ticket-crypto";
 
 import { encodeCsv, parseBoundedCsv } from "../csv";

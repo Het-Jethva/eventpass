@@ -32,7 +32,7 @@ export function DeleteEventControl({
         <AlertDialogHeader>
           <AlertDialogTitle>Delete {eventName}?</AlertDialogTitle>
           <AlertDialogDescription>
-            This permanently removes the empty draft Event and its event Staff
+            This permanently removes the empty draft and its staff
             assignments. This action cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>

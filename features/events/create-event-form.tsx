@@ -4,12 +4,12 @@ import { useActionState } from "react";
 import Link from "next/link";
 import { IconAlertCircle, IconArrowLeft, IconPlus } from "@tabler/icons-react";
 
+import { createEventAction } from "@/app/(workspace)/events/new/actions";
 import {
-  createEventAction,
   initialCreateEventFormState,
   type CreateEventFormField,
   type CreateEventFormState,
-} from "@/app/(workspace)/events/new/actions";
+} from "@/app/(workspace)/events/new/form-state";
 import { updateEventAction } from "@/app/(workspace)/events/[eventId]/actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -130,7 +130,7 @@ export function CreateEventForm({
         <FieldSet className="rounded-2xl border bg-background p-5 sm:p-6">
           <FieldLegend>Event details</FieldLegend>
           <FieldDescription>
-            Set the identity, Event Time Zone, and schedule attendees will see.
+            The name, time zone, and schedule attendees will see.
           </FieldDescription>
           <FieldGroup className="grid gap-5 sm:grid-cols-2">
             <EventField field="name" label="Event name" state={state}>
@@ -173,7 +173,7 @@ export function CreateEventForm({
                 name="description"
                 defaultValue={value(state, "description")}
                 aria-invalid={Boolean(state.fieldErrors?.description)}
-                placeholder="Tell Attendees what to expect."
+                placeholder="Tell guests what to expect."
                 maxLength={4000}
                 rows={5}
                 required
@@ -183,7 +183,7 @@ export function CreateEventForm({
             </EventField>
             <EventField
               field="eventTimeZone"
-              label="Event Time Zone"
+              label="Time zone"
               state={state}
               description="Use an IANA time zone such as Asia/Kolkata."
             >
@@ -255,7 +255,7 @@ export function CreateEventForm({
         <FieldSet className="rounded-2xl border bg-background p-5 sm:p-6">
           <FieldLegend>Venue and capacity</FieldLegend>
           <FieldDescription>
-            Describe the in-person Venue and the maximum event Capacity.
+            Where it happens, and how many people can come.
           </FieldDescription>
           <FieldGroup className="grid gap-5 sm:grid-cols-2">
             <EventField field="venueName" label="Venue name" state={state}>
@@ -270,7 +270,7 @@ export function CreateEventForm({
                 disabled={isPending}
               />
             </EventField>
-            <EventField field="capacity" label="Event Capacity" state={state}>
+            <EventField field="capacity" label="Capacity" state={state}>
               <Input
                 id="capacity"
                 name="capacity"
@@ -421,7 +421,7 @@ export function CreateEventForm({
         {isPending
           ? isEditing
             ? `Saving the ${published ? "Published" : "Draft"} Event configuration.`
-            : "Creating the draft Event and event owner assignment."
+            : "Creating the draft and assigning you as owner."
           : ""}
       </p>
     </form>

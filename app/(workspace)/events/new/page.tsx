@@ -32,10 +32,10 @@ export default function NewEventPage() {
       <div className="flex flex-col gap-2">
         <p className="text-sm font-medium text-muted-foreground">Events</p>
         <h1 className="text-2xl font-headline">
-          Create a draft Event
+          Create a draft event
         </h1>
         <p className="max-w-2xl text-sm text-muted-foreground">
-          drafts are visible only to assigned event Staff. You can review
+          drafts are visible only to assigned staff. You can review
           and publish this event after its configuration is complete.
         </p>
       </div>

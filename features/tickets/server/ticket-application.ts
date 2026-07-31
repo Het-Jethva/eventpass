@@ -21,7 +21,7 @@ import {
   reconcileWaitlistInTransaction,
   type AdmissionOfferMessage,
 } from "../../registration/server/waitlist-reconciliation";
-import { createTicketCode as createRandomTicketCode } from "../ticket-code";
+import { createTicketCode as createRandomTicketCode } from "./create-ticket-code";
 import { signTicket } from "../ticket-crypto";
 
 type TicketDatabase = typeof import("../../../lib/db").db;

@@ -7,6 +7,7 @@ import { Resend } from "resend";
 import { formatTicketCode } from "@/features/tickets/ticket-code";
 import { db } from "@/lib/db";
 import { emailDelivery } from "@/lib/db/schema";
+import { EMAIL_BODY_STYLE, EMAIL_CODE_STYLE } from "./shell";
 
 const TEMPLATE = "ticket-issued-v1";
 
@@ -86,7 +87,7 @@ export async function sendTicket({
       {
         from: process.env.RESEND_FROM_EMAIL ?? "EventPass <tickets@mail.hetjethva.tech>",
         to: email,
-        subject: `Your Ticket for ${event.name}`,
+        subject: `Your ticket for ${event.name}`,
         attachments: [
           {
             content: qrImage,
@@ -95,8 +96,8 @@ export async function sendTicket({
             filename: "eventpass-ticket.png",
           },
         ],
-        html: `<div style="font-family:Arial,sans-serif;color:#171717;line-height:1.6;max-width:640px"><h1 style="font-size:24px">Your Ticket for ${escapeHtml(event.name)}</h1><p>${escapeHtml(attendeeName)}, your Registration is confirmed.</p><p><strong>When:</strong> ${escapeHtml(schedule)}<br><strong>Venue:</strong> ${escapeHtml(event.venueName)}, ${escapeHtml(event.venueAddress)}</p><p><img src="cid:eventpass-ticket-qr" width="280" height="280" alt="QR representation of your Ticket"></p><p><strong>Ticket Code:</strong> <span style="font-family:monospace;font-size:20px;letter-spacing:2px">${formattedCode}</span></p><p><a href="${escapeHtml(managementUrl.toString())}">Open your mobile and printable Ticket</a></p><p>This link manages your Registration. Do not forward it. You may show either the QR representation or Ticket Code at check-in.</p></div>`,
-        text: `Your Registration for ${event.name} is confirmed.\n\nWhen: ${schedule}\nVenue: ${event.venueName}, ${event.venueAddress}\nTicket Code: ${formattedCode}\n\nOpen your mobile and printable Ticket: ${managementUrl.toString()}\n\nThis link manages your Registration. Do not forward it.`,
+        html: `<div style="${EMAIL_BODY_STYLE}"><h1 style="font-size:24px">Your ticket for ${escapeHtml(event.name)}</h1><p>${escapeHtml(attendeeName)}, you’re registered.</p><p><strong>When:</strong> ${escapeHtml(schedule)}<br><strong>Venue:</strong> ${escapeHtml(event.venueName)}, ${escapeHtml(event.venueAddress)}</p><p><img src="cid:eventpass-ticket-qr" width="280" height="280" alt="QR code for your ticket"></p><p><strong>Ticket code:</strong> <span style="${EMAIL_CODE_STYLE}">${formattedCode}</span></p><p><a href="${escapeHtml(managementUrl.toString())}">Open your ticket</a></p><p>This link manages your registration, so keep it to yourself. At the door, show either the QR code or the ticket code.</p></div>`,
+        text: `You’re registered for ${event.name}.\n\nWhen: ${schedule}\nVenue: ${event.venueName}, ${event.venueAddress}\nTicket code: ${formattedCode}\n\nOpen your ticket: ${managementUrl.toString()}\n\nThis link manages your registration, so keep it to yourself.`,
       },
       { idempotencyKey: `email-delivery/${delivery.id}` },
     );

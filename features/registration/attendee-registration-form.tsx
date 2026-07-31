@@ -3,11 +3,11 @@
 import { useActionState } from "react";
 import { IconAlertCircle, IconMailForward } from "@tabler/icons-react";
 
+import { submitRegistrationAction } from "@/app/e/[slug]/actions";
 import {
   initialRegistrationActionState,
-  submitRegistrationAction,
   type RegistrationActionState,
-} from "@/app/e/[slug]/actions";
+} from "@/app/e/[slug]/form-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -264,18 +264,18 @@ export function AttendeeRegistrationForm({
         {pending ? (
           <>
             <Spinner data-icon="inline-start" />
-            Submitting Registration…
+            Registering…
           </>
         ) : (
           <>
             <IconMailForward data-icon="inline-start" />
-            Submit Registration
+            Register
           </>
         )}
       </Button>
-      <p className="text-sm leading-6 text-muted-foreground">
+      <p className="text-support text-muted-foreground">
         Submitting does not confirm your place. The next screen will state whether
-        you received a 15-minute Capacity Hold or need to verify for the waitlist.
+        your place is held for 15 minutes, or to confirm your spot on the waitlist.
       </p>
       <p className="sr-only" aria-live="polite">
         {pending ? "Submitting your registration." : ""}

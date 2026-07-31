@@ -42,7 +42,7 @@ export default async function StaffInvitationPage({
         {!invitation || query.error ? (
           <Alert variant="destructive">
             <IconAlertCircle aria-hidden="true" />
-            <AlertTitle>This Staff invitation is unavailable</AlertTitle>
+            <AlertTitle>This invitation is no longer usable</AlertTitle>
             <AlertDescription>
               It may have expired, been revoked, already been used, or belong to another signed-in email.
             </AlertDescription>
@@ -60,7 +60,7 @@ export default async function StaffInvitationPage({
 
             {!session ? (
               <div className="flex flex-col gap-3">
-                <p className="text-sm leading-6 text-muted-foreground">
+                <p className="text-support text-muted-foreground">
                   Sign in as {invitation.normalizedEmail} to accept this email-bound invitation.
                 </p>
                 <Link
@@ -73,7 +73,7 @@ export default async function StaffInvitationPage({
               </div>
             ) : emailMatches ? (
               <form action={acceptStaffInvitationAction.bind(null, token)}>
-                <Button className="w-full" type="submit">Accept Staff invitation</Button>
+                <Button className="w-full" type="submit">Accept invitation</Button>
               </form>
             ) : (
               <Alert variant="destructive">

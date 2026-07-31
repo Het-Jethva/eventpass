@@ -39,7 +39,7 @@ export async function sendWaitlistConfirmation({
         from: process.env.RESEND_FROM_EMAIL ?? "EventPass <tickets@mail.hetjethva.tech>",
         to: email,
         subject: `You joined the waitlist for ${eventName}`,
-        text: `${attendeeName}, your email is verified and your place on the waitlist for ${eventName} is now established. If capacity becomes available, EventPass will email you a time-limited Admission Offer.`,
+        text: `${attendeeName}, your email is confirmed and your place on the waitlist for ${eventName} is held. If a place opens up, we’ll email you an offer with a deadline.`,
       },
       { idempotencyKey: `email-delivery/${delivery.id}` },
     );

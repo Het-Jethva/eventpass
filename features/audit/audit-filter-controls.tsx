@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { IconSearch } from "@tabler/icons-react";
 
+import { SegmentedFilter } from "@/components/segmented-filter";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -14,7 +15,6 @@ import {
   type AuditCategoryValue,
   type AuditSourceValue,
 } from "@/features/audit/audit-filters";
-import { cn } from "@/lib/utils";
 
 const DEBOUNCE_MS = 250;
 
@@ -95,69 +95,42 @@ export function AuditFilterControls({
         ) : null}
       </div>
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
-        <div
-          className="flex flex-wrap gap-1"
-          role="group"
-          aria-label="Filter audit entries by category"
-        >
-          {AUDIT_CATEGORIES.map((value) => (
-            <FilterChip
-              key={value}
-              label={AUDIT_CATEGORY_LABELS[value]}
-              isActive={value === category}
-              onSelect={() =>
-                startTransition(() =>
-                  router.replace(buildHref({ category: value })),
-                )
-              }
-            />
-          ))}
-        </div>
+      {/* Two independent filters. Shelled separately, because as one loose row
+          they read as a single seven-option control with two options somehow
+          active at the same time. */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+        <SegmentedFilter
+          label="Filter audit entries by category"
+          size="sm"
+          value={category}
+          options={AUDIT_CATEGORIES.map((value) => ({
+            value,
+            label: AUDIT_CATEGORY_LABELS[value],
+          }))}
+          onSelect={(value) =>
+            startTransition(() =>
+              router.replace(
+                buildHref({ category: value as AuditCategoryValue }),
+              ),
+            )
+          }
+        />
 
-        <div
-          className="flex flex-wrap gap-1"
-          role="group"
-          aria-label="Filter audit entries by source"
-        >
-          {AUDIT_SOURCES.map((value) => (
-            <FilterChip
-              key={value}
-              label={AUDIT_SOURCE_LABELS[value]}
-              isActive={value === source}
-              onSelect={() =>
-                startTransition(() => router.replace(buildHref({ source: value })))
-              }
-            />
-          ))}
-        </div>
+        <SegmentedFilter
+          label="Filter audit entries by source"
+          size="sm"
+          value={source}
+          options={AUDIT_SOURCES.map((value) => ({
+            value,
+            label: AUDIT_SOURCE_LABELS[value],
+          }))}
+          onSelect={(value) =>
+            startTransition(() =>
+              router.replace(buildHref({ source: value as AuditSourceValue })),
+            )
+          }
+        />
       </div>
     </div>
-  );
-}
-
-function FilterChip({
-  label,
-  isActive,
-  onSelect,
-}: {
-  label: string;
-  isActive: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={isActive}
-      onClick={onSelect}
-      className={cn(
-        "rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors",
-        isActive
-          ? "bg-foreground text-background"
-          : "text-muted-foreground hover:bg-muted hover:text-foreground",
-      )}
-    >
-      {label}
-    </button>
   );
 }

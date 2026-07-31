@@ -150,6 +150,7 @@ export function ScanOutcome({
   ticketCode,
   actions,
   className,
+  reserveQualifier = false,
   titleAs: Title = "h2",
 }: {
   outcome: AdmissionOutcome;
@@ -158,6 +159,17 @@ export function ScanOutcome({
   /** Exactly one next action belongs here. */
   actions?: ReactNode;
   className?: string;
+  /**
+   * Hold the qualifier chip's space when this outcome has no qualifier.
+   *
+   * At a door there is one outcome on the screen and nothing to align it to, so
+   * this stays off and the content centres as a block. Side by side — which is
+   * how the landing page argues that a confirmed yes and an offline yes are
+   * different — one card carrying a chip pushed its icon, headline and name
+   * out of register with the other's, and the pair read as sloppy at exactly
+   * the moment it was claiming precision.
+   */
+  reserveQualifier?: boolean;
   /**
    * A live outcome is a heading the screen reader announces. A demonstration of
    * one on the landing page is not part of that page's outline, so the showcase
@@ -194,6 +206,10 @@ export function ScanOutcome({
           )}
         >
           {presentation.qualifier}
+        </span>
+      ) : reserveQualifier ? (
+        <span aria-hidden="true" className="px-3 py-1 text-sm font-medium">
+          &nbsp;
         </span>
       ) : null}
 

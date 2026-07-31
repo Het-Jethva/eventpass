@@ -85,23 +85,97 @@ describe("design rules", () => {
     expect(button!.source).not.toContain("rounded-4xl");
   });
 
-  it("keeps the display serif off operational text", () => {
-    // The serif is permitted on organizer page titles, public pages, landing
-    // headlines, and the Event name on a Ticket. It is not permitted on
-    // scanner outcomes, status labels, or anything a volunteer reads under
-    // pressure — arm's-length legibility is a safety property.
-    const operational = [
+  it("speaks in one voice", () => {
+    // This test used to permit a display serif on titles and ban it on
+    // operational text. There is no second face any more: DESIGN.md § Typography
+    // says hierarchy is size, weight and spacing, and `--font-heading` does not
+    // exist. So the rule is now the stronger one — the token appears nowhere.
+    const offenders = FILES.filter(({ source }) =>
+      source.includes("font-heading"),
+    ).map(({ path: file }) => file);
+    expect(offenders).toEqual([]);
+  });
+
+  it("reserves semibold for the scanner outcome", () => {
+    // Weight 600 exists in this product for one reason: to punch across a lit
+    // gymnasium. Everywhere else it is the wrong answer to "make this a
+    // heading", and it had spread to ten dialog and section titles.
+    const permitted = new Set([
       "features/admission/scan-outcome.tsx",
-      "features/admission/scanner-workspace.tsx",
-      "components/ui/badge.tsx",
-      "components/ui/alert.tsx",
-    ];
-    for (const file of operational) {
-      const entry = FILES.find((candidate) => candidate.path === file);
-      expect(entry, `${file} is missing`).toBeDefined();
-      expect(entry!.source, `${file} uses the display serif`).not.toContain(
-        "font-heading",
+      "features/landing/operations-preview.tsx",
+    ]);
+    const offenders = FILES.filter(
+      ({ path: file, source }) =>
+        !permitted.has(file) && source.includes("font-semibold"),
+    ).map(({ path: file }) => file);
+    expect(offenders).toEqual([]);
+  });
+
+  it("leaves optics to the type scale", () => {
+    // Leading and letter-spacing are properties of a size, declared once on
+    // every `--text-*` step. A product component that sets them is overriding a
+    // decision that was already made correctly — and thirty of them doing it
+    // identically meant the scale was missing a step, not that thirty
+    // components were wrong. It now carries `text-support` and `text-reading`.
+    //
+    // `components/ui` is out of scope on purpose: those are unmodified shadcn
+    // primitives, and the system's rule is to leave them that way.
+    // `tracking-code` is a token, not a re-guessed number.
+    const optical = /\b(?:tracking|leading)-(?!code\b)[a-z0-9.[\]-]+/g;
+    const offenders = FILES.filter(
+      ({ path: file }) => !file.startsWith("components/ui/"),
+    ).flatMap(({ path: file, source }) =>
+      (source.match(optical) ?? []).map((match) => `${file}: ${match}`),
+    );
+    expect(offenders).toEqual([]);
+  });
+
+  it("takes the scrim from a token", () => {
+    // `black` and `white` bypass the token layer exactly like a palette scale
+    // does, and two dialogs had each picked their own opacity of it. The QR
+    // chamber is the one real exception: a theme-inverted QR does not scan.
+    const raw = /\b(?:bg|text|border|ring|from|to|via)-(?:black|white)\b/g;
+    const permitted = new Set(["features/tickets/ticket-stub.tsx"]);
+    const offenders = FILES.filter(({ path: file }) => !permitted.has(file))
+      .flatMap(({ path: file, source }) =>
+        (source.match(raw) ?? []).map((match) => `${file}: ${match}`),
       );
-    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("keeps a `use server` module to async exports", () => {
+    // Next replaces every non-function export of a `"use server"` module with a
+    // server reference, so a plain object imported from one arrives on the
+    // client with none of its properties. It type-checks, and it silently put
+    // every form in the product into a non-idle state on first render: an
+    // attendee opening their ticket met three "Action not completed" alerts
+    // before touching anything.
+    const actionFiles: { path: string; source: string }[] = [];
+    const walk = (directory: string) => {
+      for (const entry of readdirSync(directory)) {
+        if (entry === "node_modules" || entry.startsWith(".")) continue;
+        const full = path.join(directory, entry);
+        if (statSync(full).isDirectory()) {
+          walk(full);
+          continue;
+        }
+        if (!full.endsWith(".ts")) continue;
+        const source = readFileSync(full, "utf8");
+        if (!/^["']use server["'];/m.test(source)) continue;
+        actionFiles.push({
+          path: path.relative(ROOT, full).replace(/\\/g, "/"),
+          source,
+        });
+      }
+    };
+    for (const directory of SOURCE_DIRECTORIES) walk(path.join(ROOT, directory));
+
+    expect(actionFiles.length).toBeGreaterThan(5);
+    const offenders = actionFiles.flatMap(({ path: file, source }) =>
+      (source.match(/^export const \w+/gm) ?? []).map(
+        (match) => `${file}: ${match}`,
+      ),
+    );
+    expect(offenders).toEqual([]);
   });
 });

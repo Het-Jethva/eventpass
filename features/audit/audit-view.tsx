@@ -4,6 +4,13 @@ import { IconHistory } from "@tabler/icons-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import {
   Table,
   TableBody,
   TableCell,
@@ -20,6 +27,29 @@ import {
   AUDIT_PAGE_SIZE,
   type EventAuditLog,
 } from "@/features/audit/server/get-audit-log";
+import { formatTicketCode } from "@/features/tickets/ticket-code";
+
+// The whole product writes a Ticket Code grouped, because that is how a person
+// reads one aloud. The audit log printed it as ten unbroken characters.
+const TICKET_CODE = /^[0-9A-HJKMNP-TV-Z]{10}$/;
+
+function formatAuditTarget(value: string) {
+  return TICKET_CODE.test(value) ? formatTicketCode(value) : value;
+}
+
+// One clock format across the product: 24-hour, seconds, no lowercase meridiem.
+// This column is read by comparison against the scanner and the roster, and
+// `31 Jul 03:27:48 pm` matched neither of them.
+function formatAuditTimestamp(date: Date) {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(date);
+}
 
 export function AuditView({
   log,
@@ -83,15 +113,9 @@ export function AuditView({
                   return (
                     <TableRow key={record.id}>
                       <TableCell className="font-mono text-muted-foreground">
-                        {date.toLocaleDateString([], {
-                          month: "short",
-                          day: "numeric",
-                        })}{" "}
-                        {date.toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          second: "2-digit",
-                        })}
+                        <time dateTime={record.createdAt}>
+                          {formatAuditTimestamp(date)}
+                        </time>
                       </TableCell>
 
                       <TableCell className="font-medium">
@@ -119,7 +143,7 @@ export function AuditView({
                       </TableCell>
 
                       <TableCell className="font-mono">
-                        {record.targetLabel ?? record.targetId}
+                        {formatAuditTarget(record.targetLabel ?? record.targetId)}
                       </TableCell>
 
                       <TableCell>
@@ -153,7 +177,7 @@ export function AuditView({
                         </div>
                       </TableCell>
 
-                      <TableCell className="max-w-xs whitespace-normal leading-relaxed text-muted-foreground">
+                      <TableCell className="max-w-xs whitespace-normal text-muted-foreground">
                         {record.reason ? (
                           <span className="text-foreground">{record.reason}</span>
                         ) : record.metadata &&
@@ -192,17 +216,19 @@ export function AuditView({
           ) : null}
         </>
       ) : (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed bg-card p-12 text-center">
-          <IconHistory className="size-10 text-muted-foreground/60" aria-hidden="true" />
-          <h4 className="mt-4 font-semibold">
-            No audit entries found
-          </h4>
-          <p className="mt-1 max-w-sm text-xs text-muted-foreground">
-            {isFiltered || initialQuery
-              ? "The whole log was searched, not just the visible page. Try a shorter search or a different filter."
-              : "Nothing has been recorded for this event yet."}
-          </p>
-        </div>
+        <Empty className="border bg-card">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <IconHistory aria-hidden="true" />
+            </EmptyMedia>
+            <EmptyTitle>Nothing matches</EmptyTitle>
+            <EmptyDescription>
+              {isFiltered || initialQuery
+                ? "The whole log was searched, not just the visible page. Try a shorter search or a different filter."
+                : "Nothing has been recorded for this event yet."}
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       )}
     </div>
   );

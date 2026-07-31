@@ -29,7 +29,7 @@ export default async function RegistrationFormPage({
         <h1 className="text-2xl font-headline">
           Registration form
         </h1>
-        <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+        <p className="max-w-2xl text-support text-muted-foreground">
           Name and email are always collected. Add only the event-specific
           questions attendees need to answer.
         </p>

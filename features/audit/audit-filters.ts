@@ -15,7 +15,7 @@ export type AuditCategoryValue = (typeof AUDIT_CATEGORIES)[number];
 export const AUDIT_CATEGORY_LABELS: Record<AuditCategoryValue, string> = {
   all: "All activity",
   privileged: "Privileged changes",
-  scans: "Scan Attempts",
+  scans: "Scans",
   conflicts_reversals: "Conflicts and reversals",
 };
 

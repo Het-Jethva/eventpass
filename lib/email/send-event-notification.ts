@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { db } from "@/lib/db";
 import { emailDelivery } from "@/lib/db/schema";
+import { EMAIL_BODY_STYLE } from "./shell";
 
 const materialChangeSchema = z.object({
   kind: z.literal("material_change"),
@@ -74,8 +75,8 @@ function content(metadata: z.infer<typeof notificationSchema>) {
   if (metadata.kind === "cancellation") {
     return {
       subject: `${metadata.eventName} has been canceled`,
-      html: `<div style="font-family:Arial,sans-serif;color:#171717;line-height:1.6;max-width:640px"><h1 style="font-size:24px">${escapeHtml(metadata.eventName)} has been canceled</h1><p>Your Registration and Event history remain available, but all Tickets are now inactive and cannot be used for admission.</p><p><strong>Reason:</strong> ${escapeHtml(metadata.reason)}</p></div>`,
-      text: `${metadata.eventName} has been canceled.\n\nYour Registration and Event history remain available, but all Tickets are now inactive and cannot be used for admission.\n\nReason: ${metadata.reason}`,
+      html: `<div style="${EMAIL_BODY_STYLE}"><h1 style="font-size:24px">${escapeHtml(metadata.eventName)} has been canceled</h1><p>Your registration and its history are kept, but every ticket is now inactive and cannot be used for admission.</p><p><strong>Reason:</strong> ${escapeHtml(metadata.reason)}</p></div>`,
+      text: `${metadata.eventName} has been canceled.\n\nYour registration and its history are kept, but every ticket is now inactive and cannot be used for admission.\n\nReason: ${metadata.reason}`,
     };
   }
 
@@ -87,8 +88,8 @@ function content(metadata: z.infer<typeof notificationSchema>) {
     };
   });
   return {
-    subject: `Important changes to ${metadata.eventName}`,
-    html: `<div style="font-family:Arial,sans-serif;color:#171717;line-height:1.6;max-width:640px"><h1 style="font-size:24px">Important Event changes</h1><p>${escapeHtml(metadata.eventName)} has changed. Review the updated details below.</p><ul>${rows.map(({ html }) => html).join("")}</ul></div>`,
+    subject: `Changes to ${metadata.eventName}`,
+    html: `<div style="${EMAIL_BODY_STYLE}"><h1 style="font-size:24px">Something changed</h1><p>${escapeHtml(metadata.eventName)} has changed. Review the updated details below.</p><ul>${rows.map(({ html }) => html).join("")}</ul></div>`,
     text: `${metadata.eventName} has changed.\n\n${rows.map(({ text }) => text).join("\n")}`,
   };
 }

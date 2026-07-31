@@ -20,7 +20,7 @@ import { getManagementView } from "@/features/tickets/server/tickets";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
-  title: "Your Ticket",
+  title: "Your ticket",
   robots: { index: false, follow: false },
 };
 
@@ -84,10 +84,10 @@ export default async function TicketPage({
         {management.event.status === "canceled" ? (
           <Alert variant="destructive">
             <IconTicketOff aria-hidden="true" />
-            <AlertTitle>This Event was canceled</AlertTitle>
+            <AlertTitle>This event was canceled</AlertTitle>
             <AlertDescription>
-              {management.event.cancellationReason} This Ticket is inactive and
-              cannot be used for admission. Your Registration remains in history.
+              {management.event.cancellationReason} This ticket is inactive and
+              cannot be used for admission. Your registration is kept on record.
             </AlertDescription>
           </Alert>
         ) : null}
@@ -96,7 +96,7 @@ export default async function TicketPage({
           <Alert variant="warning" className="print:hidden">
             <IconShieldCheck aria-hidden="true" />
             <AlertTitle>
-              Your Ticket is ready, but its email was not accepted
+              Your ticket is ready, but the email was not accepted
             </AlertTitle>
             <AlertDescription>
               Save or print this page now. The confirmed registration and ticket
@@ -134,7 +134,7 @@ export default async function TicketPage({
 
         {/* Everything below the ticket is administration, not presentation. */}
         <section className="flex flex-col gap-5 border-t pt-8 print:hidden">
-          <h2 className="text-lg font-semibold">Event details</h2>
+          <h2 className="text-lg font-medium">Event details</h2>
           <dl className="divide-y border-y">
             <div className="grid gap-2 py-5 sm:grid-cols-[1.5rem_7rem_1fr]">
               <IconCalendarEvent aria-hidden="true" className="mt-0.5" />
@@ -146,7 +146,7 @@ export default async function TicketPage({
                   management.event.eventTimeZone,
                 )}
                 <span className="mt-1 block text-sm">
-                  Event Time Zone: {management.event.eventTimeZone}
+                  Times shown in {management.event.eventTimeZone}
                 </span>
               </dd>
             </div>
@@ -167,7 +167,7 @@ export default async function TicketPage({
             <AlertTitle>Keep this management link private</AlertTitle>
             <AlertDescription>
               It provides access to this registration. Share only the QR
-              representation or ticket Code when checking in.
+              code or the ticket code when checking in.
             </AlertDescription>
           </Alert>
 
@@ -175,7 +175,7 @@ export default async function TicketPage({
             href={`/e/${management.event.slug}`}
             className={cn(buttonVariants({ variant: "outline" }), "w-fit")}
           >
-            View Event
+            View event
           </Link>
         </section>
 

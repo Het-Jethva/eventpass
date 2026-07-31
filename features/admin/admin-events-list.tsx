@@ -6,7 +6,6 @@ import {
   IconEye,
   IconLock,
   IconLockOpen,
-  IconSearch,
 } from "@tabler/icons-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AdminActionDialog } from "./admin-action-dialog";
+import { AdminTableToolbar } from "./admin-table-toolbar";
 
 export interface EventItem {
   id: string;
@@ -59,38 +59,31 @@ export function AdminEventsList({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full max-w-sm">
-          <IconSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search platform events..."
-            className="w-full rounded-md border bg-background pl-9 pr-3 py-1.5 text-sm placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-ring"
-            aria-label="Search platform events"
-          />
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Showing {filteredEvents.length} of {events.length} events
-        </p>
-      </div>
+      <AdminTableToolbar
+        label="Search events by name or web address"
+        placeholder="Search name or web address"
+        value={search}
+        onValueChange={setSearch}
+        shown={filteredEvents.length}
+        total={events.length}
+        noun="events"
+      />
 
-      <div className="rounded-lg border bg-card">
+      <div className="overflow-hidden rounded-xl border bg-card">
         <Table>
-          <TableHeader className="bg-muted/50 text-xs text-muted-foreground">
+          <TableHeader className="bg-muted/50 text-muted-foreground">
             <TableRow>
               <TableHead>Event</TableHead>
-              <TableHead>Lifecycle status</TableHead>
-              <TableHead>Suspension state</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Availability</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredEvents.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
-                  No platform events match your search.
+                <TableCell colSpan={4} className="py-10 text-center text-muted-foreground">
+                  No events match that search.
                 </TableCell>
               </TableRow>
             ) : (
@@ -109,17 +102,17 @@ export function AdminEventsList({
                     {ev.suspended ? (
                       <div className="space-y-1">
                         <Badge variant="destructive" className="gap-1">
-                          <IconLock className="h-3 w-3" /> Event Suspended
+                          <IconLock aria-hidden="true" /> Suspended
                         </Badge>
                         {ev.suspensionReason && (
                           <p className="max-w-xs truncate text-xs text-muted-foreground">
-                            Reason: {ev.suspensionReason}
+                            {ev.suspensionReason}
                           </p>
                         )}
                       </div>
                     ) : (
                       <Badge variant="secondary" className="gap-1">
-                        <IconCheck className="h-3 w-3" /> Active
+                        <IconCheck aria-hidden="true" /> Active
                       </Badge>
                     )}
                   </TableCell>
@@ -129,9 +122,8 @@ export function AdminEventsList({
                         size="sm"
                         variant="outline"
                         onClick={() => onInspectAttendeeData(ev.id)}
-                        title="View attendee details with support access"
                       >
-                        <IconEye className="mr-1.5 h-3.5 w-3.5" />
+                        <IconEye data-icon="inline-start" />
                         View attendees
                       </Button>
 
@@ -144,7 +136,7 @@ export function AdminEventsList({
                             setActionType("reactivate");
                           }}
                         >
-                          <IconLockOpen className="mr-1.5 h-3.5 w-3.5" />
+                          <IconLockOpen data-icon="inline-start" />
                           Reactivate
                         </Button>
                       ) : (
@@ -156,7 +148,7 @@ export function AdminEventsList({
                             setActionType("suspend");
                           }}
                         >
-                          <IconLock className="mr-1.5 h-3.5 w-3.5" />
+                          <IconLock data-icon="inline-start" />
                           Suspend
                         </Button>
                       )}
@@ -171,9 +163,9 @@ export function AdminEventsList({
 
       {selectedEvent && actionType === "suspend" && (
         <AdminActionDialog
-          title={`Suspend Event (${selectedEvent.name})`}
-          description="Suspension halts online registrations, check-in sync, and organizer mutations for this event without deleting domain data."
-          actionLabel="Suspend Event"
+          title="Suspend this event?"
+          description={`${selectedEvent.name} stops accepting registrations, syncing check-ins, and taking organizer changes. Nothing is deleted.`}
+          actionLabel="Suspend event"
           isDestructive={true}
           isOpen={true}
           onClose={() => {
@@ -188,9 +180,9 @@ export function AdminEventsList({
 
       {selectedEvent && actionType === "reactivate" && (
         <AdminActionDialog
-          title={`Reactivate Event (${selectedEvent.name})`}
-          description="Reactivating restores online activity for this event."
-          actionLabel="Reactivate Event"
+          title="Reactivate this event?"
+          description={`${selectedEvent.name} starts accepting registrations and check-ins again.`}
+          actionLabel="Reactivate event"
           isDestructive={false}
           isOpen={true}
           onClose={() => {

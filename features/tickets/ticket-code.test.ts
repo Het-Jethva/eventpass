@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { createTicketCode, formatTicketCode } from "./ticket-code";
+import { formatTicketCode } from "./ticket-code";
+import { createTicketCode } from "./server/create-ticket-code";
 
 describe("Ticket Code", () => {
   it("creates a 10-character Crockford Base32 code and formats it for people", () => {

@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import type { InviteableStaffRole } from "@/features/staffing/staffing-policy";
 import { db } from "@/lib/db";
 import { emailDelivery } from "@/lib/db/schema";
+import { EMAIL_BODY_STYLE } from "./shell";
 
 const TEMPLATE = "staff-invitation-v1";
 
@@ -57,8 +58,8 @@ export async function sendStaffInvitationEmail(input: {
           "EventPass <staff@mail.hetjethva.tech>",
         to: input.email,
         subject: `Join ${input.eventName} on EventPass`,
-        html: `<div style="font-family:Arial,sans-serif;color:#171717;line-height:1.6"><p>You have been invited to help with <strong>${escapeHtml(input.eventName)}</strong> as ${roleLabel}.</p><p><a href="${escapeHtml(input.invitationUrl)}">Review Staff Invitation</a></p><p>This email-bound invitation expires in 24 hours and can only be used once.</p></div>`,
-        text: `You have been invited to help with ${input.eventName} as ${roleLabel}.\n\nReview Staff Invitation: ${input.invitationUrl}\n\nThis email-bound invitation expires in 24 hours and can only be used once.`,
+        html: `<div style="${EMAIL_BODY_STYLE}"><p>You have been invited to help with <strong>${escapeHtml(input.eventName)}</strong> as ${roleLabel}.</p><p><a href="${escapeHtml(input.invitationUrl)}">Review the invitation</a></p><p>The invitation is tied to this email address, works once, and expires in 24 hours.</p></div>`,
+        text: `You have been invited to help with ${input.eventName} as ${roleLabel}.\n\nReview the invitation: ${input.invitationUrl}\n\nThe invitation is tied to this email address, works once, and expires in 24 hours.`,
       },
       { idempotencyKey: `email-delivery/${delivery.id}` },
     );

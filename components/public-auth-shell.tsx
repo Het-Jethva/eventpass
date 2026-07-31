@@ -39,7 +39,7 @@ export function PublicAuthShell({ children }: { children: ReactNode }) {
             <h2 className="text-3xl font-headline text-balance">
               Calm operations start with trustworthy access.
             </h2>
-            <p className="max-w-sm text-base leading-7 text-muted-foreground text-pretty">
+            <p className="max-w-sm text-reading text-muted-foreground text-pretty">
               EventPass keeps staff identity simple while every session remains
               durable, scoped, and revocable.
             </p>
@@ -53,7 +53,7 @@ export function PublicAuthShell({ children }: { children: ReactNode }) {
                 </span>
                 <div className="flex flex-col gap-0.5">
                   <p className="text-sm font-medium">{title}</p>
-                  <p className="text-sm leading-6 text-muted-foreground">
+                  <p className="text-support text-muted-foreground">
                     {description}
                   </p>
                 </div>
@@ -63,7 +63,7 @@ export function PublicAuthShell({ children }: { children: ReactNode }) {
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Built for university-club Event operations.
+          Built for university clubs running real doors.
         </p>
       </aside>
 

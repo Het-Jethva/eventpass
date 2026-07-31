@@ -47,7 +47,7 @@ export function RosterTableSkeleton({ rows = 6 }: { rows?: number }) {
           </TableBody>
         </Table>
       </div>
-      <span className="sr-only">Loading Registrations</span>
+      <span className="sr-only">Loading registrations</span>
     </div>
   );
 }

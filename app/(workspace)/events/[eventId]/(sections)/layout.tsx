@@ -43,15 +43,9 @@ export default async function EventWorkspaceSectionsLayout({
         eventId={event.id}
         eventName={event.name}
         eventSlug={event.slug}
-        statusLabel={
-          isDraft
-            ? "draft"
-            : isCanceled
-              ? "Canceled Event"
-              : "Published Event"
-        }
+        statusLabel={isDraft ? "Draft" : isCanceled ? "Canceled" : "Published"}
         statusVariant={
-          isDraft ? "secondary" : isCanceled ? "destructive" : "success"
+          isDraft ? "secondary" : isCanceled ? "destructive" : "default"
         }
         showScanner={event.status === "published"}
         showPublicPage={!isDraft}

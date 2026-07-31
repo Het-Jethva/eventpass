@@ -67,7 +67,7 @@ function ProportionRow({
       <div className="flex items-baseline justify-between gap-3 text-sm">
         <span className="text-muted-foreground">{label}</span>
         <span className="font-mono tabular-nums">
-          <span className={cn("font-semibold", TEXT_TONE[tone])}>
+          <span className={cn("font-medium", TEXT_TONE[tone])}>
             {value.toLocaleString()}
           </span>
           <span className="text-muted-foreground">
@@ -109,7 +109,7 @@ function Headline({
     <div className="flex flex-col gap-2 p-5">
       <p className="text-sm text-muted-foreground">{question}</p>
       <p className="flex items-baseline gap-1.5 font-mono tabular-nums">
-        <span className="text-4xl font-semibold">{value.toLocaleString()}</span>
+        <span className="text-4xl font-headline">{value.toLocaleString()}</span>
         <span className="text-lg text-muted-foreground">
           / {of.toLocaleString()}
         </span>
@@ -232,25 +232,25 @@ export function LiveMetricsDashboard({
   // scanning fourteen loose numbers.
   const attention = [
     {
-      label: "Unresolved Check-in Conflicts",
+      label: "Conflicts to resolve",
       count: checkInConflictStats.unresolved,
       tone: "destructive" as Tone,
       href: `/events/${eventId}/check-in`,
     },
     {
-      label: "scan attempts awaiting synchronization",
+      label: "Scans waiting to sync",
       count: pendingDeviceSync.offlineScanAttempts,
       tone: "provisional" as Tone,
       href: `/events/${eventId}/check-in`,
     },
     {
-      label: "Low-confidence device clocks",
+      label: "Scans with an unreliable time",
       count: pendingDeviceSync.lowConfidenceAttempts,
       tone: "warning" as Tone,
       href: `/events/${eventId}/audit`,
     },
     {
-      label: "Tickets that could not be delivered",
+      label: "Tickets that never arrived",
       count: deliveryOutcomes.permanentFailure,
       tone: "destructive" as Tone,
       href: `/events/${eventId}/registrations`,
@@ -263,17 +263,13 @@ export function LiveMetricsDashboard({
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2.5">
-          <span className="relative flex size-2.5" aria-hidden="true">
-            {isPolling ? (
-              <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-75 motion-reduce:animate-none" />
-            ) : null}
-            <span
-              className={cn(
-                "relative inline-flex size-2.5 rounded-full",
-                isPolling ? "bg-success" : "bg-muted-foreground",
-              )}
-            />
-          </span>
+          <span
+            aria-hidden="true"
+            className={cn(
+              "size-2.5 shrink-0 rounded-full transition-colors",
+              isPolling ? "bg-success" : "bg-muted-foreground",
+            )}
+          />
           <Badge variant="outline" className="gap-1.5 font-normal">
             {isRefreshing ? (
               <IconRefresh
@@ -339,7 +335,7 @@ export function LiveMetricsDashboard({
               <div className="flex flex-1 flex-col justify-center gap-1.5">
                 <p className="flex items-center gap-2 text-success-text">
                   <IconCircleCheck aria-hidden="true" className="size-5" />
-                  <span className="text-lg font-semibold">Nothing to resolve</span>
+                  <span className="text-lg font-medium">Nothing to resolve</span>
                 </p>
                 <p className="text-sm text-muted-foreground">
                   No conflicts, no pending synchronization, no failed
@@ -359,7 +355,7 @@ export function LiveMetricsDashboard({
                       </span>
                       <span
                         className={cn(
-                          "font-mono font-semibold tabular-nums",
+                          "font-mono font-medium tabular-nums",
                           TEXT_TONE[item.tone],
                         )}
                       >
@@ -402,12 +398,12 @@ export function LiveMetricsDashboard({
             */}
             <table className="w-full">
               <caption className="sr-only">
-                Active Check-ins per hour, in the event Time Zone
+                Arrivals per hour, in the event time zone
               </caption>
               <thead className="sr-only">
                 <tr>
                   <th scope="col">Hour</th>
-                  <th scope="col">Active Check-ins</th>
+                  <th scope="col">Arrivals</th>
                 </tr>
               </thead>
               <tbody className="flex h-36 items-end gap-2 border-b pt-4 pb-2">
@@ -439,7 +435,7 @@ export function LiveMetricsDashboard({
           </>
         ) : (
           <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
-            No Check-ins recorded yet for this event.
+            Nobody has been checked in yet.
           </p>
         )}
       </section>
@@ -451,7 +447,7 @@ export function LiveMetricsDashboard({
         >
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 id="scan-outcomes-heading" className="font-medium">
-              scan attempt outcomes
+              Scan outcomes
             </h2>
             <Link
               href={`/events/${eventId}/audit`}
@@ -516,8 +512,16 @@ export function LiveMetricsDashboard({
               <IconArrowRight aria-hidden="true" className="size-3.5" />
             </Link>
           </div>
+          {deliveryOutcomes.total === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No ticket emails have been sent yet. They go out as attendees
+              confirm their registration.
+            </p>
+          ) : (
+          <>
           <p className="font-mono text-sm text-muted-foreground tabular-nums">
-            {deliveryOutcomes.total.toLocaleString()} messages
+            {deliveryOutcomes.total.toLocaleString()}{" "}
+            {deliveryOutcomes.total === 1 ? "message" : "messages"}
           </p>
           <div className="flex flex-col gap-3">
             <ProportionRow
@@ -545,15 +549,22 @@ export function LiveMetricsDashboard({
               tone="destructive"
             />
           </div>
+          </>
+          )}
         </section>
       </div>
 
-      <p className="text-sm text-muted-foreground">
-        Conflict resolution: {checkInConflictStats.resolvedAuto.toLocaleString()}{" "}
-        resolved automatically by timestamp,{" "}
-        {checkInConflictStats.resolvedManual.toLocaleString()} by an organizer,
-        of {checkInConflictStats.total.toLocaleString()} total.
-      </p>
+      {/* Only when there is something to report. A line reading "0 resolved
+          automatically, 0 by an organizer, of 0 total" floated unanchored under
+          two panels and told an organizer nothing at all. */}
+      {checkInConflictStats.total > 0 ? (
+        <p className="text-sm text-muted-foreground">
+          Of {checkInConflictStats.total.toLocaleString()} conflicts,{" "}
+          {checkInConflictStats.resolvedAuto.toLocaleString()} were resolved
+          automatically by timestamp and{" "}
+          {checkInConflictStats.resolvedManual.toLocaleString()} by an organizer.
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -7,13 +7,15 @@ import { ScannerWorkspace } from "@/features/admission/scanner-workspace";
 import { getScannerEvent } from "@/features/admission/server/scanner";
 import { getActiveStaffSession } from "@/lib/staff-session";
 
+// `formatRange` collapses the parts both ends share, so a door that opens and
+// closes on one day reads "Jul 31, 2026, 5:03 – 14:03" rather than printing the
+// same date twice. Every other schedule in the product is formatted this way.
 function formatWindow(opensAt: Date, closesAt: Date, timeZone: string) {
-  const formatter = new Intl.DateTimeFormat("en", {
+  return new Intl.DateTimeFormat("en", {
     dateStyle: "medium",
     timeStyle: "short",
     timeZone,
-  });
-  return `${formatter.format(opensAt)} – ${formatter.format(closesAt)}`;
+  }).formatRange(opensAt, closesAt);
 }
 
 export default async function ScannerPage({

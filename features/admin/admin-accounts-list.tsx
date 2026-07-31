@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { IconCheck, IconSearch, IconUserCheck, IconUserOff, IconShield } from "@tabler/icons-react";
+import { IconCheck, IconUserCheck, IconUserOff, IconShield } from "@tabler/icons-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AdminActionDialog } from "./admin-action-dialog";
+import { AdminTableToolbar } from "./admin-table-toolbar";
 
 export interface AccountItem {
   id: string;
@@ -47,26 +48,19 @@ export function AdminAccountsList({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full max-w-sm">
-          <IconSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search platform accounts..."
-            className="w-full rounded-md border bg-background pl-9 pr-3 py-1.5 text-sm placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-ring"
-            aria-label="Search platform accounts"
-          />
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Showing {filteredAccounts.length} of {accounts.length} accounts
-        </p>
-      </div>
+      <AdminTableToolbar
+        label="Search accounts by name or email"
+        placeholder="Search name or email"
+        value={search}
+        onValueChange={setSearch}
+        shown={filteredAccounts.length}
+        total={accounts.length}
+        noun="accounts"
+      />
 
-      <div className="rounded-lg border bg-card">
+      <div className="overflow-hidden rounded-xl border bg-card">
         <Table>
-          <TableHeader className="bg-muted/50 text-xs text-muted-foreground">
+          <TableHeader className="bg-muted/50 text-muted-foreground">
             <TableRow>
               <TableHead>Account</TableHead>
               <TableHead>Role</TableHead>
@@ -77,8 +71,8 @@ export function AdminAccountsList({
           <TableBody>
             {filteredAccounts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
-                  No platform accounts match your search.
+                <TableCell colSpan={4} className="py-10 text-center text-muted-foreground">
+                  No accounts match that search.
                 </TableCell>
               </TableRow>
             ) : (
@@ -91,20 +85,20 @@ export function AdminAccountsList({
                   <TableCell>
                     {acc.isPlatformAdmin ? (
                       <Badge variant="outline" className="gap-1">
-                        <IconShield className="h-3 w-3" /> Platform Administrator
+                        <IconShield aria-hidden="true" /> Administrator
                       </Badge>
                     ) : (
-                      <span className="text-xs text-muted-foreground">Staff member</span>
+                      <span className="text-sm text-muted-foreground">Staff</span>
                     )}
                   </TableCell>
                   <TableCell>
                     {acc.suspended ? (
                       <Badge variant="destructive" className="gap-1">
-                        <IconUserOff className="h-3 w-3" /> Suspended
+                        <IconUserOff aria-hidden="true" /> Suspended
                       </Badge>
                     ) : (
                       <Badge variant="secondary" className="gap-1">
-                        <IconCheck className="h-3 w-3" /> Active
+                        <IconCheck aria-hidden="true" /> Active
                       </Badge>
                     )}
                   </TableCell>
@@ -118,7 +112,7 @@ export function AdminAccountsList({
                           setActionType("reactivate");
                         }}
                       >
-                        <IconUserCheck className="mr-1.5 h-3.5 w-3.5" />
+                        <IconUserCheck data-icon="inline-start" />
                         Reactivate
                       </Button>
                     ) : (
@@ -130,7 +124,7 @@ export function AdminAccountsList({
                           setActionType("suspend");
                         }}
                       >
-                        <IconUserOff className="mr-1.5 h-3.5 w-3.5" />
+                        <IconUserOff data-icon="inline-start" />
                         Suspend
                       </Button>
                     )}
@@ -144,9 +138,9 @@ export function AdminAccountsList({
 
       {selectedUser && actionType === "suspend" && (
         <AdminActionDialog
-          title={`Suspend Staff Account (${selectedUser.email})`}
-          description="Suspension immediately revokes online activity and access for this staff user across all events without deleting domain data."
-          actionLabel="Suspend Account"
+          title="Suspend this account?"
+          description={`${selectedUser.email} loses access to every event immediately. Nothing they created is deleted.`}
+          actionLabel="Suspend account"
           isDestructive={true}
           isOpen={true}
           onClose={() => {
@@ -161,9 +155,9 @@ export function AdminAccountsList({
 
       {selectedUser && actionType === "reactivate" && (
         <AdminActionDialog
-          title={`Reactivate Staff Account (${selectedUser.email})`}
-          description="Reactivating restores online access for this staff user immediately."
-          actionLabel="Reactivate Account"
+          title="Reactivate this account?"
+          description={`${selectedUser.email} regains access to their events immediately.`}
+          actionLabel="Reactivate account"
           isDestructive={false}
           isOpen={true}
           onClose={() => {

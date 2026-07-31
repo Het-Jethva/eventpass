@@ -45,10 +45,18 @@ import { acceptOwnershipTransferAction } from "./transfer-actions";
 export const metadata: Metadata = { title: "Staff" };
 
 const ROLE_LABELS = {
-  owner: "event owner",
+  owner: "Event owner",
   organizer: "Organizer",
   check_in_volunteer: "Check-in volunteer",
 } as const;
+
+// Base UI's Select.Value renders the raw `value` unless the root is given the
+// label mapping, which is how an invitation form came to offer the literal
+// string `check_in_volunteer` to an organizer.
+const INVITE_ROLE_ITEMS = [
+  { value: "organizer", label: ROLE_LABELS.organizer },
+  { value: "check_in_volunteer", label: ROLE_LABELS.check_in_volunteer },
+];
 
 function formatDeadline(value: Date) {
   return new Intl.DateTimeFormat("en", {
@@ -89,16 +97,16 @@ export default async function EventStaffPage({
     <>
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-headline">Staff</h1>
-        <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-          Assign Event-scoped access. Every invitation, role change, removal,
-          and every ownership change is kept permanently.
+        <p className="max-w-2xl text-support text-muted-foreground">
+          Assign access to this event only. Every invitation, role change,
+          removal, and ownership change is kept permanently.
         </p>
       </div>
 
       {query.error ? (
         <Alert variant="destructive">
           <IconShieldCheck aria-hidden="true" />
-          <AlertTitle>Staffing action not completed</AlertTitle>
+          <AlertTitle>Staffing not changed</AlertTitle>
           <AlertDescription>{query.error}</AlertDescription>
         </Alert>
       ) : null}
@@ -114,7 +122,7 @@ export default async function EventStaffPage({
         <div className="border-b p-5 sm:p-6">
           <div className="flex items-center gap-2">
             <IconUsers aria-hidden="true" className="size-5" />
-            <h2 id="current-staff-heading" className="font-medium">Current Staff</h2>
+            <h2 id="current-staff-heading" className="font-medium">Current staff</h2>
           </div>
         </div>
         <ul className="divide-y">
@@ -149,8 +157,8 @@ export default async function EventStaffPage({
           <div className="mb-6 flex items-start gap-3">
             <IconMailForward aria-hidden="true" className="mt-0.5 size-5" />
             <div>
-              <h2 className="font-medium">Send Staff invitation</h2>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              <h2 className="font-medium">Send an invitation</h2>
+              <p className="mt-1 text-support text-muted-foreground">
                 The single-use link is bound to this email and expires after 24 hours.
               </p>
             </div>
@@ -162,8 +170,17 @@ export default async function EventStaffPage({
                 <Input id="invitation-email" name="email" type="email" autoCapitalize="none" required />
               </Field>
               <Field>
-                <FieldLabel htmlFor="invitation-role">Event role</FieldLabel>
-                <Select name="role" defaultValue="check_in_volunteer" required>
+                <FieldLabel htmlFor="invitation-role">Role</FieldLabel>
+                <Select
+                  name="role"
+                  items={
+                    staffing.actorRole === "owner"
+                      ? INVITE_ROLE_ITEMS
+                      : INVITE_ROLE_ITEMS.filter((item) => item.value !== "organizer")
+                  }
+                  defaultValue="check_in_volunteer"
+                  required
+                >
                   <SelectTrigger id="invitation-role" className="w-full">
                     <SelectValue />
                   </SelectTrigger>
@@ -180,7 +197,7 @@ export default async function EventStaffPage({
                   Organizers manage configuration and volunteers. Check-in volunteers receive admission access only.
                 </FieldDescription>
               </Field>
-              <Button type="submit">Send Staff invitation</Button>
+              <Button type="submit">Send invitation</Button>
             </FieldGroup>
           </form>
         </div>
@@ -189,14 +206,14 @@ export default async function EventStaffPage({
           <div className="mb-6 flex items-start gap-3">
             <IconClock aria-hidden="true" className="mt-0.5 size-5" />
             <div>
-              <h2 className="font-medium">Pending Staff invitations</h2>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              <h2 className="font-medium">Pending invitations</h2>
+              <p className="mt-1 text-support text-muted-foreground">
                 Revoke any invitation that should no longer grant access.
               </p>
             </div>
           </div>
           {staffing.invitations.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No pending Staff invitations.</p>
+            <p className="text-sm text-muted-foreground">No invitations are waiting to be accepted.</p>
           ) : (
             <ul className="flex flex-col gap-4">
               {staffing.invitations.map((invitation) => (
@@ -221,15 +238,15 @@ export default async function EventStaffPage({
 
       {staffing.actorRole === "owner" || transfer?.proposedOwnerUserId === session.user.id ? (
         <section className="rounded-2xl border bg-background p-5 sm:p-6" aria-labelledby="ownership-heading">
-          <h2 id="ownership-heading" className="font-medium">Ownership Transfer</h2>
+          <h2 id="ownership-heading" className="font-medium">Ownership transfer</h2>
           {transfer ? (
             <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm leading-6 text-muted-foreground">
+              <p className="text-support text-muted-foreground">
                 Proposed to <span className="font-medium text-foreground">{transferTarget?.name ?? "Organizer"}</span>; expires {formatDeadline(transfer.expiresAt)}.
               </p>
               {transfer.proposedOwnerUserId === session.user.id ? (
                 <form action={acceptOwnershipTransferAction.bind(null, eventId, transfer.id)}>
-                  <Button type="submit">Accept Ownership Transfer</Button>
+                  <Button type="submit">Accept ownership</Button>
                 </form>
               ) : null}
             </div>
@@ -238,8 +255,15 @@ export default async function EventStaffPage({
               <form action={proposeOwnershipTransferAction.bind(null, eventId)} className="mt-5">
                 <FieldGroup>
                   <Field>
-                    <FieldLabel htmlFor="proposed-owner">Existing Organizer</FieldLabel>
-                    <Select name="proposedOwnerUserId" required>
+                    <FieldLabel htmlFor="proposed-owner">New owner</FieldLabel>
+                    <Select
+                      name="proposedOwnerUserId"
+                      items={organizers.map((organizer) => ({
+                        value: organizer.userId,
+                        label: `${organizer.name} · ${organizer.email}`,
+                      }))}
+                      required
+                    >
                       <SelectTrigger id="proposed-owner" className="w-full sm:max-w-md">
                         <SelectValue placeholder="Choose an organizer" />
                       </SelectTrigger>
@@ -257,12 +281,12 @@ export default async function EventStaffPage({
                       The proposal expires after 24 hours. Ownership changes only when that organizer accepts.
                     </FieldDescription>
                   </Field>
-                  <Button type="submit" variant="outline">Propose Ownership Transfer</Button>
+                  <Button type="submit" variant="outline">Propose transfer</Button>
                 </FieldGroup>
               </form>
             ) : (
               <p className="mt-3 text-sm text-muted-foreground">
-                Invite an organizer before proposing Ownership Transfer.
+                Invite an organizer before proposing a transfer.
               </p>
             )
           ) : null}

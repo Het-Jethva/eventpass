@@ -162,8 +162,8 @@ export async function getEventAuditLog({
       null::text as actor_email,
       'ticket'::text as target_type,
       coalesce(t.code, 'unknown')::text as target_id,
-      (case when t.code is null then 'Unknown Input'
-            else 'Ticket Code: ' || t.code end)::text as target_label,
+      (case when t.code is null then 'Unrecognized code'
+            else t.code end)::text as target_label,
       null::text as reason,
       sa.source::text as source,
       sa.timestamp_confidence::text as timestamp_confidence,
@@ -262,7 +262,7 @@ function toFormattedRecord(row: AuditRow): FormattedAuditRecord {
     category: row.category,
     action: row.action,
     actionLabel: isScan
-      ? `Scan Attempt: ${row.action.replace("scan_attempt.", "")}`
+      ? formatScanOutcomeLabel(row.action.replace("scan_attempt.", ""))
       : formatAuditActionLabel(row.action),
     actorName: row.actor_name,
     actorEmail: row.actor_email ?? undefined,
@@ -273,31 +273,56 @@ function toFormattedRecord(row: AuditRow): FormattedAuditRecord {
     source: row.source,
     timestampConfidence: row.timestamp_confidence,
     scannerDeviceId: row.scanner_device_id,
+    // A scan's only detail is how the code got in. It used to reach the table
+    // as the raw column name, so organizers read "inputMethod: camera".
     metadata: isScan
-      ? { inputMethod: row.input_method }
+      ? { "Read by": row.input_method === "manual" ? "typing" : "camera" }
       : sanitizeAuditEntryMetadata(row.metadata ?? {}),
     createdAt: new Date(row.sort_at).toISOString(),
   };
 }
 
+// Sentence case throughout, like every other string in the product. These read
+// down a column of forty rows, so each one names the change and stops.
 function formatAuditActionLabel(action: string): string {
   const labels: Record<string, string> = {
-    "event.created": "Event Created",
-    "event.updated": "Event Configured",
-    "event.published": "Event Published",
-    "event.canceled": "Event Canceled",
-    "staff_invitation.created": "Staff Invitation Sent",
-    "staff_invitation.accepted": "Staff Invitation Accepted",
-    "staff_invitation.revoked": "Staff Invitation Revoked",
-    "event_staff.removed": "Event Staff Removed",
-    "ownership_transfer.proposed": "Ownership Transfer Proposed",
-    "ownership_transfer.accepted": "Ownership Transfer Accepted",
-    "ownership_transfer.revoked": "Ownership Transfer Revoked",
-    "check_in_reversal.created": "Check-in Reversed",
-    "check_in_conflict.resolved": "Check-in Conflict Resolved",
-    "registration_import.completed": "Registrations Imported",
-    admission_override: "Check-in Window Override",
+    "event.created": "Event created",
+    "event.updated": "Event configured",
+    "event.published": "Event published",
+    "event.canceled": "Event canceled",
+    "staff_invitation.created": "Invitation sent",
+    "staff_invitation.accepted": "Invitation accepted",
+    "staff_invitation.revoked": "Invitation revoked",
+    "event_staff.removed": "Staff removed",
+    "ownership_transfer.proposed": "Ownership transfer proposed",
+    "ownership_transfer.accepted": "Ownership transferred",
+    "ownership_transfer.revoked": "Ownership transfer revoked",
+    "check_in_reversal.created": "Check-in reversed",
+    "check_in_conflict.resolved": "Conflict resolved",
+    "registration_import.completed": "Registrations imported",
+    admission_override: "Check-in window overridden",
   };
 
-  return labels[action] ?? action.replace(/_/g, " ").replace(/\./g, ": ");
+  return labels[action] ?? sentenceCase(action.replace(/[._]/g, " "));
+}
+
+function formatScanOutcomeLabel(outcome: string): string {
+  const labels: Record<string, string> = {
+    accepted: "Scan accepted",
+    duplicate: "Scan repeated",
+    invalid: "Scan invalid",
+    unknown: "Scan not recognized",
+    canceled: "Ticket canceled",
+    replaced: "Ticket replaced",
+    expired: "Ticket expired",
+    outside_window: "Outside check-in window",
+    conflict: "Scan conflict",
+  };
+
+  return labels[outcome] ?? sentenceCase(outcome.replace(/_/g, " "));
+}
+
+function sentenceCase(value: string): string {
+  const trimmed = value.trim();
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
 }

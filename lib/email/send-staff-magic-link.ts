@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { emailDelivery } from "@/lib/db/schema";
+import { EMAIL_BODY_STYLE } from "./shell";
 
 const TEMPLATE = "staff-magic-link-v1";
 
@@ -62,7 +63,7 @@ export async function sendStaffMagicLink(email: string, url: string) {
           "EventPass <sign-in@mail.hetjethva.tech>",
         to: email,
         subject: "Your EventPass sign-in link",
-        html: `<div style="font-family:Arial,sans-serif;color:#171717;line-height:1.6"><p>Use the secure link below to sign in to EventPass.</p><p><a href="${safeUrl}">Sign in to EventPass</a></p><p>This link expires in 15 minutes and can only be used once. If you did not request it, you can ignore this email.</p></div>`,
+        html: `<div style="${EMAIL_BODY_STYLE}"><p>Use the secure link below to sign in to EventPass.</p><p><a href="${safeUrl}">Sign in to EventPass</a></p><p>This link expires in 15 minutes and can only be used once. If you did not request it, you can ignore this email.</p></div>`,
         text: `Sign in to EventPass: ${url}\n\nThis link expires in 15 minutes and can only be used once. If you did not request it, you can ignore this email.`,
       },
       { idempotencyKey: `email-delivery/${delivery.id}` },

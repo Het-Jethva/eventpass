@@ -10,6 +10,7 @@ import {
   emailDelivery,
   registrationVerification,
 } from "@/lib/db/schema";
+import { EMAIL_BODY_STYLE } from "./shell";
 
 const TEMPLATE = "registration-verification-v1";
 
@@ -73,9 +74,9 @@ export async function sendRegistrationVerification({
             process.env.RESEND_FROM_EMAIL ??
             "EventPass <registration@mail.hetjethva.tech>",
           to: email,
-          subject: `Verify your Registration for ${eventName}`,
-          html: `<div style="font-family:Arial,sans-serif;color:#171717;line-height:1.6"><p>Verify your email address to continue your Registration for <strong>${escapeHtml(eventName)}</strong>.</p><p><a href="${escapeHtml(verificationUrl.toString())}">Verify Registration</a></p><p>This single-use link expires in 15 minutes. If you did not submit this Registration, you can ignore this email.</p></div>`,
-          text: `Verify your Registration for ${eventName}: ${verificationUrl.toString()}\n\nThis single-use link expires in 15 minutes.`,
+          subject: `Confirm your place at ${eventName}`,
+          html: `<div style="${EMAIL_BODY_STYLE}"><p>Confirm your email address to finish registering for <strong>${escapeHtml(eventName)}</strong>.</p><p><a href="${escapeHtml(verificationUrl.toString())}">Confirm my email</a></p><p>This link works once and expires in 15 minutes. If you did not register, you can ignore this email.</p></div>`,
+          text: `Confirm your place at ${eventName}: ${verificationUrl.toString()}\n\nThis link works once and expires in 15 minutes.`,
         },
         { idempotencyKey: `email-delivery/${delivery.id}/attempt/${attempt}` },
       );

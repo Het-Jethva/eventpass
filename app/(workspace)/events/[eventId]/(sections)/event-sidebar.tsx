@@ -36,7 +36,7 @@ type EventSidebarProps = {
   eventName: string;
   eventSlug: string;
   statusLabel: string;
-  statusVariant: "secondary" | "success" | "destructive";
+  statusVariant: "secondary" | "default" | "destructive";
   showScanner: boolean;
   showPublicPage: boolean;
 };
@@ -82,14 +82,12 @@ function SidebarBody({
               elements sharing one view-transition-name is a conflict. */}
           {morph ? (
             <ViewTransition name={`event-${eventId}`}>
-              <p className="text-base leading-snug font-medium text-balance">
+              <p className="text-base font-medium text-balance">
                 {eventName}
               </p>
             </ViewTransition>
           ) : (
-            <p className="text-base leading-snug font-medium text-balance">
-              {eventName}
-            </p>
+            <p className="text-base font-medium text-balance">{eventName}</p>
           )}
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={statusVariant}>{statusLabel}</Badge>

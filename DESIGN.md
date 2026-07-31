@@ -343,15 +343,24 @@ violet reappears from the stock preset.
 a concise label, and on the scanner with optional sound and vibration. Strip all
 colour from any screen and it must remain fully usable.
 
-**The Three Hex Literals Rule.** Exactly three sRGB hex values exist in the
-codebase, all of them outside CSS, because the platform will not read a custom
-property there: `theme_color` and `background_color` in `app/manifest.ts`, and
-the media-scoped `themeColor` pair in `app/layout.tsx`. Each is the sRGB
-conversion of `--background` in its theme — `#fcfdfe` light, `#090c11` dark —
-and nothing else. They are derived values, not palette entries: if `--background`
-moves, re-derive them, because a theme-colour that has drifted from the page
-puts a visibly different band above the content on a phone. A fourth hex literal
-anywhere is drift.
+**The Derived Literals Rule.** Hex values exist only where the platform will not
+read a custom property, and every one of them is the sRGB conversion of a token
+rather than a colour someone chose:
+
+- `app/manifest.ts` — `theme_color` and `background_color`, both `#fcfdfe`.
+- `app/layout.tsx` — the media-scoped `themeColor` pair, `#fcfdfe` light and
+  `#090c11` dark. These two are `--background` in each theme; a theme-colour
+  that has drifted from the page puts a visibly different band above the
+  content on a phone.
+- `app/opengraph-image.tsx` — Satori resolves neither custom properties nor the
+  font variables, so the card restates `--foreground`, `--background`,
+  `--muted-foreground` and `--border` and fetches Inter itself.
+- `lib/email/shell.ts` — one exported style string, since an email client reads
+  no stylesheet of ours. It carried `#171717`, a pure neutral the palette does
+  not contain, until this pass.
+
+A hex literal anywhere else, or one in these files that no longer matches its
+token, is drift. Re-derive them when a token moves.
 
 ## Typography
 
@@ -381,6 +390,12 @@ for strings a person dictates down a phone.
   step titles. Body prose caps at roughly 65–75 characters (`max-w-xl` /
   `max-w-md`).
 - **Body** (400, `1rem`, line-height 1.5): Default running text.
+- **Reading** (400, `1rem`, line-height 1.75, `text-reading`) and **Support**
+  (400, `0.875rem`, line-height 1.7143, `text-support`): the same two sizes
+  opened up for prose that runs to several lines. A roster cell and the
+  paragraph explaining what a roster is are both 14px and want different
+  leading; without these steps thirty components each patched the scale
+  locally with `leading-6`.
 - **Label** (500, `0.875rem`): Buttons, navigation items, table headers, badges
   above caption size, and every control string.
 - **Caption** (400, `0.75rem`): Metadata, timestamps in lists, helper text.
@@ -399,7 +414,12 @@ property; nothing decorative may touch it.
 not decisions to re-make per component. Both are declared on every step of the
 `--text-*` scale, so `text-4xl` already knows it wants line-height 1.1111 and
 tracking -0.023em. A `tracking-*`, `leading-*`, or `text-[...]` class in a
-product component is a bug — the scale is wrong, fix it there.
+product component is a bug — the scale is wrong, fix it there. That is not a
+figure of speech: thirty components had each written `text-sm leading-6`, which
+was the scale missing a reading register rather than thirty separate mistakes,
+and the fix was two new steps. `app/design-rules.test.ts` enforces this across
+`app/` and `features/`; `components/ui/` is exempt because those primitives are
+deliberately unmodified.
 
 **The Mono Is For Dictation Rule.** Geist Mono appears on ticket codes, event
 slugs, web addresses, identifiers, and timestamps: text a human types, reads
@@ -464,8 +484,11 @@ navigation drawer.
   and the navigation drawer. Dialogs pair it with a `ring-1` in
   `foreground/5` (`foreground/10` in dark) so the edge stays defined against a
   dark backdrop.
-- **Scrim** (`background: {colors.foreground} / 40%`): Behind modal surfaces.
-  Not a shadow, but the same job — it signals that what's beneath is inert.
+- **Scrim** (`--scrim`, `bg-scrim`): Behind modal surfaces. Not a shadow, but
+  the same job — it signals that what's beneath is inert. Pinned to the *light*
+  ink at 45% in both themes rather than tracking `--foreground`, which inverts:
+  a 45% near-white veil over a dark page lightens what it is meant to push
+  back. Two dialogs had each reached for a raw `black` to dodge that.
 
 ### Named Rules
 

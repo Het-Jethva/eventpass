@@ -9,16 +9,9 @@ import {
   updateRegistration,
 } from "@/features/tickets/server/tickets";
 
-export type ManagementActionState = {
-  status: "idle" | "success" | "error";
-  message?: string;
-  fieldErrors?: Record<string, string[]>;
-  values?: { name: string; answers: Record<string, unknown> };
-};
+import type { ManagementActionState } from "./form-state";
 
-export const initialManagementActionState: ManagementActionState = {
-  status: "idle",
-};
+export type { ManagementActionState };
 
 function stringValue(formData: FormData, name: string) {
   const value = formData.get(name);

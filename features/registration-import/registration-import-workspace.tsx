@@ -230,7 +230,7 @@ export function RegistrationImportWorkspace({ eventId }: { eventId: string }) {
                       {row.errors.length === 0 ? (
                         <Badge variant="secondary">Ready</Badge>
                       ) : (
-                        <ul className="flex min-w-64 list-disc flex-col gap-1 pl-4 text-destructive">
+                        <ul className="flex min-w-64 list-disc flex-col gap-1 pl-4 text-destructive-text">
                           {[...new Set(row.errors)].map((error) => (
                             <li key={error}>{error}</li>
                           ))}

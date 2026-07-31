@@ -10,6 +10,7 @@ import {
   TicketShowcase,
 } from "@/features/landing/product-showcase";
 import { OperationsPreview } from "@/features/landing/operations-preview";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: {
@@ -67,7 +68,11 @@ const assurances = [
 export default function Home() {
   return (
     <div className="flex min-h-svh flex-col">
-      <header className="sticky top-0 z-20 border-b bg-background/90 backdrop-blur">
+      {/* 95%, not 90%. Two of the sections below carry the scanner's pinned
+          mint and lavender surfaces, and at 90% they tinted the bar as they
+          passed under it — a rectangle of saturated colour in the chrome, in a
+          product where saturated colour is only ever a report about state. */}
+      <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur">
         <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-6 px-4 sm:px-6">
           <Link
             href="/"
@@ -209,10 +214,19 @@ export default function Home() {
               From the first sign-up to the final headcount.
             </h2>
 
+            {/* Edge padding is decided per index rather than with `first:`,
+                because the grid is two columns at `sm` and four at `lg`: a
+                single `first:pl-0` left the third step indented against the
+                measure while the first sat flush, one row below it. */}
             <ol className="mt-14 grid border-t sm:grid-cols-2 lg:grid-cols-4">
-              {steps.map(({ description, title }) => (
+              {steps.map(({ description, title }, index) => (
                 <li
-                  className="flex flex-col gap-2 border-b py-8 sm:px-7 sm:first:pl-0 lg:border-r lg:last:border-r-0 lg:last:pr-0"
+                  className={cn(
+                    "flex flex-col gap-2 border-b py-8 sm:px-7 lg:border-r",
+                    index % 2 === 0 ? "sm:pl-0 lg:pl-7" : "sm:pr-0 lg:pr-7",
+                    index === 0 && "lg:pl-0",
+                    index === steps.length - 1 && "lg:border-r-0 lg:pr-0",
+                  )}
                   key={title}
                 >
                   <h3 className="text-lg font-medium text-balance">{title}</h3>

@@ -70,7 +70,7 @@ export default async function EventOverviewPage({
       {isCanceled ? (
         <Alert variant="destructive">
           <IconClockQuestion aria-hidden="true" />
-          <AlertTitle>This Event was canceled</AlertTitle>
+          <AlertTitle>This event was canceled</AlertTitle>
           <AlertDescription>
             {event.cancellationReason} All active tickets are invalid, and
             Registration and admission are closed. Operational history remains
@@ -92,7 +92,7 @@ export default async function EventOverviewPage({
             Event configuration
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            The attendee-facing schedule, Venue, and admission limits.
+            The schedule, place, and limits attendees see.
           </p>
         </div>
         <dl className="grid gap-6 p-5 sm:grid-cols-2 sm:p-6">
@@ -100,7 +100,7 @@ export default async function EventOverviewPage({
             <IconCalendarEvent aria-hidden="true" className="mt-0.5 size-5" />
             <div>
               <dt className="text-sm font-medium">Schedule</dt>
-              <dd className="mt-1 text-sm leading-6 text-muted-foreground">
+              <dd className="mt-1 text-support text-muted-foreground">
                 {formatRange(event.startsAt, event.endsAt, event.eventTimeZone)}
               </dd>
             </div>
@@ -109,7 +109,7 @@ export default async function EventOverviewPage({
             <IconMapPin aria-hidden="true" className="mt-0.5 size-5" />
             <div>
               <dt className="text-sm font-medium">Venue</dt>
-              <dd className="mt-1 text-sm leading-6 text-muted-foreground">
+              <dd className="mt-1 text-support text-muted-foreground">
                 {event.venueName}
                 <br />
                 {event.venueAddress}
@@ -119,9 +119,9 @@ export default async function EventOverviewPage({
           <div className="flex gap-3">
             <IconUsers aria-hidden="true" className="mt-0.5 size-5" />
             <div>
-              <dt className="text-sm font-medium">Event Capacity</dt>
+              <dt className="text-sm font-medium">Capacity</dt>
               <dd className="mt-1 text-sm text-muted-foreground">
-                {event.capacity.toLocaleString()} Attendees
+                {event.capacity.toLocaleString()} places
               </dd>
             </div>
           </div>
@@ -133,8 +133,8 @@ export default async function EventOverviewPage({
           <div>
             <h2 className="font-medium">Publish this event</h2>
             <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-              Publishing makes the event link-accessible and freezes its event
-              Slug. It will not be added to a public discovery index.
+              Anyone with the link can see it, and the web address is fixed
+              from then on. It is never listed in a public directory.
             </p>
           </div>
           <form action={publishEventAction.bind(null, event.id)}>
@@ -142,7 +142,7 @@ export default async function EventOverviewPage({
               className={cn(buttonVariants({ size: "lg" }), "w-full sm:w-auto")}
             >
               <IconSend data-icon="inline-start" />
-              Publish Event
+              Publish event
             </button>
           </form>
         </section>
@@ -151,10 +151,10 @@ export default async function EventOverviewPage({
       {isPublished ? (
         <section className="flex flex-col gap-5 border-t pt-8 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="font-medium">Return to Draft</h2>
+            <h2 className="font-medium">Return to draft</h2>
             <p className="mt-1 max-w-xl text-sm text-muted-foreground">
               This hides the public page. The web address stays reserved. Once an
-              Event has a registration, it can no longer return to Draft.
+              event has a registration, it can no longer return to draft.
             </p>
           </div>
           <form action={returnEventToDraftAction.bind(null, event.id)}>

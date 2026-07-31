@@ -8,7 +8,7 @@ export function PrintTicketButton() {
   return (
     <Button type="button" variant="outline" onClick={() => window.print()}>
       <IconPrinter aria-hidden="true" data-icon="inline-start" />
-      Print Ticket
+      Print ticket
     </Button>
   );
 }

@@ -228,7 +228,7 @@ export function ScannerWorkspace({
       return nextResult;
     } catch {
       setActionError(
-        "The Ticket could not be checked. Confirm this device is online, then try again.",
+        "The ticket could not be checked. Confirm this device is online, then try again.",
       );
       return null;
     } finally {
@@ -262,7 +262,7 @@ export function ScannerWorkspace({
       controlsRef.current = null;
       setCameraActive(false);
       setCameraError(
-        "Camera scanning is unavailable or permission was denied. Enter the ticket Code below instead.",
+        "The camera is unavailable or was blocked. Type the ticket code below instead.",
       );
     }
   }
@@ -288,16 +288,18 @@ export function ScannerWorkspace({
         <div>
           <h1 className="text-xl font-headline text-balance">Scan tickets</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Decisions are authoritative while this device is online. Check-in
-            Window: {checkInWindow}.
+            Decisions are settled while this phone is online. Check-in runs{" "}
+            {checkInWindow}.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge
-            variant={eventStatus === "canceled" ? "destructive" : "secondary"}
-          >
-            {eventStatus === "canceled" ? "Event canceled" : "Online"}
-          </Badge>
+          {/* Connectivity is reported once, by the block below that actually
+              listens for it. This badge used to read a hardcoded "Online" — the
+              one place in the product that asserted a network state it had not
+              checked, in the surface built around not doing that. */}
+          {eventStatus === "canceled" ? (
+            <Badge variant="destructive">Event canceled</Badge>
+          ) : null}
           <Button
             type="button"
             variant="outline"
@@ -322,7 +324,7 @@ export function ScannerWorkspace({
         >
           <p className="text-sm text-muted-foreground" aria-live="polite">
             {pendingAttemptCount > 0
-              ? `${pendingAttemptCount} pending scan Attempt${pendingAttemptCount === 1 ? "" : "s"} stored on this device.`
+              ? `${pendingAttemptCount} scan${pendingAttemptCount === 1 ? "" : "s"} waiting to sync from this device.`
               : syncMessage}
           </p>
           <Button
@@ -386,10 +388,10 @@ export function ScannerWorkspace({
                     label={
                       actorRole === "check_in_volunteer"
                         ? "Quick Reversal"
-                        : "Reverse Check-in"
+                        : "Reverse check-in"
                     }
                     title="Make this ticket admissible again?"
-                    description="This invalidates the active check-in without deleting the check-in or scan Attempt. The Ticket can then be admitted again."
+                    description="The check-in is undone and both it and the scan are kept on record. The ticket can be admitted again."
                     reasonDescription="The correction, and your reason for it, are kept permanently."
                     // Outline, not destructive: this sits on the mint success
                     // surface, where a pink tint reads as an error rather than
@@ -409,7 +411,7 @@ export function ScannerWorkspace({
                     onCompleted={() => {
                       setResult(null);
                       setSyncMessage(
-                        "Check-in reversed. The Ticket is admissible again.",
+                        "Check-in reversed. The ticket can be admitted again.",
                       );
                     }}
                   />
@@ -422,7 +424,7 @@ export function ScannerWorkspace({
                     label="Admit with override"
                     title="Admit outside the check-in Window?"
                     description="This creates an authoritative check-in outside the configured window. Use it only for an accountable operational exception."
-                    reasonDescription="Only Organizers can override the window. The reason is retained in the permanent record."
+                    reasonDescription="Only organizers can override the window, and the reason is kept permanently."
                     action={async (reason) => {
                       const override = await submitInput(
                         lastInput.value,
@@ -552,10 +554,10 @@ export function ScannerWorkspace({
                 autoCapitalize="characters"
                 spellCheck={false}
                 maxLength={12}
-                className="min-h-11 font-mono tracking-wider"
+                className="min-h-11 font-mono tracking-code"
               />
               <FieldDescription>
-                Ten Crockford Base32 characters. The separator is optional.
+                Ten characters. The dash is optional.
               </FieldDescription>
             </Field>
             <Button
@@ -569,7 +571,7 @@ export function ScannerWorkspace({
               ) : (
                 <IconScan data-icon="inline-start" />
               )}
-              {isPending ? "Checking Ticket…" : "Check Ticket"}
+              {isPending ? "Checking…" : "Check ticket"}
             </Button>
           </FieldGroup>
         </form>

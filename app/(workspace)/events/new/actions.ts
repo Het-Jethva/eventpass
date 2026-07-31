@@ -6,22 +6,15 @@ import { redirect } from "next/navigation";
 import {
   createDraftEvent,
   createDraftEventInputSchema,
-  type CreateDraftEventInput,
 } from "@/features/events/server/create-draft-event";
 import { getActiveStaffSession } from "@/lib/staff-session";
 
-export type CreateEventFormField = keyof CreateDraftEventInput;
+import type {
+  CreateEventFormField,
+  CreateEventFormState,
+} from "./form-state";
 
-export type CreateEventFormState = {
-  status: "idle" | "error";
-  message?: string;
-  fieldErrors?: Partial<Record<CreateEventFormField, string[]>>;
-  values?: Record<CreateEventFormField, string>;
-};
-
-export const initialCreateEventFormState: CreateEventFormState = {
-  status: "idle",
-};
+export type { CreateEventFormField, CreateEventFormState };
 
 function formValue(formData: FormData, name: CreateEventFormField) {
   const value = formData.get(name);

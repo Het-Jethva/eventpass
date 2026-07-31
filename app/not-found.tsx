@@ -29,13 +29,13 @@ export default function NotFound() {
           </EmptyMedia>
           <EmptyTitle>This page is not available</EmptyTitle>
           <EmptyDescription>
-            The link may be mistyped, the Event may have been withdrawn, or it
+            The link may be mistyped, the event may have been withdrawn, or it
             may not be shared with this account.
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
           <Link href="/events" className={buttonVariants()}>
-            Go to Events
+            Go to events
           </Link>
         </EmptyContent>
       </Empty>

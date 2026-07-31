@@ -37,7 +37,12 @@ export async function ScanOutcomeShowcase() {
             outcome="accepted"
             attendeeName={SAMPLE.attendeeName}
             titleAs="p"
-            className="min-h-96"
+            reserveQualifier
+            // Aligned from the top, not centred. A door shows one outcome and
+            // centring is right there; here they are a matched pair, and the
+            // lavender card's second line of instruction is enough to knock
+            // both icons and both names out of register.
+            className="min-h-96 justify-start py-12"
           />
         </div>
         <div className="overflow-hidden rounded-xl border">
@@ -51,7 +56,12 @@ export async function ScanOutcomeShowcase() {
             outcome="provisional"
             attendeeName={SAMPLE.attendeeName}
             titleAs="p"
-            className="min-h-96"
+            reserveQualifier
+            // Aligned from the top, not centred. A door shows one outcome and
+            // centring is right there; here they are a matched pair, and the
+            // lavender card's second line of instruction is enough to knock
+            // both icons and both names out of register.
+            className="min-h-96 justify-start py-12"
           />
         </div>
       </div>

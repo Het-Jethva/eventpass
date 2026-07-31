@@ -61,13 +61,13 @@ export function EventPublicDetails({
       </header>
       <main className="mx-auto grid w-full max-w-6xl flex-1 gap-10 px-4 py-10 sm:px-6 sm:py-14 lg:grid-cols-[minmax(0,0.85fr)_minmax(22rem,1fr)] lg:gap-14">
         <div className="min-w-0">
-          <p className="mb-3 text-sm font-medium text-muted-foreground">
-            In-person event
-          </p>
+          {/* No kicker above the heading. "In-person event" told an attendee
+              nothing the venue block below does not, and the design contract
+              bans the pattern outright. */}
           <h1 className="text-3xl font-headline text-balance sm:text-4xl">
             {event.name}
           </h1>
-          <p className="mt-6 max-w-2xl whitespace-pre-wrap text-base leading-7 text-muted-foreground">
+          <p className="mt-6 max-w-2xl whitespace-pre-wrap text-reading text-muted-foreground">
             {event.description}
           </p>
 
@@ -78,7 +78,7 @@ export function EventPublicDetails({
               <dd className="text-muted-foreground">
                 {formatRange(event.startsAt, event.endsAt, event.eventTimeZone)}
                 <span className="mt-1 block text-sm">
-                  Event Time Zone: {event.eventTimeZone}
+                  Times shown in {event.eventTimeZone}
                 </span>
               </dd>
             </div>
@@ -105,12 +105,12 @@ export function EventPublicDetails({
         </div>
 
         <aside className="h-fit rounded-2xl border bg-background p-5 sm:p-6">
-          <h2 className="text-xl font-semibold">Registration</h2>
+          <h2 className="text-xl font-medium">Register</h2>
           <div className="mt-5 flex gap-3">
             <IconClock aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
             <div>
               <p className="text-sm font-medium">Registration window</p>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              <p className="mt-1 text-support text-muted-foreground">
                 {formatMoment(event.registrationOpensAt, event.eventTimeZone)}
                 <br />
                 through {formatMoment(event.registrationClosesAt, event.eventTimeZone)}
@@ -120,9 +120,9 @@ export function EventPublicDetails({
           <div className="mt-5 flex gap-3 border-t pt-5">
             <IconUsers aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
             <div>
-              <p className="text-sm font-medium">Event Capacity</p>
+              <p className="text-sm font-medium">Capacity</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                {event.capacity.toLocaleString()} Attendees
+                {event.capacity.toLocaleString()} places
               </p>
             </div>
           </div>

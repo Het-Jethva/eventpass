@@ -28,7 +28,7 @@ export function CancelEventControl({
     <AlertDialog>
       <AlertDialogTrigger render={<Button variant="destructive" />}>
         <IconBan data-icon="inline-start" />
-        Cancel Event
+        Cancel event
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -58,10 +58,10 @@ export function CancelEventControl({
             </FieldDescription>
           </Field>
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep Event</AlertDialogCancel>
+            <AlertDialogCancel>Keep event</AlertDialogCancel>
             <AlertDialogAction type="submit" variant="destructive">
               <IconBan data-icon="inline-start" />
-              Cancel Event permanently
+              Cancel event permanently
             </AlertDialogAction>
           </AlertDialogFooter>
         </form>

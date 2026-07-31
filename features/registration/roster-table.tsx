@@ -102,12 +102,12 @@ export function RosterTable({
             </EmptyMedia>
             <EmptyTitle>
               {hasActiveSearch
-                ? "No Registrations match"
-                : "No Registrations yet"}
+                ? "Nothing matches"
+                : "No registrations yet"}
             </EmptyTitle>
             <EmptyDescription>
               {hasActiveSearch
-                ? "Every Registration for this event was searched, not just the visible page. Try a shorter search or a different status."
+                ? "Every registration was searched, not just the visible page. Try a shorter search or a different status."
                 : "Registrations appear here once attendees register, or once you import them from a CSV below."}
             </EmptyDescription>
           </EmptyHeader>
@@ -146,7 +146,7 @@ export function RosterTable({
                     </div>
                     {row.source === "imported" ? (
                       <Badge variant="outline" className="mt-1.5 text-xs">
-                        Imported Registration
+                        Imported
                       </Badge>
                     ) : null}
                     {hasDetail ? (

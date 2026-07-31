@@ -46,7 +46,7 @@ export default async function AdmissionOfferPage({
               </h1>
               <p className="mt-4 max-w-2xl text-muted-foreground">
                 {offer.attendeeName}, you reached the front of the verified waitlist. Claiming
-                this Admission Offer confirms your registration and issues your ticket.
+                claiming this offer confirms your registration and issues your ticket.
               </p>
               <Alert className="mt-8">
                 <IconClock aria-hidden="true" />
@@ -70,13 +70,13 @@ export default async function AdmissionOfferPage({
                   ? "Offer already claimed"
                   : outcome === "canceled"
                     ? "Event canceled"
-                    : "Admission Offer expired"}
+                    : "This offer has expired"}
               </h1>
               <p className="mt-4 text-muted-foreground">
                 {outcome === "consumed"
                   ? "This private claim link has already been used. Open the ticket email that was sent after the claim."
                   : outcome === "canceled"
-                    ? "This Event was canceled, so the Admission Offer cannot be claimed and no ticket can be issued."
+                    ? "This event was canceled, so the offer cannot be claimed and no ticket can be issued."
                     : "The claim deadline passed, so this registration expired and the place may have gone to the next person waiting."}
               </p>
             </>

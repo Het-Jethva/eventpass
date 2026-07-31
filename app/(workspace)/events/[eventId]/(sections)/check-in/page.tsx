@@ -83,10 +83,10 @@ export default async function CheckInConflictsPage({
             {conflicts.length} unresolved
           </Badge>
         </div>
-        <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-          Isolated Scanner Devices cannot prevent the same ticket from being
+        <p className="max-w-3xl text-support text-muted-foreground">
+          Two phones that cannot reach each other cannot prevent the same ticket from being
           accepted at separate entrances. Offline acceptance remains provisional
-          until synchronization compares every scan Attempt.
+          until synchronization compares every scan.
         </p>
       </div>
 
@@ -109,16 +109,13 @@ export default async function CheckInConflictsPage({
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 id="active-check-ins-heading" className="font-medium">
-              Active Check-ins
+              Active check-ins
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Organizer corrections preserve the original check-in and every
               scan attempt while making the ticket admissible again.
             </p>
           </div>
-          <Badge variant="secondary">
-            {activeCheckIns.totalCount.toLocaleString()} active
-          </Badge>
         </div>
 
         <div className="mb-4 flex flex-col gap-2">
@@ -133,7 +130,7 @@ export default async function CheckInConflictsPage({
             {checkInSearch
               ? `${activeCheckIns.matchingCount.toLocaleString()} of ${activeCheckIns.totalCount.toLocaleString()} active check-ins match`
               : activeCheckIns.matchingCount > activeCheckIns.limit
-                ? `Showing the ${activeCheckIns.limit} most recent of ${activeCheckIns.totalCount.toLocaleString()} active Check-ins. Search by name to find any of them.`
+                ? `Showing the ${activeCheckIns.limit} most recent of ${activeCheckIns.totalCount.toLocaleString()} active check-ins. Search by name to find any of them.`
                 : `${activeCheckIns.totalCount.toLocaleString()} active check-in${activeCheckIns.totalCount === 1 ? "" : "s"}`}
           </p>
         </div>
@@ -142,7 +139,7 @@ export default async function CheckInConflictsPage({
           <div className="border-y bg-background px-5 py-8 text-center text-sm text-muted-foreground">
             {checkInSearch
               ? "No active check-ins match that name. Every active check-in was searched, not just the visible page."
-              : "No active Check-ins."}
+              : "Nobody is checked in yet."}
           </div>
         ) : (
           <div className="divide-y rounded-2xl border bg-background">
@@ -162,9 +159,9 @@ export default async function CheckInConflictsPage({
                   </p>
                 </div>
                 <ReasonedCheckInAction
-                  label="Reverse Check-in"
+                  label="Reverse check-in"
                   title={`Reverse ${activeCheckIn.attendeeName}'s check-in?`}
-                  description="This invalidates the active check-in without deleting its history. The Ticket can be admitted again."
+                  description="The check-in is undone and the history is kept. The ticket can be admitted again."
                   reasonDescription="The correction, and your reason for it, are kept permanently."
                   variant="destructive"
                   action={reverseOrganizerCheckInAction.bind(
@@ -182,7 +179,7 @@ export default async function CheckInConflictsPage({
       {conflicts.length === 0 ? (
         <section className="border-y bg-background px-5 py-10 text-center sm:px-6">
           <h2 className="font-medium">No unresolved check-in Conflicts</h2>
-          <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
+          <p className="mx-auto mt-2 max-w-xl text-support text-muted-foreground">
             High-confidence cross-device collisions are resolved automatically
             by the earliest device-recorded attempt. Conflicts appear here only
             when Timestamp Confidence requires organizer review.
@@ -224,9 +221,9 @@ export default async function CheckInConflictsPage({
                 <FieldGroup>
                   <fieldset>
                     <legend className="text-sm font-medium">
-                      Select the authoritative scan Attempt
+                      Choose which scan counts
                     </legend>
-                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                    <p className="mt-1 text-support text-muted-foreground">
                       Device time is not sufficiently reliable to choose
                       automatically. Confirm the entrance evidence before
                       deciding.

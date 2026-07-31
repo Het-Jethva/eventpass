@@ -7,7 +7,7 @@ import { utcToLocalDateTimeInput } from "@/features/events/server/event-schedule
 import { getOrganizerEvent } from "@/features/events/server/get-event";
 import { getActiveStaffSession } from "@/lib/staff-session";
 
-export const metadata: Metadata = { title: "Configure Event" };
+export const metadata: Metadata = { title: "Settings" };
 
 export default async function EditEventPage({
   params,
@@ -43,10 +43,10 @@ export default async function EditEventPage({
     <>
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-headline">Settings</h1>
-        <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+        <p className="max-w-2xl text-support text-muted-foreground">
           {event.status === "draft"
             ? "Changes stay private until you publish. The public web address is fixed once you do."
-            : "Material changes are recorded and emailed to affected Attendees. Restrictions tighten when check-in opens."}
+            : "Significant changes are recorded and emailed to everyone affected. Restrictions tighten once check-in opens."}
         </p>
       </div>
       <CreateEventForm

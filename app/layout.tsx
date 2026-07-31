@@ -21,7 +21,7 @@ const geistMono = Geist_Mono({
 
 const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://eventpass.hetjethva.tech";
 const siteDescription =
-  "Trustworthy Event registration and admission operations, with a scanner that keeps working when venue internet does not.";
+  "Event registration, tickets, and door check-in, on a scanner that keeps working when the venue network does not.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),

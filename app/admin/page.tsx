@@ -47,18 +47,15 @@ export default async function AdminPage() {
   });
 
   return (
-    <div className="min-h-svh bg-background">
-      <AdminDashboard
-        accounts={accounts}
-        events={events}
-        adminEmail={staffSession.user.email}
-        onSuspendAccount={suspendStaffAccountAction}
-        onReactivateAccount={reactivateStaffAccountAction}
-        onSuspendEvent={suspendEventAction}
-        onReactivateEvent={reactivateEventAction}
-        onGrantSupportAccess={grantSupportAccessAction}
-        onFetchSupportData={fetchSupportAttendeeDataAction}
-      />
-    </div>
+    <AdminDashboard
+      accounts={accounts}
+      events={events}
+      onSuspendAccount={suspendStaffAccountAction}
+      onReactivateAccount={reactivateStaffAccountAction}
+      onSuspendEvent={suspendEventAction}
+      onReactivateEvent={reactivateEventAction}
+      onGrantSupportAccess={grantSupportAccessAction}
+      onFetchSupportData={fetchSupportAttendeeDataAction}
+    />
   );
 }

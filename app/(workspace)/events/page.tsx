@@ -27,7 +27,7 @@ export const metadata: Metadata = {
 };
 
 const ROLE_LABELS: Record<string, string> = {
-  owner: "event owner",
+  owner: "Event owner",
   organizer: "Organizer",
   check_in_volunteer: "Check-in volunteer",
 };
@@ -61,12 +61,12 @@ export default async function EventsPage() {
         <div className="flex flex-col gap-2">
           <h1 className="text-2xl font-headline">Events</h1>
           <p className="text-sm text-muted-foreground">
-            Events where you are assigned as Staff.
+            Events you work on.
           </p>
         </div>
         <Link href="/events/new" className={buttonVariants()}>
           <IconPlus data-icon="inline-start" />
-          Create Event
+          Create event
         </Link>
       </div>
 
@@ -76,9 +76,9 @@ export default async function EventsPage() {
             <EmptyMedia variant="icon">
               <IconCalendarEvent aria-hidden="true" />
             </EmptyMedia>
-            <EmptyTitle>No Events yet</EmptyTitle>
+            <EmptyTitle>No events yet</EmptyTitle>
             <EmptyDescription>
-              Create a draft Event to configure registration, staffing, and
+              Create a draft to configure registration, staffing, and
               check-in before anything becomes visible to attendees.
             </EmptyDescription>
           </EmptyHeader>
@@ -107,7 +107,7 @@ export default async function EventsPage() {
                     <h2 className="truncate font-medium">{eventItem.name}</h2>
                   </ViewTransition>
                   <Badge variant={eventItem.status === "draft" ? "secondary" : "default"}>
-                    {eventItem.status === "draft" ? "draft" : "Published Event"}
+                    {eventItem.status === "draft" ? "Draft" : "Published"}
                   </Badge>
                   <Badge variant="outline">
                     {ROLE_LABELS[eventItem.role] ?? eventItem.role}
@@ -121,18 +121,26 @@ export default async function EventsPage() {
                   )}
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground sm:justify-end">
-                <span className="inline-flex items-center gap-1.5">
-                  <IconMapPin aria-hidden="true" />
-                  {eventItem.venueName}
+              {/* Metadata first, then the action. The button used to sit
+                  between the venue and the capacity, so the one thing you came
+                  to click was the third item in a row of facts — and because
+                  the row wrapped on content width, no two rows lined up. */}
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground sm:flex-nowrap sm:justify-end">
+                <span className="inline-flex min-w-0 items-center gap-1.5">
+                  <IconMapPin aria-hidden="true" className="shrink-0" />
+                  <span className="truncate">{eventItem.venueName}</span>
                 </span>
-                <Link href={`/events/${eventItem.id}`} className={buttonVariants({ variant: "outline", size: "sm" })}>
-                  Open Event
-                </Link>
-                <span className="inline-flex items-center gap-1.5">
+                <span className="inline-flex shrink-0 items-center gap-1.5 tabular-nums">
                   <IconUsers aria-hidden="true" />
                   Capacity {eventItem.capacity.toLocaleString()}
                 </span>
+                <Link
+                  href={`/events/${eventItem.id}`}
+                  className={buttonVariants({ variant: "outline", size: "sm", className: "shrink-0" })}
+                >
+                  Open
+                  <span className="sr-only"> {eventItem.name}</span>
+                </Link>
               </div>
             </li>
           ))}

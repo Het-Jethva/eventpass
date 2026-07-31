@@ -52,7 +52,7 @@ export default async function RegistrationsPage(props: {
             <IconFileSpreadsheet aria-hidden="true" className="size-6" />
             <h1 className="text-2xl font-headline">Registrations</h1>
           </div>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+          <p className="mt-2 max-w-2xl text-support text-muted-foreground">
             Who registered, whether they hold a valid ticket, and whether they
             have been admitted. Search covers every registration for this event.
           </p>
@@ -92,8 +92,8 @@ export default async function RegistrationsPage(props: {
       <Separator />
 
       <div>
-        <h3 className="font-medium">Import Registrations</h3>
-        <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+        <h3 className="font-medium">Import registrations</h3>
+        <p className="mt-1 max-w-2xl text-support text-muted-foreground">
           Preview a bounded CSV before creating organizer-attested
           Registrations. Imports are all-or-nothing and stay within the event
           Capacity.

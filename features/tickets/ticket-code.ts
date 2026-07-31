@@ -1,19 +1,13 @@
-import { randomBytes } from "node:crypto";
+// Nothing here imports from Node. A Ticket Code is displayed by the roster, the
+// audit log, the admin support view, the landing showcase, and the ticket page
+// itself — some of those are client components, and a single `node:crypto`
+// import at the top of this file put the whole generator in their bundle graph.
+// Generation lives in `./server/create-ticket-code`.
 
-const CROCKFORD_BASE32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+export const CROCKFORD_BASE32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 export const TICKET_CODE_LENGTH = 10;
 
-export function createTicketCode(random = randomBytes) {
-  let code = "";
-  while (code.length < TICKET_CODE_LENGTH) {
-    for (const byte of random(TICKET_CODE_LENGTH - code.length)) {
-      if (byte < 224) code += CROCKFORD_BASE32[byte % CROCKFORD_BASE32.length];
-      if (code.length === TICKET_CODE_LENGTH) break;
-    }
-  }
-  return code;
-}
-
+/** Grouped for reading aloud and comparing character by character. */
 export function formatTicketCode(code: string) {
   return `${code.slice(0, 5)}-${code.slice(5)}`;
 }

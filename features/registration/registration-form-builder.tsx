@@ -11,10 +11,8 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 
-import {
-  initialSaveRegistrationFormState,
-  saveRegistrationFormAction,
-} from "@/app/(workspace)/events/[eventId]/(sections)/form/actions";
+import { saveRegistrationFormAction } from "@/app/(workspace)/events/[eventId]/(sections)/form/actions";
+import { initialSaveRegistrationFormState } from "@/app/(workspace)/events/[eventId]/(sections)/form/form-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -89,7 +87,7 @@ function AttendeeFieldPreview({
         />
         <FieldContent>
           <FieldLabel htmlFor={fieldName} className="font-normal">
-            {label}{field.required ? " (required)" : ""}
+            {label}{field.required ? " *" : ""}
           </FieldLabel>
           {field.helpText ? (
             <FieldDescription id={descriptionId}>{field.helpText}</FieldDescription>
@@ -103,7 +101,7 @@ function AttendeeFieldPreview({
     return (
       <FieldSet>
         <FieldLegend variant="label">
-          {label}{field.required ? " (required)" : ""}
+          {label}{field.required ? " *" : ""}
         </FieldLegend>
         {field.helpText ? <FieldDescription>{field.helpText}</FieldDescription> : null}
         <RadioGroup name={fieldName} required={field.required}>
@@ -124,7 +122,7 @@ function AttendeeFieldPreview({
     return (
       <FieldSet>
         <FieldLegend variant="label">
-          {label}{field.required ? " (required)" : ""}
+          {label}{field.required ? " *" : ""}
         </FieldLegend>
         {field.helpText ? <FieldDescription>{field.helpText}</FieldDescription> : null}
         <FieldGroup className="gap-3">
@@ -148,7 +146,7 @@ function AttendeeFieldPreview({
   return (
     <Field>
       <FieldLabel htmlFor={fieldName}>
-        {label}{field.required ? " (required)" : ""}
+        {label}{field.required ? " *" : ""}
       </FieldLabel>
       {field.answerType === "long_text" ? (
         <Textarea
@@ -182,7 +180,7 @@ function RegistrationFormPreview({ fields }: { fields: OrganizerRegistrationFiel
       <div className="rounded-2xl border bg-background">
         <div className="border-b p-5 sm:p-6">
           <h2 id="preview-heading" className="font-medium">Attendee preview</h2>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+          <p className="mt-1 text-support text-muted-foreground">
             Test the labels, help text, required state, and keyboard order.
           </p>
         </div>
@@ -209,11 +207,11 @@ function RegistrationFormPreview({ fields }: { fields: OrganizerRegistrationFiel
         >
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="preview-name">Name (required)</FieldLabel>
+              <FieldLabel htmlFor="preview-name">Name *</FieldLabel>
               <Input id="preview-name" name="name" autoComplete="name" required />
             </Field>
             <Field>
-              <FieldLabel htmlFor="preview-email">Email (required)</FieldLabel>
+              <FieldLabel htmlFor="preview-email">Email address *</FieldLabel>
               <Input
                 id="preview-email"
                 name="email"
@@ -481,7 +479,7 @@ export function RegistrationFormBuilder({
 
         <section className="rounded-2xl border bg-muted/40 p-5 sm:p-6" aria-labelledby="built-in-heading">
           <h2 id="built-in-heading" className="font-medium">Built-in fields</h2>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+          <p className="mt-1 text-support text-muted-foreground">
             Name and email are fixed, required, and cannot be reordered or archived.
           </p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -518,7 +516,7 @@ export function RegistrationFormBuilder({
         <div className="sticky bottom-0 flex items-center justify-end border-t bg-background/95 py-4 backdrop-blur-sm">
           <Button type="submit" size="lg" disabled={isPending}>
             {isPending ? <Spinner data-icon="inline-start" /> : null}
-            {isPending ? "Saving…" : "Save Registration form"}
+            {isPending ? "Saving…" : "Save form"}
           </Button>
         </div>
       </form>

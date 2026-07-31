@@ -2,12 +2,15 @@ import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 
 import { WorkspaceHeader } from "@/components/workspace-header";
-import { isPlatformAdmin } from "@/features/admin/admin-policy";
 import { getActiveStaffSession } from "@/lib/staff-session";
 
-import { signOutAction } from "./actions";
+import { signOutAction } from "@/app/(workspace)/actions";
 
-export default async function WorkspaceLayout({
+// The administration surface sits outside the `(workspace)` route group because
+// it is not scoped to an event, but it is the same signed-in product and needs
+// the same chrome — it had none at all, which left the page that can suspend an
+// account with no way back to the events list and no sign-out.
+export default async function AdminLayout({
   children,
 }: {
   children: ReactNode;
@@ -23,12 +26,7 @@ export default async function WorkspaceLayout({
       <WorkspaceHeader
         email={staffSession.user.email}
         signOutAction={signOutAction}
-        showAdmin={isPlatformAdmin({
-          userEmail: staffSession.user.email,
-          isPlatformAdminFlag: (
-            staffSession.user as unknown as Record<string, unknown>
-          ).isPlatformAdmin as boolean | undefined,
-        })}
+        showAdmin
       />
       {children}
     </div>

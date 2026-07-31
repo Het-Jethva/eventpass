@@ -5,6 +5,7 @@ import { Resend } from "resend";
 
 import { db } from "@/lib/db";
 import { emailDelivery } from "@/lib/db/schema";
+import { EMAIL_BODY_STYLE } from "./shell";
 
 function escapeHtml(value: string) {
   return value.replace(
@@ -63,8 +64,8 @@ export async function sendAdmissionOffer({
         from: process.env.RESEND_FROM_EMAIL ?? "EventPass <tickets@mail.hetjethva.tech>",
         to: email,
         subject: `A place is available for ${eventName}`,
-        html: `<div style="font-family:Arial,sans-serif;color:#171717;line-height:1.6;max-width:640px"><h1 style="font-size:24px">A place is available</h1><p>${escapeHtml(attendeeName)}, you reached the front of the waitlist for ${escapeHtml(eventName)}.</p><p><a href="${escapeHtml(claimUrl.toString())}">Review and claim your place</a> by ${escapeHtml(deadline)}. The offer expires automatically and cannot be restored.</p><p>Do not forward this private claim link.</p></div>`,
-        text: `${attendeeName}, you reached the front of the waitlist for ${eventName}.\n\nClaim your place by ${deadline}: ${claimUrl.toString()}\n\nDo not forward this private claim link.`,
+        html: `<div style="${EMAIL_BODY_STYLE}"><h1 style="font-size:24px">A place is available</h1><p>${escapeHtml(attendeeName)}, you reached the front of the waitlist for ${escapeHtml(eventName)}.</p><p><a href="${escapeHtml(claimUrl.toString())}">Review and claim your place</a> by ${escapeHtml(deadline)}. The offer expires automatically and cannot be restored.</p><p>Keep this claim link to yourself.</p></div>`,
+        text: `${attendeeName}, you reached the front of the waitlist for ${eventName}.\n\nClaim your place by ${deadline}: ${claimUrl.toString()}\n\nKeep this claim link to yourself.`,
       },
       { idempotencyKey: `email-delivery/${delivery.id}` },
     );

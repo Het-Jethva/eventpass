@@ -53,6 +53,20 @@
   --text-7xl--line-height: 1;
   --text-7xl--letter-spacing: -0.029em;
 
+  /* Two reading steps, added because the scale was missing them and thirty
+     components had each patched it locally with `leading-6` or `leading-7`.
+     A roster cell and a paragraph explaining what a roster is are both 14px
+     and want different leading; binding one number to the size forced every
+     description in the product to override it, which is precisely the drift
+     the bound-optics rule exists to prevent. Same sizes as `sm` and `base`,
+     opened up for prose that runs to several lines. */
+  --text-support: 0.875rem;
+  --text-support--line-height: 1.7143;
+  --text-support--letter-spacing: -0.006em;
+  --text-reading: 1rem;
+  --text-reading--line-height: 1.75;
+  --text-reading--letter-spacing: -0.011em;
+
   /* Inter is variable, so the headline weight does not have to be one of the
      nine stops. 560 holds its colour against a 48px line where 600 goes blunt
      and 500 goes weak. */
@@ -72,6 +86,7 @@
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
 
+  --color-scrim: var(--scrim);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -235,6 +250,13 @@
 /* Pinned across both themes on purpose — do not move these into .dark. */
 :root,
 .dark {
+  /* The scrim behind a modal. Pinned to the *light* ink, not to `--foreground`,
+     because `--foreground` inverts in dark mode and a 40% near-white veil over
+     a dark page lightens what it is supposed to push back. Two dialogs had each
+     reached for a raw `black/30` and `black/50` to dodge that; this is the one
+     value they now share. */
+  --scrim: oklch(0.17 0.013 260 / 0.45);
+
   --signal-success: oklch(0.945 0.055 150);
   --signal-success-text: oklch(0.37 0.1 150);
   --signal-warning: oklch(0.95 0.068 75);

@@ -89,8 +89,10 @@ const LIGHT = tokensFor([":root", ":root, .dark"]);
 const DARK = tokensFor([":root", ":root, .dark", ".dark"]);
 
 function parseOklch(value: string): [number, number, number] {
+  // The alpha component is optional: `--scrim` carries one, and its hue and
+  // chroma still have to face the same audit as every other token.
   const match = value.match(
-    /oklch\(\s*([\d.]+%?)\s+([\d.]+)\s+([\d.]+)\s*\)/i,
+    /oklch\(\s*([\d.]+%?)\s+([\d.]+)\s+([\d.]+)\s*(?:\/\s*[\d.]+%?\s*)?\)/i,
   );
   if (!match) throw new Error(`Not an oklch() value: ${value}`);
   const lightness = match[1].endsWith("%")

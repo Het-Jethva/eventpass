@@ -149,7 +149,7 @@ export function ScannerPreparation({ eventId }: { eventId: string }) {
         return;
       }
       if (result.outcome === "event_unavailable") {
-        setError("This Event is not available for offline preparation.");
+        setError("This event cannot be prepared for offline use.");
         return;
       }
       try {
@@ -167,7 +167,7 @@ export function ScannerPreparation({ eventId }: { eventId: string }) {
       }
     } catch {
       setError(
-        "The Offline Event Snapshot could not be prepared. Confirm this device is online, then try again.",
+        "The guest list could not be downloaded. Check that this device is online, then try again.",
       );
     } finally {
       setPending(false);
@@ -200,7 +200,7 @@ export function ScannerPreparation({ eventId }: { eventId: string }) {
             Offline preparation
           </h2>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Name this browser, issue its Scanner Authorization, and cache the
+            Name this phone, authorize it for this door, and download the
             minimum ticket data needed for offline admission.
           </p>
         </div>
@@ -219,10 +219,10 @@ export function ScannerPreparation({ eventId }: { eventId: string }) {
             {readiness === "ready" ? <IconShieldCheck /> : <IconRefresh />}
             <AlertTitle>
               {readiness === "ready"
-                ? "Offline Event Snapshot ready"
+                ? "Ready to work offline"
                 : readiness === "refresh_required"
                   ? "Snapshot refresh required"
-                  : "Scanner Authorization expired"}
+                  : "This phone is no longer authorized"}
             </AlertTitle>
             <AlertDescription>
               Snapshot {formatSnapshotAge(currentSnapshot.generatedAt, now)} ·{" "}
@@ -240,7 +240,7 @@ export function ScannerPreparation({ eventId }: { eventId: string }) {
             <AlertTitle>{snapshot.event.name} is cached</AlertTitle>
             <AlertDescription>
               Preparing this event requires confirmation before replacing the
-              browser&apos;s current Offline Event Snapshot.
+              phone&apos;s downloaded guest list.
             </AlertDescription>
           </Alert>
         ) : null}
@@ -256,7 +256,7 @@ export function ScannerPreparation({ eventId }: { eventId: string }) {
         <FieldGroup>
           <Field>
             <FieldLabel htmlFor="scanner-device-label">
-              Scanner Device label
+              Name for this phone
             </FieldLabel>
             <Input
               id="scanner-device-label"
@@ -312,7 +312,7 @@ export function ScannerPreparation({ eventId }: { eventId: string }) {
             <AlertDialogTitle>Replace the cached event?</AlertDialogTitle>
             <AlertDialogDescription>
               This browser currently has {replacement?.currentEventName} cached.
-              Its Offline Event Snapshot will be replaced. {replacement?.pendingAttemptCount ?? 0} unsynchronized scan Attempt
+              Its guest list will be replaced. {replacement?.pendingAttemptCount ?? 0} unsynced scan
               {(replacement?.pendingAttemptCount ?? 0) === 1 ? "" : "s"} will be preserved for later synchronization.
             </AlertDialogDescription>
           </AlertDialogHeader>

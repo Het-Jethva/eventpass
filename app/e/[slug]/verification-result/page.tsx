@@ -13,21 +13,21 @@ const outcomes = {
     icon: IconMailCheck,
     title: "You are on the waitlist",
     description:
-      "Your email is verified and your FIFO position is established. We will email you a time-limited Admission Offer if a place becomes available.",
+      "Your email is verified and your place in line is held. If a place opens up we will email you an offer with a deadline.",
     success: true,
   },
   offered: {
     icon: IconMailCheck,
     title: "A place is available",
     description:
-      "Capacity became available while you verified. Check your email for a time-limited Admission Offer and claim link.",
+      "A place opened up while you were verifying. Check your email for the offer and its claim link.",
     success: true,
   },
   expired: {
     icon: IconClockX,
     title: "Verification link expired",
     description:
-      "The 15-minute Capacity Hold has ended, so this registration was not confirmed. Return to the event to register again.",
+      "The 15-minute hold has ended, so this registration was not confirmed. Return to the event to register again.",
     success: false,
   },
   consumed: {
@@ -55,7 +55,7 @@ const outcomes = {
     icon: IconAlertTriangle,
     title: "Event canceled",
     description:
-      "This Event was canceled, so the registration cannot be confirmed and no ticket can be issued.",
+      "This event was canceled, so the registration cannot be confirmed and no ticket can be issued.",
     success: false,
   },
 } as const;

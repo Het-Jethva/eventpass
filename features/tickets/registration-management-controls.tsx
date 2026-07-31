@@ -37,12 +37,14 @@ import { Textarea } from "@/components/ui/textarea";
 import type { RegistrationManagementView } from "@/features/tickets/server/ticket-application";
 import {
   cancelRegistrationAction,
-  initialManagementActionState,
   replaceTicketAction,
   resendTicketAction,
   updateRegistrationAction,
-  type ManagementActionState,
 } from "@/app/tickets/[token]/actions";
+import {
+  initialManagementActionState,
+  type ManagementActionState,
+} from "@/app/tickets/[token]/form-state";
 
 type FieldView = RegistrationManagementView["fields"][number];
 
@@ -197,7 +199,7 @@ export function RegistrationManagementControls({
       {canEdit ? (
         <section aria-labelledby="edit-registration-heading">
           <div>
-            <h2 id="edit-registration-heading" className="text-lg font-semibold">
+            <h2 id="edit-registration-heading" className="text-lg font-medium">
               Registration details
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -237,14 +239,14 @@ export function RegistrationManagementControls({
             </FieldGroup>
             <Button type="submit" disabled={editPending}>
               {editPending ? <Spinner data-icon="inline-start" /> : <IconEdit data-icon="inline-start" />}
-              {editPending ? "Saving…" : "Save Registration"}
+              {editPending ? "Saving…" : "Save changes"}
             </Button>
           </form>
         </section>
       ) : null}
 
       <section aria-labelledby="ticket-actions-heading" className="border-t pt-8">
-        <h2 id="ticket-actions-heading" className="text-lg font-semibold">Ticket actions</h2>
+        <h2 id="ticket-actions-heading" className="text-lg font-medium">Ticket actions</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Resending keeps the current ticket unchanged. Replacement permanently invalidates it.
         </p>
@@ -261,20 +263,20 @@ export function RegistrationManagementControls({
             <AlertDialog>
               <AlertDialogTrigger render={<Button variant="outline" />}>
                 <IconRefresh data-icon="inline-start" />
-                Replace Ticket
+                Replace ticket
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>Replace this ticket?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    The current QR code and ticket Code will stop working permanently. A new ticket will be issued and emailed.
+                    The current QR code and ticket code stop working permanently. A new ticket is issued and emailed.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Keep current ticket</AlertDialogCancel>
                   <form action={replaceAction}>
                     <AlertDialogAction type="submit" disabled={replacePending}>
-                      Replace Ticket
+                      Replace ticket
                     </AlertDialogAction>
                   </form>
                 </AlertDialogFooter>
@@ -286,7 +288,7 @@ export function RegistrationManagementControls({
 
       {canReplaceOrCancel ? (
         <section aria-labelledby="cancel-registration-heading" className="border-t pt-8">
-          <h2 id="cancel-registration-heading" className="text-lg font-semibold">Cancel registration</h2>
+          <h2 id="cancel-registration-heading" className="text-lg font-medium">Cancel registration</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             This frees up the place and stops the ticket working, for good.
           </p>

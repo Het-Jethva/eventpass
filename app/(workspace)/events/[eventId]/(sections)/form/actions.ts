@@ -10,15 +10,9 @@ import {
 } from "@/features/registration/server/registration-form";
 import { getActiveStaffSession } from "@/lib/staff-session";
 
-export type SaveRegistrationFormState = {
-  status: "idle" | "success" | "error";
-  message: string;
-};
+import type { SaveRegistrationFormState } from "./form-state";
 
-export const initialSaveRegistrationFormState: SaveRegistrationFormState = {
-  status: "idle",
-  message: "",
-};
+export type { SaveRegistrationFormState };
 
 export async function saveRegistrationFormAction(
   eventId: string,

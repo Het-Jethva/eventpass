@@ -2,19 +2,11 @@
 
 import { redirect } from "next/navigation";
 
-import type { RegistrationSubmissionValues } from "@/features/registration/registration-submission";
 import { submitRegistration } from "@/features/registration/server/submit-registration";
 
-export type RegistrationActionState = {
-  status: "idle" | "error" | "existing";
-  message?: string;
-  fieldErrors?: Record<string, string[]>;
-  values?: RegistrationSubmissionValues;
-};
+import type { RegistrationActionState } from "./form-state";
 
-export const initialRegistrationActionState: RegistrationActionState = {
-  status: "idle",
-};
+export type { RegistrationActionState };
 
 function stringValue(formData: FormData, name: string) {
   const value = formData.get(name);

@@ -40,7 +40,7 @@ export default async function RegistrationCheckEmailPage({
           <h1 className="mt-2 text-3xl font-headline">
             Check your email
           </h1>
-          <p className="mt-4 max-w-xl leading-7 text-muted-foreground">
+          <p className="mt-4 max-w-xl text-reading text-muted-foreground">
             Use the single-use link we sent to verify your email address and
             continue your registration.
           </p>
@@ -54,8 +54,8 @@ export default async function RegistrationCheckEmailPage({
             </AlertTitle>
             <AlertDescription>
               {hasCapacityHold
-                ? "Verify before the link expires to claim this place. The Registration is not confirmed yet."
-                : "The Event is currently full. Verify your email to join the waitlist; priority begins only after successful verification."}
+                ? "Verify before the link expires to claim this place. Your registration is not confirmed yet."
+                : "The event is full. Verify your email to join the waitlist; your place in line starts once you do."}
             </AlertDescription>
           </Alert>
 
@@ -65,7 +65,7 @@ export default async function RegistrationCheckEmailPage({
               <AlertTitle>Email delivery was not accepted</AlertTitle>
               <AlertDescription>
                 Your unconfirmed registration was saved, but the provider did not
-                accept the email. Please contact the event Organizer.
+                accept the email. Contact the organizer.
               </AlertDescription>
             </Alert>
           ) : null}

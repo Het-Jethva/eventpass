@@ -92,7 +92,11 @@ export function TicketStub({
       {/* Reversed on mobile so the stub renders first on a phone while the DOM
           keeps the event name ahead of the QR for screen readers. */}
       <div className="flex flex-col-reverse sm:flex-row">
-        <div className="flex flex-1 flex-col gap-4 p-6 sm:p-8">
+        {/* Centred against the stub rather than stretched to its height. The
+            details are shorter than the QR chamber, and pinning the schedule to
+            the bottom with `mt-auto` opened a dead band across the middle of
+            the ticket wherever the event name ran to one line. */}
+        <div className="flex flex-1 flex-col justify-center gap-5 p-6 sm:p-8">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={status.variant}>{status.label}</Badge>
             {action ? <div className="ml-auto print:hidden">{action}</div> : null}
@@ -108,7 +112,7 @@ export function TicketStub({
             </p>
           </div>
 
-          <dl className="mt-auto flex flex-col gap-2 text-sm">
+          <dl className="flex flex-col gap-2 text-sm">
             <div className="flex items-start gap-2">
               <dt className="shrink-0">
                 <IconCalendarEvent aria-hidden="true" className="size-4 translate-y-0.5" />

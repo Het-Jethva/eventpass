@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { IconSearch } from "@tabler/icons-react";
 
+import { SegmentedFilter } from "@/components/segmented-filter";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -11,7 +12,6 @@ import {
   ROSTER_FILTER_LABELS,
   type RosterFilter,
 } from "@/features/registration/roster-filters";
-import { cn } from "@/lib/utils";
 
 const DEBOUNCE_MS = 250;
 
@@ -85,7 +85,7 @@ export function RosterSearchControls({
           value={query}
           onChange={(changeEvent) => setQuery(changeEvent.target.value)}
           placeholder="Search name or email"
-          aria-label="Search Registrations by attendee name or email"
+          aria-label="Search registrations by attendee name or email"
           className="pl-9"
         />
         {isPending ? (
@@ -93,33 +93,19 @@ export function RosterSearchControls({
         ) : null}
       </div>
 
-      <div
-        className="-mx-4 flex gap-1 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        role="group"
-        aria-label="Filter Registrations by status"
-      >
-        {ROSTER_FILTERS.map((filter) => {
-          const isActive = filter === activeFilter;
-          return (
-            <button
-              key={filter}
-              type="button"
-              aria-pressed={isActive}
-              onClick={() =>
-                startTransition(() => router.replace(buildHref({ filter })))
-              }
-              className={cn(
-                "shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-foreground text-background"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
-            >
-              {ROSTER_FILTER_LABELS[filter]}
-            </button>
-          );
-        })}
-      </div>
+      <SegmentedFilter
+        label="Filter registrations by status"
+        value={activeFilter}
+        options={ROSTER_FILTERS.map((filter) => ({
+          value: filter,
+          label: ROSTER_FILTER_LABELS[filter],
+        }))}
+        onSelect={(filter) =>
+          startTransition(() =>
+            router.replace(buildHref({ filter: filter as RosterFilter })),
+          )
+        }
+      />
     </div>
   );
 }

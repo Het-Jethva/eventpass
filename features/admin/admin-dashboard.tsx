@@ -4,6 +4,8 @@ import { useState } from "react";
 import { IconCalendar, IconShield, IconUsers } from "@tabler/icons-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Spinner } from "@/components/ui/spinner";
+import { cn } from "@/lib/utils";
 import { AdminAccountsList, type AccountItem } from "./admin-accounts-list";
 import { AdminEventsList, type EventItem } from "./admin-events-list";
 import {
@@ -12,10 +14,14 @@ import {
   type SupportAttendeeRecord,
 } from "./support-access-view";
 
+const TABS = [
+  { id: "accounts", label: "Accounts", icon: IconUsers },
+  { id: "events", label: "Events", icon: IconCalendar },
+] as const;
+
 interface AdminDashboardProps {
   accounts: AccountItem[];
   events: EventItem[];
-  adminEmail: string;
   onSuspendAccount: (userId: string, reason: string) => Promise<void>;
   onReactivateAccount: (userId: string, reason: string) => Promise<void>;
   onSuspendEvent: (eventId: string, reason: string) => Promise<void>;
@@ -31,7 +37,6 @@ interface AdminDashboardProps {
 export function AdminDashboard({
   accounts,
   events,
-  adminEmail,
   onSuspendAccount,
   onReactivateAccount,
   onSuspendEvent,
@@ -76,31 +81,30 @@ export function AdminDashboard({
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 space-y-6">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b pb-6">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-headline text-foreground">
-              Platform Administration
-            </h1>
-            <Badge variant="outline" className="border-primary/40 bg-primary/5 text-primary gap-1">
-              <IconShield className="h-3.5 w-3.5" /> Operations Surface
-            </Badge>
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Command-only operations surface for account suspension, event status management, and audited support access.
-          </p>
+    <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
+      {/* The signed-in address is in the header now, once. */}
+      <div className="flex flex-col gap-2 border-b pb-6">
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-2xl font-headline">Administration</h1>
+          <Badge variant="info">
+            <IconShield aria-hidden="true" />
+            Platform-wide
+          </Badge>
         </div>
-
-        <Badge variant="secondary" className="self-start sm:self-auto font-mono text-xs">
-          Signed in as {adminEmail}
-        </Badge>
+        <p className="max-w-2xl text-sm text-muted-foreground">
+          Suspend accounts and events, and open time-limited, recorded access to
+          attendee data for support.
+        </p>
       </div>
 
       {inspectingEventId ? (
         isLoadingSupportData ? (
-          <div className="p-12 text-center text-sm text-muted-foreground animate-pulse">
-            Loading Support access data...
+          <div
+            className="flex items-center justify-center gap-2 p-12 text-sm text-muted-foreground"
+            role="status"
+          >
+            <Spinner />
+            Loading attendee data…
           </div>
         ) : (
           <SupportAccessView
@@ -116,50 +120,73 @@ export function AdminDashboard({
           />
         )
       ) : (
-        <div className="space-y-6">
-          <div className="flex border-b">
-            <button
-              type="button"
-              onClick={() => setActiveTab("accounts")}
-              className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-                activeTab === "accounts"
-                  ? "border-primary text-foreground font-semibold"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <IconUsers className="h-4 w-4" /> Platform Accounts ({accounts.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("events")}
-              className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-                activeTab === "events"
-                  ? "border-primary text-foreground font-semibold"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <IconCalendar className="h-4 w-4" /> Platform Events ({events.length})
-            </button>
+        <div className="flex flex-col gap-6">
+          {/* A real tablist: arrow keys move between tabs, the panel is named by
+              its tab, and the active label does not change weight — which used
+              to shift both tabs sideways every time you switched. */}
+          <div className="flex border-b" role="tablist" aria-label="Administration sections">
+            {TABS.map(({ icon: Icon, id, label }) => {
+              const isActive = activeTab === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  id={`admin-tab-${id}`}
+                  aria-selected={isActive}
+                  aria-controls={`admin-panel-${id}`}
+                  tabIndex={isActive ? 0 : -1}
+                  onKeyDown={(keyEvent) => {
+                    if (keyEvent.key !== "ArrowLeft" && keyEvent.key !== "ArrowRight") return;
+                    keyEvent.preventDefault();
+                    const next = TABS[
+                      (TABS.findIndex((tab) => tab.id === activeTab) +
+                        (keyEvent.key === "ArrowRight" ? 1 : TABS.length - 1)) %
+                        TABS.length
+                    ]!;
+                    setActiveTab(next.id);
+                    document.getElementById(`admin-tab-${next.id}`)?.focus();
+                  }}
+                  onClick={() => setActiveTab(id)}
+                  className={cn(
+                    "-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
+                    isActive
+                      ? "border-foreground text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <Icon aria-hidden="true" className="size-4" />
+                  {label}
+                  <span className="text-muted-foreground tabular-nums">
+                    {id === "accounts" ? accounts.length : events.length}
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
-          {activeTab === "accounts" && (
-            <AdminAccountsList
-              accounts={accounts}
-              onSuspend={onSuspendAccount}
-              onReactivate={onReactivateAccount}
-            />
-          )}
-
-          {activeTab === "events" && (
-            <AdminEventsList
-              events={events}
-              onSuspendEvent={onSuspendEvent}
-              onReactivateEvent={onReactivateEvent}
-              onInspectAttendeeData={handleInspect}
-            />
-          )}
+          <div
+            role="tabpanel"
+            id={`admin-panel-${activeTab}`}
+            aria-labelledby={`admin-tab-${activeTab}`}
+          >
+            {activeTab === "accounts" ? (
+              <AdminAccountsList
+                accounts={accounts}
+                onSuspend={onSuspendAccount}
+                onReactivate={onReactivateAccount}
+              />
+            ) : (
+              <AdminEventsList
+                events={events}
+                onSuspendEvent={onSuspendEvent}
+                onReactivateEvent={onReactivateEvent}
+                onInspectAttendeeData={handleInspect}
+              />
+            )}
+          </div>
         </div>
       )}
-    </div>
+    </main>
   );
 }

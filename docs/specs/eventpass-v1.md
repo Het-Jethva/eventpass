@@ -1,3 +1,36 @@
+# EventPass v1 product specification
+
+## Status and current decisions — 2026-08-01
+
+> This file preserves the original v1 specification as a historical product
+> document. EventPass is now an implemented, deliberately simple portfolio
+> project with one production-capable path and synthetic data. The decisions
+> below supersede conflicting assumptions in the historical body; the original
+> sections remain below for traceability rather than being silently rewritten.
+
+- **Implementation status:** The deployed application is implemented and
+  portfolio-oriented, not an unimplemented starter or a seeded demo.
+- **Testing status:** No test framework or automated tests are included by
+  design. The historical testing plan below is retained as history and does not
+  describe shipped coverage.
+- **Typography:** The application uses Geist Sans for general UI and Geist Mono
+  for identifiers and verification-oriented data.
+- **Motion:** Motion is restrained and purposeful: control/status transitions,
+  loading indicators, workspace view transitions, and the landing preview's
+  scan-arrival/meter sequence are used where they communicate state. Scanner
+  outcomes render immediately; there is no decorative page-entrance animation.
+- **Operations:** Expiration and reconciliation are evaluated during reads,
+  mutations, relevant traffic, and dashboard activity. There is no cron or
+  scheduled cleanup surface.
+- **Capacity:** Event capacity is capped at 3,000 attendees.
+- **Offline admission:** Online scans receive authoritative admission. Offline
+  scans are provisional and only the same phone can catch repeats immediately.
+  When separate phones scan offline, reconnect/sync reconciles the attempts: the
+  earliest high-confidence attempt can be accepted automatically, while
+  low-confidence collisions require a reasoned Organizer decision. Every
+  competing attempt and visible conflict is retained. Cross-device offline
+  duplicate prevention is not claimed.
+
 ## Problem Statement
 
 University-club Organizers need a credible way to register Attendees, issue secure Tickets, and admit people quickly at in-person Events. Typical lightweight form tools do not provide trustworthy single-entry admission, role-scoped staffing, an audit trail, or useful behavior when venue internet is unreliable. EventPass must solve that operational problem through genuine production-capable workflows while remaining inexpensive enough to run on free hosting tiers and polished enough to demonstrate in software-engineering interviews using only synthetic data.

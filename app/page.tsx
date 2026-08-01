@@ -49,9 +49,9 @@ const steps = [
 
 const assurances = [
   {
-    title: "No one gets in twice",
+    title: "Offline scans stay accountable",
     description:
-      "A second scan of the same ticket says so, even if the two scans happened on different phones while both were offline.",
+      "The same phone catches repeat scans immediately. When separate phones scan offline, EventPass reconciles them after reconnecting and keeps every conflict visible.",
   },
   {
     title: "Mistakes are fixable",

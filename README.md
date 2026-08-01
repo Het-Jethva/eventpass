@@ -54,6 +54,30 @@ retained.
 That boundary is documented in
 [ADR 0001](docs/adr/0001-offline-duplicate-detection-is-best-effort.md).
 
+### Scan authority at the door
+
+```mermaid
+sequenceDiagram
+    participant S as EventPass server
+    participant O as Online phone
+    participant A as Offline phone A
+    participant B as Offline phone B
+    O->>S: Scan while online
+    S-->>O: Authoritative admission
+    A->>A: Scan while offline
+    A-->>A: Provisional local result
+    A->>S: Reconnect and sync
+    alt No competing offline scan
+        S-->>A: Accepted after reconciliation
+    else Separate phones scanned offline
+        B->>B: Same ticket scanned offline
+        B-->>B: Provisional local result
+        B->>S: Reconnect and sync
+        S-->>A: Visible reconciliation conflict
+        S-->>B: Visible reconciliation conflict
+    end
+```
+
 ## Feature tour
 
 **Organizers** configure venue, schedule, IANA time zone, capacity, and the
@@ -168,7 +192,7 @@ app/         Routes — (workspace) organizer UI, /e public attendee flow,
              /scanner volunteer PWA, /admin, /api route handlers
 features/    Domain modules; features/*/server holds server-only services
 lib/         Database, auth, email, shared utilities
-drizzle/     17 migrations
+drizzle/     database migrations
 docs/        Product spec and architecture decision records
 ```
 

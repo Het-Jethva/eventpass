@@ -79,7 +79,7 @@ export const outcomePresentation: Record<AdmissionOutcome, Presentation> = {
   provisional: {
     title: "Checked in",
     description:
-      "Let them through. Saved on this phone and confirmed automatically once you are back online.",
+      "Let them through. Saved on this phone; reconnect to reconcile it with other scanners. Any conflict stays visible.",
     icon: IconCloudUpload,
     tone: "provisional",
     // The product's whole thesis in three words. It previously rendered in the

@@ -49,7 +49,7 @@ export async function ScanOutcomeShowcase() {
           <div className="flex items-center justify-between gap-3 border-b bg-background px-4 py-3">
             <p className="text-sm font-medium">Without a signal</p>
             <span className="text-sm text-muted-foreground">
-              Settles when you reconnect
+              Reconciles after reconnect
             </span>
           </div>
           <ScanOutcome

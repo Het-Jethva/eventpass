@@ -1,12 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Geist_Mono, Inter } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-// The whole product speaks in one face. Inter is variable, so a headline can sit
-// at 560 without loading a second file, and its character variants keep Il1
-// apart at the sizes a roster actually renders at.
-const inter = Inter({
-  variable: "--font-inter",
+// The whole product speaks in one face. Geist Sans is variable, so a headline
+// can sit at 560 without loading a second file, and its character variants keep
+// Il1 apart at the sizes a roster actually renders at.
+const geistSans = Geist({
+  variable: "--font-geist-sans",
   subsets: ["latin"],
 });
 
@@ -71,10 +71,11 @@ export const viewport: Viewport = {
 const DESIGN_CONTRACT = `<!--
 EventPass design contract.
 
-ONE VOICE: Inter carries every heading, control, table cell and door decision.
-There is no display face. Hierarchy is size, weight and spacing; leading and
-letter-spacing are bound to each step of the type scale, never set per element.
-The mono face is for ticket codes, web addresses and timestamps only.
+ONE VOICE: Geist Sans carries every heading, control, table cell and door
+decision. There is no display face. Hierarchy is size, weight and spacing;
+leading and letter-spacing are bound to each step of the type scale, never set
+per element. The mono face is for ticket codes, web addresses and timestamps
+only.
 
 SURFACE: Near-monochrome neutrals, flat, separated by hairlines. One elevation
 system. Unmodified shadcn primitives.
@@ -96,7 +97,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`h-full antialiased ${inter.variable} ${geistMono.variable}`}
+      className={`h-full antialiased ${geistSans.variable} ${geistMono.variable}`}
     >
       <head>
         <script

@@ -8,11 +8,11 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
 
-  /* One voice. Inter carries headlines, body, tables, forms, and every scanner
-     string; the mono is narrowed to codes a human reads aloud or types. There is
-     no display face and no `--font-heading`: hierarchy is size, weight, and
-     spacing, which is the only hierarchy that survives a dense table. */
-  --font-sans: var(--font-inter);
+  /* One voice. Geist Sans carries headlines, body, tables, forms, and every
+     scanner string; the mono is narrowed to codes a human reads aloud or types.
+     There is no display face and no `--font-heading`: hierarchy is size, weight,
+     and spacing, which is the only hierarchy that survives a dense table. */
+  --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 
   /* Type scale. Leading and tracking are properties of a size, not decisions to
@@ -67,9 +67,9 @@
   --text-reading--line-height: 1.75;
   --text-reading--letter-spacing: -0.011em;
 
-  /* Inter is variable, so the headline weight does not have to be one of the
-     nine stops. 560 holds its colour against a 48px line where 600 goes blunt
-     and 500 goes weak. */
+  /* Geist Sans is variable, so the headline weight does not have to be one of
+     the nine stops. 560 holds its colour against a 48px line where 600 goes
+     blunt and 500 goes weak. */
   --font-weight-headline: 560;
 
   /* A Ticket Code is read across a table or dictated down a phone. Opening it up

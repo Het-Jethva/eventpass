@@ -19,11 +19,11 @@ const PAPER = "#fcfdfe"; // --background
 const MUTED = "#6f6f7d"; // --muted-foreground
 const HAIRLINE = "#e6e6ea"; // --border
 
-async function interSubset(text: string, weight: 400 | 500 | 600) {
+async function geistSubset(text: string, weight: 400 | 500 | 600) {
   // The product speaks in one typeface. A card that falls back to Satori's
   // default sans is the one place EventPass appeared in a face it does not own,
   // and it is the first thing anyone sees of the product.
-  const url = `https://fonts.googleapis.com/css2?family=Inter:wght@${weight}&text=${encodeURIComponent(text)}`;
+  const url = `https://fonts.googleapis.com/css2?family=Geist:wght@${weight}&text=${encodeURIComponent(text)}`;
   const css = await fetch(url, {
     headers: {
       // Without a browser UA, Google serves woff2, which Satori cannot read.
@@ -43,13 +43,13 @@ const WORDMARK = "EventPass";
 
 export default async function OpenGraphImage() {
   const [regular, medium] = await Promise.all([
-    interSubset(`${SUBHEAD}${FOOTER}`, 400),
-    interSubset(`${HEADLINE}${WORDMARK}`, 500),
+    geistSubset(`${SUBHEAD}${FOOTER}`, 400),
+    geistSubset(`${HEADLINE}${WORDMARK}`, 500),
   ]);
 
   const fonts = [
-    regular && { name: "Inter", data: regular, weight: 400 as const, style: "normal" as const },
-    medium && { name: "Inter", data: medium, weight: 500 as const, style: "normal" as const },
+    regular && { name: "Geist", data: regular, weight: 400 as const, style: "normal" as const },
+    medium && { name: "Geist", data: medium, weight: 500 as const, style: "normal" as const },
   ].filter((font) => font !== null);
 
   return new ImageResponse(
@@ -64,7 +64,7 @@ export default async function OpenGraphImage() {
           background: PAPER,
           color: INK,
           padding: "72px",
-          fontFamily: "Inter",
+          fontFamily: "Geist",
           // A hairline, like every other region boundary in the product. The
           // 16px ink bar that used to sit here was the only heavy rule anywhere.
           borderTop: `2px solid ${INK}`,

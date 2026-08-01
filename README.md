@@ -113,9 +113,9 @@ unique constraint rather than an application check.
 <summary><strong>Expiry does not depend on a scheduler</strong></summary>
 
 Deadlines are evaluated during reads and mutations, with idempotent
-reconciliation running on relevant traffic and dashboard activity. The daily
-Vercel cron job only cleans up disposable artifacts. Nothing important breaks if
-it never runs.
+reconciliation running on relevant traffic and dashboard activity. Expired
+disposable records are ignored by application logic, and the intentionally small
+data volume does not require scheduled housekeeping.
 </details>
 
 <details>
@@ -208,7 +208,6 @@ npm run dev
 | `RESEND_FROM_EMAIL` | yes | Verified sending address |
 | `RESEND_WEBHOOK_SECRET` | yes | Verifies signed delivery webhooks |
 | `PLATFORM_ADMIN_EMAILS` | no | Comma-separated platform administrators |
-| `CRON_SECRET` | no | Authorizes the daily cleanup cron |
 | `NEON_WS_PROXY` | no | WebSocket bridge host for a local Postgres (see below) |
 
 Generate a ticket signing key pair with:

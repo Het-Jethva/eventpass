@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 // opened on a phone at a door in almost every real case. So the QR leads on
 // every viewport — it previously sat below the event details and the full
 // management form, meaning an attendee had to scroll past a cancellation
-// control to reach the thing they came to show. DESIGN.md § Components.
+// control to reach the thing they came to show.
 //
 // Kept as a component so the landing page can render a real ticket rather than
 // a screenshot.

@@ -356,7 +356,7 @@ export function ScannerWorkspace({
         // to find out whether to admit someone.
         //
         // No entrance animation, deliberately: a 200ms fade on a door decision
-        // is 200ms of a volunteer not knowing. DESIGN.md § Motion.
+        // is 200ms of a volunteer not knowing.
         <div
           ref={resultRef}
           tabIndex={-1}

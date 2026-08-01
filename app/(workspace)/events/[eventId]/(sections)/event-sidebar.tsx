@@ -29,7 +29,7 @@ import { cn } from "@/lib/utils";
 //
 // This also removes two bands of chrome: the standalone back-link and the pill
 // nav both fold into the rail, leaving the section's own heading at the top of
-// the content column. DESIGN.md § Components.
+// the content column.
 
 type EventSidebarProps = {
   eventId: string;

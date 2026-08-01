@@ -13,7 +13,7 @@ export const contentType = "image/png";
 // Satori resolves neither CSS custom properties nor the app's font variables, so
 // this surface has to restate both. Every value below is the sRGB conversion of
 // a light-mode token in globals.css — nothing here is a new colour, and if a
-// token moves these have to be re-derived. See DESIGN.md § Colors.
+// token moves these have to be re-derived.
 const INK = "#22222b"; // --foreground
 const PAPER = "#fcfdfe"; // --background
 const MUTED = "#6f6f7d"; // --muted-foreground

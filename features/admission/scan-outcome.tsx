@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 
 // The signature interaction. A volunteer reads this at arm's length, in a lit
 // gym, with a queue behind them — so it takes over the screen rather than
-// arriving as a notification, and it never animates in. See DESIGN.md.
+// arriving as a notification, and it never animates in.
 //
 // Kept separate from ScannerWorkspace so the landing page can render the real
 // component with static props instead of a screenshot that goes stale.

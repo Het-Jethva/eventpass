@@ -35,9 +35,9 @@ export type RosterStatusKey =
   | "expired";
 
 /**
- * Badge emphasis rather than a colour. DESIGN.md reserves `destructive` for
- * errors, invalid Tickets, cancellation and suspension, and forbids inventing
- * per-component palettes, so these map onto existing Badge variants only. Every
+ * Badge emphasis rather than a colour. `destructive` is reserved for errors,
+ * invalid Tickets, cancellation and suspension, and per-component palettes are
+ * forbidden, so these map onto existing Badge variants only. Every
  * status also carries a distinct label and icon, so none of them rely on colour.
  */
 export type RosterStatusEmphasis = "primary" | "muted" | "outline" | "destructive";

@@ -104,7 +104,7 @@
   --color-card: var(--card);
 
   /* Outcome families. Every one carries the same five roles so a component can
-     switch families without switching vocabulary. See DESIGN.md § Colors. */
+     switch families without switching vocabulary. */
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
   --color-brand-text: var(--brand-text);
@@ -143,7 +143,7 @@
 
   /* Signal pair, pinned across themes. Only the scanner outcome uses these:
      ambient venue light beats theme preference at a door, so a rejection must
-     not render as dark-red-on-black in a lit gymnasium. See DESIGN.md. */
+     not render as dark-red-on-black in a lit gymnasium. */
   --color-signal-success: var(--signal-success);
   --color-signal-success-text: var(--signal-success-text);
   --color-signal-warning: var(--signal-warning);
@@ -155,7 +155,7 @@
 
   /* Three radii, named by role. The legacy scale names are mapped onto them so
      existing markup conforms without a sweep; prefer the role names in new
-     code. See DESIGN.md § Shape and elevation. */
+     code. */
   --radius-sm: var(--radius-control);
   --radius-md: var(--radius-control);
   --radius-lg: var(--radius-container);
@@ -385,10 +385,9 @@
      moves, rather than the page decorating its own entrance.
 
      Exponential ease-out. Every figure is legible before, during, and after:
-     the motion states nothing the text does not, which is why removing it
-     entirely under reduced motion costs the reader nothing. Note this is the
-     activity row, never a scan outcome — a door decision still appears
-     instantly and never animates. */
+     the motion states nothing the text does not. Note this is the activity row,
+     never a scan outcome — a door decision still appears instantly and never
+     animates. */
   @keyframes scan-arrive {
     from {
       opacity: 0;
@@ -442,30 +441,6 @@
     background-position: center;
     background-repeat: repeat-y;
     background-size: 0.5rem 0.5rem;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  /* Every animation has a static, fully usable fallback. View transitions are
-     driven by the browser rather than by our own CSS, so they have to be
-     switched off at the pseudo-element level or the preference is ignored. */
-  ::view-transition-group(*),
-  ::view-transition-old(*),
-  ::view-transition-new(*) {
-    animation: none !important;
-  }
-
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    /* Without this, a delayed animation still holds its `from` state for the
-       length of the delay — which for the arrivals meter meant an empty bar
-       sitting there for 200ms before snapping full. */
-    animation-delay: 0s !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
   }
 }
 

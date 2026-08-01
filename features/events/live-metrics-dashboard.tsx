@@ -46,7 +46,7 @@ function percentOf(value: number, total: number) {
 /**
  * A count is not judgeable on its own — "7 duplicates" means nothing without
  * "of 412 attempts". Every figure on this screen carries its denominator and a
- * proportional bar. DESIGN.md § Components.
+ * proportional bar.
  */
 function ProportionRow({
   label,
@@ -272,10 +272,7 @@ export function LiveMetricsDashboard({
           />
           <Badge variant="outline" className="gap-1.5 font-normal">
             {isRefreshing ? (
-              <IconRefresh
-                aria-hidden="true"
-                className="animate-spin motion-reduce:animate-none"
-              />
+              <IconRefresh aria-hidden="true" className="animate-spin" />
             ) : (
               <IconClock aria-hidden="true" />
             )}
@@ -390,7 +387,7 @@ export function LiveMetricsDashboard({
               Values are always rendered rather than revealed on hover. Hover
               does not exist on a phone, which is where an organizer actually
               watches a door, so the chart previously had no numbers at all
-              there — and DESIGN.md rules out hiding state behind hover.
+              there — and state must never hide behind hover.
 
               `<table>` rather than divs so the series is readable by a screen
               reader and keyboard as an ordinary two-column table; the bars are

@@ -89,9 +89,9 @@ type AuditRow = {
  * The previous implementation read the most recent 200 Audit Entries and 300
  * Scan Attempts, then filtered and searched that array in the browser. On a busy
  * Event the search box therefore searched a truncated window while presenting
- * itself as searching the log — the opposite of the honesty CONTEXT.md and
- * DESIGN.md ask for around state. Filtering, searching and paging now all happen
- * in Postgres over the full log.
+ * itself as searching the log — the opposite of the honesty CONTEXT.md asks for
+ * around state. Filtering, searching and paging now all happen in Postgres over
+ * the full log.
  *
  * Takes its database handle so integration tests can pass a transaction.
  */

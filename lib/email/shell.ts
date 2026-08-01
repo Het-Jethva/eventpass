@@ -13,7 +13,7 @@ import "server-only";
  * It replaces `Arial` on `#171717` — a pure neutral, which the palette does not
  * contain anywhere and which reads visibly colder than every EventPass surface.
  */
-export const EMAIL_INK = "#22222b";
+const EMAIL_INK = "#22222b";
 
 export const EMAIL_BODY_STYLE = [
   "font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif",

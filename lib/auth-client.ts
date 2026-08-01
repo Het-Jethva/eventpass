@@ -7,7 +7,7 @@ import {
 import { normalizeStaffEmail } from "@/features/staff-identity/normalize-staff-email";
 import type { auth } from "@/lib/auth";
 
-export const authClient = createAuthClient({
+const authClient = createAuthClient({
   plugins: [inferAdditionalFields<typeof auth>(), magicLinkClient()],
 });
 

@@ -1,12 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { IconSearch } from "@tabler/icons-react";
+import { usePathname, useSearchParams } from "next/navigation";
 
+import { SearchField, useDebouncedQuerySync } from "@/components/search-field";
 import { SegmentedFilter } from "@/components/segmented-filter";
-import { Input } from "@/components/ui/input";
-import { Spinner } from "@/components/ui/spinner";
 import {
   AUDIT_CATEGORIES,
   AUDIT_CATEGORY_LABELS,
@@ -15,8 +12,6 @@ import {
   type AuditCategoryValue,
   type AuditSourceValue,
 } from "@/features/audit/audit-filters";
-
-const DEBOUNCE_MS = 250;
 
 export function AuditFilterControls({
   category,
@@ -27,22 +22,17 @@ export function AuditFilterControls({
   source: AuditSourceValue;
   initialQuery: string;
 }) {
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [isPending, startTransition] = useTransition();
-  const [query, setQuery] = useState(initialQuery);
-  const isFirstRender = useRef(true);
 
   function buildHref(next: {
-    query?: string;
+    query: string;
     category?: AuditCategoryValue;
     source?: AuditSourceValue;
   }) {
     const params = new URLSearchParams(searchParams.toString());
 
-    const nextQuery = next.query ?? query;
-    if (nextQuery.trim()) params.set("q", nextQuery.trim());
+    if (next.query.trim()) params.set("q", next.query.trim());
     else params.delete("q");
 
     const nextCategory = next.category ?? category;
@@ -60,40 +50,21 @@ export function AuditFilterControls({
     return search ? `${pathname}?${search}` : pathname;
   }
 
-  useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
-    if (query === initialQuery) return;
-
-    const timer = setTimeout(() => {
-      startTransition(() => router.replace(buildHref({ query })));
-    }, DEBOUNCE_MS);
-
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, initialQuery, router]);
+  const { query, setQuery, isPending, navigate } = useDebouncedQuerySync({
+    initialQuery,
+    buildHref: (nextQuery) => buildHref({ query: nextQuery }),
+  });
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border bg-card p-4">
-      <div className="relative max-w-sm">
-        <IconSearch
-          aria-hidden="true"
-          className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-        />
-        <Input
-          type="search"
-          value={query}
-          onChange={(changeEvent) => setQuery(changeEvent.target.value)}
-          placeholder="Search actor, action, target, reason"
-          aria-label="Search audit entries"
-          className="pl-9 text-xs"
-        />
-        {isPending ? (
-          <Spinner className="absolute top-1/2 right-3 size-4 -translate-y-1/2" />
-        ) : null}
-      </div>
+      <SearchField
+        value={query}
+        onChange={setQuery}
+        pending={isPending}
+        label="Search audit entries"
+        placeholder="Search actor, action, target, reason"
+        inputClassName="text-xs"
+      />
 
       {/* Two independent filters. Shelled separately, because as one loose row
           they read as a single seven-option control with two options somehow
@@ -108,10 +79,8 @@ export function AuditFilterControls({
             label: AUDIT_CATEGORY_LABELS[value],
           }))}
           onSelect={(value) =>
-            startTransition(() =>
-              router.replace(
-                buildHref({ category: value as AuditCategoryValue }),
-              ),
+            navigate(
+              buildHref({ query, category: value as AuditCategoryValue }),
             )
           }
         />
@@ -125,9 +94,7 @@ export function AuditFilterControls({
             label: AUDIT_SOURCE_LABELS[value],
           }))}
           onSelect={(value) =>
-            startTransition(() =>
-              router.replace(buildHref({ source: value as AuditSourceValue })),
-            )
+            navigate(buildHref({ query, source: value as AuditSourceValue }))
           }
         />
       </div>

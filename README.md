@@ -269,14 +269,15 @@ driver production uses, including its pipelining and transaction semantics.
 
 ```bash
 docker compose up -d
-DATABASE_URL=postgresql://postgres:postgres@localhost:55432/eventpass npm run db:migrate
-TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55432/eventpass npm test
+DATABASE_URL=postgresql://postgres:postgres@localhost:54432/eventpass npm run db:migrate
+TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:54432/eventpass npm test
 ```
 
 `vitest.setup.ts` points the driver at the proxy automatically whenever the
 database URL is local; it leaves `lib/db/index.ts` untouched, so production
-behaviour is unchanged. Ports are non-default (55432, 54444) to avoid colliding
-with an existing Postgres.
+behaviour is unchanged. Ports are non-default (54432, 54444) to avoid colliding
+with an existing Postgres, and stay below 55000 because Windows reserves
+scattered blocks above that for Hyper-V — a port inside one fails to bind.
 
 ## Deliberately out of scope
 

@@ -7,10 +7,13 @@
 # database, instead of a substituted `pg` driver that would hide differences.
 #
 #   docker compose up -d
-#   DATABASE_URL=postgresql://postgres:postgres@localhost:55432/eventpass npm run db:migrate
+#   DATABASE_URL=postgresql://postgres:postgres@localhost:54432/eventpass npm run db:migrate
 #   npm test
 #
-# Ports are deliberately non-default: 5432 is commonly already claimed.
+# Ports are deliberately non-default: 5432 is commonly already claimed. They
+# also sit below 55000, because Windows reserves scattered 100-port blocks from
+# roughly 55321 up for Hyper-V — a published port landing inside one fails to
+# bind with a permissions error rather than an in-use error.
 services:
   postgres:
     image: postgres:17-alpine
@@ -20,7 +23,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: eventpass
     ports:
-      - "55432:5432"
+      - "54432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d eventpass"]
       interval: 2s

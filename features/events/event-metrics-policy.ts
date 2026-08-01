@@ -33,11 +33,9 @@ export type CheckInConflictStats = {
   resolvedManual: number;
 };
 
-export type PendingDeviceSyncStats = {
-  offlineScanAttempts: number;
-  lowConfidenceAttempts: number;
-  unresolvedConflicts: number;
-  isSyncPending: boolean;
+export type OfflineScanStats = {
+  received: number;
+  lowConfidenceReceived: number;
 };
 
 export type DeliveryOutcomeStats = {
@@ -60,10 +58,14 @@ export type LiveEventMetricsResult = {
   eventId: string;
   eventName: string;
   refreshedAt: string;
+  checkInWindow: {
+    opensAt: string;
+    closesAt: string;
+  };
   overview: EventMetricsOverview;
   scanAttemptStats: ScanAttemptStats;
   checkInConflictStats: CheckInConflictStats;
-  pendingDeviceSync: PendingDeviceSyncStats;
+  offlineScanStats: OfflineScanStats;
   deliveryOutcomes: DeliveryOutcomeStats;
   checkInsOverTime: HourlyCheckInPoint[];
 };
@@ -80,106 +82,60 @@ export function calculateAttendanceRate({
   return Math.min(100, Math.round(rate));
 }
 
-export function buildCheckInsTimeline({
-  checkIns,
+export function formatCheckInsTimeline({
+  buckets,
   timeZone,
 }: {
-  checkIns: { checkedInAt: Date }[];
+  buckets: { hourStart: Date; count: number }[];
   timeZone: string;
 }): HourlyCheckInPoint[] {
-  const buckets = new Map<
-    string,
-    {
-      count: number;
-      earliestCheckedInAt: number;
-      hourIso: string;
-      label: string;
-    }
-  >();
-
-  const eventTimeFormatter = new Intl.DateTimeFormat("en", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-    hourCycle: "h23",
-    timeZone,
-  });
   const hourLabelFormatter = new Intl.DateTimeFormat("en", {
     hour: "numeric",
     hour12: true,
     timeZone,
   });
+  const eventTimeFormatter = new Intl.DateTimeFormat("en", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    hour12: false,
+    hourCycle: "h23",
+    timeZone,
+  });
+  const disambiguatedHourLabelFormatter = new Intl.DateTimeFormat("en", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone,
+    timeZoneName: "short",
+  });
 
-  for (const { checkedInAt } of checkIns) {
-    let year: string | undefined;
-    let month: string | undefined;
-    let day: string | undefined;
-    let hour: string | undefined;
-    let minute: string | undefined;
-    let second: string | undefined;
-
-    for (const part of eventTimeFormatter.formatToParts(checkedInAt)) {
-      switch (part.type) {
-        case "year":
-          year = part.value;
-          break;
-        case "month":
-          month = part.value;
-          break;
-        case "day":
-          day = part.value;
-          break;
-        case "hour":
-          hour = part.value;
-          break;
-        case "minute":
-          minute = part.value;
-          break;
-        case "second":
-          second = part.value;
-          break;
-      }
-    }
-
-    if (!year || !month || !day || !hour || !minute || !second) {
-      throw new Error("Unable to derive Event Time Zone fields for Check-in");
-    }
-
-    const bucketKey = `${year}-${month}-${day}T${hour}`;
-    const checkedInAtMs = checkedInAt.getTime();
-    const withinHourMs =
-      (Number(minute) * 60 + Number(second)) * 1_000 + checkedInAt.getUTCMilliseconds();
-    const hourIso = new Date(checkedInAtMs - withinHourMs).toISOString();
-    const existing = buckets.get(bucketKey);
-
-    if (existing) {
-      existing.count += 1;
-      if (checkedInAtMs < existing.earliestCheckedInAt) {
-        existing.earliestCheckedInAt = checkedInAtMs;
-        existing.hourIso = hourIso;
-      }
-    } else {
-      buckets.set(bucketKey, {
-        count: 1,
-        earliestCheckedInAt: checkedInAtMs,
-        hourIso,
-        label: hourLabelFormatter.format(checkedInAt),
-      });
-    }
+  const localHourKeys = buckets.map(({ hourStart }) =>
+    eventTimeFormatter
+      .formatToParts(hourStart)
+      .filter((part) => ["year", "month", "day", "hour"].includes(part.type))
+      .map((part) => part.value)
+      .join("-"),
+  );
+  const localHourKeyCounts = new Map<string, number>();
+  for (const key of localHourKeys) {
+    localHourKeyCounts.set(key, (localHourKeyCounts.get(key) ?? 0) + 1);
   }
 
-  const points = Array.from(buckets.values(), ({ count, hourIso, label }) => ({
-    count,
-    hourIso,
-    label,
-  }));
-  points.sort((a, b) => a.hourIso.localeCompare(b.hourIso));
+  return buckets.map(({ hourStart, count }, index) => {
+    const localHourKey = localHourKeys[index];
+    const label =
+      localHourKey && localHourKeyCounts.get(localHourKey)! > 1
+        ? disambiguatedHourLabelFormatter.format(hourStart)
+        : hourLabelFormatter.format(hourStart);
 
-  return points;
+    return {
+      count,
+      hourIso: hourStart.toISOString(),
+      label,
+    };
+  });
 }
 
 export function computeCapacityUtilization({

@@ -22,6 +22,48 @@ type LiveMetricsDashboardProps = {
 
 type Tone = "success" | "warning" | "destructive" | "provisional" | "neutral";
 
+const ACTIVE_POLL_INTERVAL_MS = 5_000;
+const QUIET_POLL_INTERVAL_MS = 30_000;
+const MIN_BOUNDARY_DELAY_MS = 250;
+
+function getPollingIntervalMs({
+  opensAt,
+  closesAt,
+}: LiveEventMetricsResult["checkInWindow"]) {
+  const now = Date.now();
+  const opensAtMs = Date.parse(opensAt);
+  const closesAtMs = Date.parse(closesAt);
+
+  return now >= opensAtMs && now < closesAtMs
+    ? ACTIVE_POLL_INTERVAL_MS
+    : QUIET_POLL_INTERVAL_MS;
+}
+
+function getNextPollDelayMs({
+  opensAt,
+  closesAt,
+}: LiveEventMetricsResult["checkInWindow"]) {
+  const now = Date.now();
+  const opensAtMs = Date.parse(opensAt);
+  const closesAtMs = Date.parse(closesAt);
+
+  if (now < opensAtMs) {
+    return Math.min(
+      QUIET_POLL_INTERVAL_MS,
+      Math.max(MIN_BOUNDARY_DELAY_MS, opensAtMs - now),
+    );
+  }
+
+  if (now < closesAtMs) {
+    return Math.min(
+      ACTIVE_POLL_INTERVAL_MS,
+      Math.max(MIN_BOUNDARY_DELAY_MS, closesAtMs - now),
+    );
+  }
+
+  return QUIET_POLL_INTERVAL_MS;
+}
+
 const BAR_TONE: Record<Tone, string> = {
   success: "bg-success",
   warning: "bg-warning",
@@ -134,17 +176,30 @@ export function LiveMetricsDashboard({
   const [metrics, setMetrics] = useState<LiveEventMetricsResult>(initialMetrics);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isPolling, setIsPolling] = useState(true);
+  const [pollingIntervalMs, setPollingIntervalMs] = useState(() =>
+    getPollingIntervalMs(initialMetrics.checkInWindow),
+  );
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date>(
     new Date(initialMetrics.refreshedAt),
   );
 
+  const { opensAt, closesAt } = metrics.checkInWindow;
+
   useEffect(() => {
     let isMounted = true;
+    let isRunning = false;
     let controller: AbortController | null = null;
-    let interval: ReturnType<typeof setInterval> | null = null;
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    const checkInWindow = { opensAt, closesAt };
 
     async function fetchMetrics() {
-      if (controller) return;
+      if (
+        !isMounted ||
+        document.visibilityState === "hidden" ||
+        controller
+      ) {
+        return;
+      }
 
       const requestController = new AbortController();
       controller = requestController;
@@ -153,6 +208,7 @@ export function LiveMetricsDashboard({
         setIsRefreshing(true);
         const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/live-metrics`, {
           signal: requestController.signal,
+          cache: "no-store",
         });
         if (res.ok) {
           const data: LiveEventMetricsResult = await res.json();
@@ -172,17 +228,28 @@ export function LiveMetricsDashboard({
       }
     }
 
-    function startPolling() {
-      if (interval !== null) return;
+    function scheduleNextPoll() {
+      if (
+        !isMounted ||
+        !isRunning ||
+        document.visibilityState === "hidden"
+      ) {
+        return;
+      }
 
-      interval = setInterval(fetchMetrics, 5000);
-      if (isMounted) setIsPolling(true);
+      const delay = getNextPollDelayMs(checkInWindow);
+      setPollingIntervalMs(getPollingIntervalMs(checkInWindow));
+      timeout = setTimeout(() => {
+        timeout = null;
+        void fetchMetrics().finally(scheduleNextPoll);
+      }, delay);
     }
 
     function stopPolling() {
-      if (interval !== null) {
-        clearInterval(interval);
-        interval = null;
+      isRunning = false;
+      if (timeout !== null) {
+        clearTimeout(timeout);
+        timeout = null;
       }
 
       controller?.abort();
@@ -193,13 +260,26 @@ export function LiveMetricsDashboard({
       }
     }
 
+    function startPolling() {
+      if (
+        isRunning ||
+        !isMounted ||
+        document.visibilityState === "hidden"
+      ) {
+        return;
+      }
+
+      isRunning = true;
+      setIsPolling(true);
+      void fetchMetrics().finally(scheduleNextPoll);
+    }
+
     function handleVisibilityChange() {
       if (document.visibilityState === "hidden") {
         stopPolling();
         return;
       }
 
-      void fetchMetrics();
       startPolling();
     }
 
@@ -216,13 +296,13 @@ export function LiveMetricsDashboard({
       stopPolling();
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [eventId]);
+  }, [closesAt, eventId, opensAt]);
 
   const {
     overview,
     scanAttemptStats,
     checkInConflictStats,
-    pendingDeviceSync,
+    offlineScanStats,
     deliveryOutcomes,
     checkInsOverTime,
   } = metrics;
@@ -236,18 +316,6 @@ export function LiveMetricsDashboard({
       count: checkInConflictStats.unresolved,
       tone: "destructive" as Tone,
       href: `/events/${eventId}/check-in`,
-    },
-    {
-      label: "Scans waiting to sync",
-      count: pendingDeviceSync.offlineScanAttempts,
-      tone: "provisional" as Tone,
-      href: `/events/${eventId}/check-in`,
-    },
-    {
-      label: "Scans with an unreliable time",
-      count: pendingDeviceSync.lowConfidenceAttempts,
-      tone: "warning" as Tone,
-      href: `/events/${eventId}/audit`,
     },
     {
       label: "Tickets that never arrived",
@@ -276,7 +344,9 @@ export function LiveMetricsDashboard({
             ) : (
               <IconClock aria-hidden="true" />
             )}
-            {isPolling ? "Live · refreshes every 5s" : "Paused"}
+            {isPolling
+              ? `Live · refreshes every ${pollingIntervalMs / 1000}s`
+              : "Paused"}
           </Badge>
           <span className="font-mono text-sm text-muted-foreground tabular-nums">
             {lastRefreshedAt.toLocaleTimeString([], {
@@ -335,8 +405,7 @@ export function LiveMetricsDashboard({
                   <span className="text-lg font-medium">Nothing to resolve</span>
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  No conflicts, no pending synchronization, no failed
-                  deliveries.
+                  No unresolved conflicts or failed deliveries.
                 </p>
               </div>
             ) : (
@@ -456,7 +525,10 @@ export function LiveMetricsDashboard({
           </div>
           <p className="font-mono text-sm text-muted-foreground tabular-nums">
             {scanAttemptStats.total.toLocaleString()} attempts ·{" "}
-            {scanAttemptStats.offlineCount.toLocaleString()} recorded offline
+            {offlineScanStats.received.toLocaleString()} Offline scans received
+            {offlineScanStats.lowConfidenceReceived > 0
+              ? ` · ${offlineScanStats.lowConfidenceReceived.toLocaleString()} low-confidence timestamps retained for reconciliation history`
+              : ""}
           </p>
           <div className="flex flex-col gap-3">
             <ProportionRow

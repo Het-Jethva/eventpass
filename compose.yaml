@@ -1,14 +1,14 @@
-# Local Postgres for the integration test suite.
+# Local Postgres for development, so no Neon account is needed.
 #
-# The application and every integration test connect through
-# `@neondatabase/serverless`, which speaks WebSockets rather than the Postgres
-# wire protocol. `wsproxy` bridges the two so tests exercise the *production*
-# driver — including its pipelining and transaction semantics — against a local
-# database, instead of a substituted `pg` driver that would hide differences.
+# The application connects through `@neondatabase/serverless`, which speaks
+# WebSockets rather than the Postgres wire protocol. `wsproxy` bridges the two
+# so local development exercises the *production* driver — including its
+# pipelining and transaction semantics — against a local database, instead of a
+# substituted `pg` driver that would hide differences.
 #
 #   docker compose up -d
 #   DATABASE_URL=postgresql://postgres:postgres@localhost:54432/eventpass npm run db:migrate
-#   npm test
+#   DATABASE_URL=postgresql://postgres:postgres@localhost:54432/eventpass npm run dev
 #
 # Ports are deliberately non-default: 5432 is commonly already claimed. They
 # also sit below 55000, because Windows reserves scattered 100-port blocks from

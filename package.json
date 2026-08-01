@@ -8,7 +8,6 @@
     "start": "next start",
     "lint": "eslint app components features lib",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate"
   },
@@ -45,9 +44,7 @@
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.11",
-    "fake-indexeddb": "^6.2.5",
     "tailwindcss": "^4",
-    "typescript": "^5",
-    "vitest": "^4.1.10"
+    "typescript": "^5"
   }
 }

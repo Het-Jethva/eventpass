@@ -178,7 +178,7 @@ provider webhooks, and CSV import/export.
 
 **Stack:** Next.js 16 · React 19 · TypeScript · PostgreSQL (Neon) · Drizzle ORM
 · Better Auth · Zod · Tailwind CSS 4 · shadcn/Base UI · Serwist · Dexie ·
-Resend · Vitest
+Resend
 
 ## Running locally
 
@@ -209,7 +209,7 @@ npm run dev
 | `RESEND_WEBHOOK_SECRET` | yes | Verifies signed delivery webhooks |
 | `PLATFORM_ADMIN_EMAILS` | no | Comma-separated platform administrators |
 | `CRON_SECRET` | no | Authorizes the daily cleanup cron |
-| `TEST_DATABASE_URL` | no | Database for integration tests (see below) |
+| `NEON_WS_PROXY` | no | WebSocket bridge host for a local Postgres (see below) |
 
 Generate a ticket signing key pair with:
 
@@ -226,55 +226,26 @@ openssl ec -in ticket-key.pem -pubout -out ticket-key.pub
 | `npm run build` | Production build |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm test` | Vitest |
 | `npm run db:generate` | Generate a Drizzle migration |
 | `npm run db:migrate` | Apply migrations |
 
-## Testing
-
-Tests target one high-level domain application-service seam and assert
-observable returned and persisted outcomes rather than internal calls, SQL
-shape, or component structure. Only true external boundaries — email delivery,
-uncontrollable time — are mocked; no EventPass module is.
-
-Six behaviours were built test-first because they are the ones that would fail
-expensively in production:
-
-1. Two concurrent claims on the final place cannot overbook capacity.
-2. One event cannot hold two active registrations for the same normalized email.
-3. A tampered ticket payload is rejected.
-4. A second admission attempt for a checked-in ticket is rejected as duplicate.
-5. Replaying a scan-attempt UUID creates no duplicate attempt or check-in.
-6. Provisional check-ins from separate devices become a conflict and resolve by
-   timestamp confidence.
-
-Concurrency and uniqueness tests exercise real PostgreSQL transaction and
-constraint behaviour, so they need a database:
-
-```bash
-TEST_DATABASE_URL=postgres://... npm test
-```
-
-Without it, the integration suites **skip** and only the pure-logic tests run.
-Point it at a scratch database or a Neon branch — the suites write real rows.
-
 ### A local database, no Neon account needed
 
-`compose.yaml` brings up Postgres plus Neon's `wsproxy`. The proxy matters:
-the application and every integration test connect through
-`@neondatabase/serverless`, which speaks WebSockets rather than the Postgres
-wire protocol, so it cannot reach a plain Postgres container directly. Bridging
-it — rather than substituting `pg` for tests — keeps the suites on the same
-driver production uses, including its pipelining and transaction semantics.
+`compose.yaml` brings up Postgres plus Neon's `wsproxy`. The proxy matters: the
+application connects through `@neondatabase/serverless`, which speaks WebSockets
+rather than the Postgres wire protocol, so it cannot reach a plain Postgres
+container directly. Bridging it — rather than substituting `pg` locally — keeps
+development on the same driver production uses, including its pipelining and
+transaction semantics.
 
 ```bash
 docker compose up -d
 DATABASE_URL=postgresql://postgres:postgres@localhost:54432/eventpass npm run db:migrate
-TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:54432/eventpass npm test
+DATABASE_URL=postgresql://postgres:postgres@localhost:54432/eventpass npm run dev
 ```
 
-`vitest.setup.ts` points the driver at the proxy automatically whenever the
-database URL is local; it leaves `lib/db/index.ts` untouched, so production
+`lib/db/index.ts` points the driver at the proxy automatically whenever the
+database URL is local, and is inert for a hosted Neon URL, so production
 behaviour is unchanged. Ports are non-default (54432, 54444) to avoid colliding
 with an existing Postgres, and stay below 55000 because Windows reserves
 scattered blocks above that for Hyper-V — a port inside one fails to bind.

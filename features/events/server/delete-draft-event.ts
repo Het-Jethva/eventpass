@@ -10,10 +10,13 @@ import {
   registrationFieldChoice,
 } from "@/lib/db/schema";
 
+import { lockEventForMutation } from "./event-suspension";
+
 export class DraftEventCannotBeDeletedError extends Error {}
 
 export async function deleteDraftEvent(eventId: string, actorUserId: string) {
   return db.transaction(async (transaction) => {
+    await lockEventForMutation(transaction, eventId);
     const [ownedDraft] = await transaction
       .select({ id: event.id })
       .from(eventStaff)

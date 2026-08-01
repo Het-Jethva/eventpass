@@ -24,7 +24,8 @@ export default async function AdmissionOfferPage({
     !offer &&
     outcome !== "expired" &&
     outcome !== "consumed" &&
-    outcome !== "canceled"
+    outcome !== "canceled" &&
+    outcome !== "unavailable"
   ) {
     notFound();
   }
@@ -38,7 +39,7 @@ export default async function AdmissionOfferPage({
       </header>
       <main className="mx-auto flex w-full max-w-3xl flex-1 items-center px-4 py-12 sm:px-6">
         <section className="w-full rounded-2xl border bg-background p-6 sm:p-10">
-          {offer ? (
+          {offer && !offer.suspended ? (
             <>
               <p className="text-sm font-medium text-muted-foreground">{offer.eventName}</p>
               <h1 className="mt-2 text-3xl font-headline text-balance">
@@ -62,6 +63,16 @@ export default async function AdmissionOfferPage({
                   Claim place and issue ticket
                 </Button>
               </form>
+            </>
+          ) : offer?.suspended || outcome === "unavailable" ? (
+            <>
+              <h1 className="text-3xl font-headline text-balance">
+                Event currently unavailable
+              </h1>
+              <p className="mt-4 text-muted-foreground">
+                This Event is currently unavailable, so this offer cannot be
+                claimed and no Ticket can be issued.
+              </p>
             </>
           ) : (
             <>

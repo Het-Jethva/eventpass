@@ -15,6 +15,7 @@ import {
   registrationField,
   registrationFieldChoice,
 } from "@/lib/db/schema";
+import { lockEventForMutation } from "@/features/events/server/event-suspension";
 
 export type OrganizerRegistrationField = RegistrationFieldDefinition & {
   responseCount: number;
@@ -112,6 +113,7 @@ export async function saveRegistrationForm(
   const definition = registrationFormDefinitionSchema.parse(rawDefinition);
 
   return db.transaction(async (transaction) => {
+    await lockEventForMutation(transaction, eventId);
     await authorizeOrganizer(transaction, eventId, actorUserId);
 
     const existingFields = await transaction

@@ -21,6 +21,7 @@ import {
   reconcileWaitlistInTransaction,
   type AdmissionOfferMessage,
 } from "./waitlist-reconciliation";
+import { isEventSuspended } from "@/features/events/server/event-suspension";
 
 type RegistrationDatabase = typeof import("../../../lib/db").db;
 
@@ -54,6 +55,7 @@ export type RegistrationSubmissionResult =
       outcome: "existing_registration";
       registrationId: string;
     }
+  | { outcome: "event_unavailable" }
   | { outcome: "registration_closed" }
   | {
       outcome: "invalid";
@@ -116,14 +118,18 @@ export function createRegistrationApplicationService({
             capacity: event.capacity,
             registrationOpensAt: event.registrationOpensAt,
             registrationClosesAt: event.registrationClosesAt,
+            suspended: event.suspended,
           })
           .from(event)
           .where(and(eq(event.slug, eventSlug), eq(event.status, "published")))
           .for("update")
           .limit(1);
 
+        if (!publishedEvent) return { outcome: "registration_closed" };
+        if (isEventSuspended(publishedEvent)) {
+          return { outcome: "event_unavailable" };
+        }
         if (
-          !publishedEvent ||
           submittedAt < publishedEvent.registrationOpensAt ||
           submittedAt >= publishedEvent.registrationClosesAt
         ) {

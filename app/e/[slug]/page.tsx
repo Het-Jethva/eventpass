@@ -34,6 +34,7 @@ export default async function PublicEventPage({
   const fields = await getPublicRegistrationForm(event.id);
   const now = new Date();
   const registrationIsOpen =
+    !event.suspended &&
     event.status === "published" &&
     now >= event.registrationOpensAt &&
     now < event.registrationClosesAt;

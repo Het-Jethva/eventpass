@@ -44,10 +44,13 @@ function formatRange(startsAt: Date, endsAt: Date, timeZone: string) {
 
 export default async function EventOverviewPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ eventId: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const { eventId } = await params;
+  const query = await searchParams;
   const staffSession = await getActiveStaffSession();
   if (!staffSession) redirect("/sign-in");
 
@@ -66,6 +69,17 @@ export default async function EventOverviewPage({
   return (
     <>
       <h1 className="text-2xl font-headline">Overview</h1>
+
+      {query.error === "unavailable" ? (
+        <Alert variant="warning">
+          <IconClockQuestion aria-hidden="true" />
+          <AlertTitle>Event currently unavailable</AlertTitle>
+          <AlertDescription>
+            This Event is currently unavailable. Event changes are temporarily
+            paused; operational history remains available.
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       {isCanceled ? (
         <Alert variant="destructive">

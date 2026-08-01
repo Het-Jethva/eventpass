@@ -21,6 +21,13 @@ import {
   reconcileWaitlistInTransaction,
   type AdmissionOfferMessage,
 } from "../../registration/server/waitlist-reconciliation";
+import {
+  assertEventNotSuspended,
+  EventSuspendedError,
+  isEventSuspended,
+  lockEvent,
+  lockEventForMutation,
+} from "../../events/server/event-suspension";
 import { createTicketCode as createRandomTicketCode } from "./create-ticket-code";
 import { signTicket } from "../ticket-crypto";
 
@@ -71,7 +78,7 @@ export type RegistrationVerificationResult =
       ticketId: string;
       deliveryStatus: "sent" | "failed";
     }
-  | { outcome: "waitlisted" | "offered" }
+  | { outcome: "waitlisted" | "offered" | "unavailable" }
   | { outcome: "expired" | "consumed" | "invalid" | "mismatched" | "canceled" };
 
 export type AdmissionOfferClaimResult =
@@ -81,13 +88,14 @@ export type AdmissionOfferClaimResult =
       ticketId: string;
       deliveryStatus: "sent" | "failed";
     }
-  | { outcome: "expired" | "consumed" | "invalid" | "canceled" };
+  | { outcome: "expired" | "consumed" | "invalid" | "canceled" | "unavailable" };
 
 export type AdmissionOfferView = {
   attendeeName: string;
   eventName: string;
   eventSlug: string;
   expiresAt: Date;
+  suspended: boolean;
 };
 
 export type TicketView = {
@@ -112,6 +120,7 @@ export type RegistrationManagementView = {
   event: TicketView["event"] & {
     status: string;
     cancellationReason: string | null;
+    suspended: boolean;
     registrationClosesAt: Date;
     checkInOpensAt: Date;
   };
@@ -139,7 +148,14 @@ export type UpdateRegistrationResult =
   | { outcome: "invalid" | "closed" };
 
 export type TicketManagementResult = {
-  outcome: "sent" | "replaced" | "canceled" | "invalid" | "closed" | "inactive";
+  outcome:
+    | "sent"
+    | "replaced"
+    | "canceled"
+    | "invalid"
+    | "closed"
+    | "inactive"
+    | "unavailable";
   deliveryStatus?: "sent" | "failed";
 };
 
@@ -188,12 +204,16 @@ export function createTicketApplicationService({
           endsAt: event.endsAt,
           venueName: event.venueName,
           venueAddress: event.venueAddress,
+          suspended: event.suspended,
         })
         .from(event)
         .where(eq(event.slug, eventSlug))
         .for("update")
         .limit(1);
       if (!lockedEvent) return { outcome: "mismatched" } as const;
+      if (isEventSuspended(lockedEvent)) {
+        return { outcome: "unavailable" } as const;
+      }
       if (lockedEvent.status === "canceled") {
         return { outcome: "canceled" } as const;
       }
@@ -390,7 +410,9 @@ export function createTicketApplicationService({
     let emailMessage: TicketEmail | null = null;
     let promotedMessages: AdmissionOfferMessage[] = [];
 
-    const result = await database.transaction(async (transaction) => {
+    let result: AdmissionOfferClaimResult;
+    try {
+      result = await database.transaction(async (transaction) => {
       const [located] = await transaction
         .select({ eventId: registration.eventId })
         .from(admissionOffer)
@@ -398,6 +420,10 @@ export function createTicketApplicationService({
         .where(eq(admissionOffer.tokenDigest, digestBearerToken(offerToken)))
         .limit(1);
       if (!located) return { outcome: "invalid" } as const;
+
+      const lockedEvent = await lockEvent(transaction, located.eventId);
+      if (!lockedEvent) return { outcome: "invalid" } as const;
+      assertEventNotSuspended(lockedEvent);
 
       promotedMessages = await reconcileWaitlistInTransaction({
         transaction,
@@ -519,7 +545,13 @@ export function createTicketApplicationService({
         ticketId,
         deliveryStatus: "sent",
       } as const;
-    });
+      });
+    } catch (error) {
+      if (error instanceof EventSuspendedError) {
+        return { outcome: "unavailable" };
+      }
+      throw error;
+    }
 
     for (const message of promotedMessages) {
       try {
@@ -551,18 +583,23 @@ export function createTicketApplicationService({
         .where(eq(admissionOffer.tokenDigest, digestBearerToken(offerToken)))
         .limit(1);
       if (!located) return null;
-      promotedMessages = await reconcileWaitlistInTransaction({
-        transaction,
-        eventId: located.eventId,
-        reconciledAt: viewedAt,
-        createOfferToken,
-      });
+      const lockedEvent = await lockEvent(transaction, located.eventId);
+      if (!lockedEvent) return null;
+      if (!isEventSuspended(lockedEvent)) {
+        promotedMessages = await reconcileWaitlistInTransaction({
+          transaction,
+          eventId: located.eventId,
+          reconciledAt: viewedAt,
+          createOfferToken,
+        });
+      }
       const [activeOffer] = await transaction
         .select({
           attendeeName: registration.attendeeName,
           eventName: event.name,
           eventSlug: event.slug,
           expiresAt: admissionOffer.expiresAt,
+          suspended: event.suspended,
         })
         .from(admissionOffer)
         .innerJoin(registration, eq(registration.id, admissionOffer.registrationId))
@@ -590,14 +627,15 @@ export function createTicketApplicationService({
 
   async function reconcileEventWaitlist(eventId: string) {
     const reconciledAt = now();
-    const messages = await database.transaction((transaction) =>
-      reconcileWaitlistInTransaction({
+    const messages = await database.transaction(async (transaction) => {
+      await lockEventForMutation(transaction, eventId);
+      return reconcileWaitlistInTransaction({
         transaction,
         eventId,
         reconciledAt,
         createOfferToken,
-      }),
-    );
+      });
+    });
     for (const message of messages) {
       try {
         await sendAdmissionOfferEmail(message);
@@ -670,6 +708,7 @@ export function createTicketApplicationService({
         eventSlug: event.slug,
         eventStatus: event.status,
         cancellationReason: event.cancellationReason,
+        suspended: event.suspended,
         eventTimeZone: event.eventTimeZone,
         startsAt: event.startsAt,
         endsAt: event.endsAt,
@@ -765,6 +804,7 @@ export function createTicketApplicationService({
         slug: record.eventSlug,
         status: record.eventStatus,
         cancellationReason: record.cancellationReason,
+        suspended: record.suspended,
         eventTimeZone: record.eventTimeZone,
         startsAt: record.startsAt,
         endsAt: record.endsAt,
@@ -776,10 +816,12 @@ export function createTicketApplicationService({
       ticket: currentTicket,
       fields,
       canEdit:
+        !record.suspended &&
         record.eventStatus === "published" &&
         record.registrationStatus === "confirmed" &&
         record.registrationClosesAt > viewedAt,
       canReplaceOrCancel:
+        !record.suspended &&
         record.eventStatus === "published" &&
         record.registrationStatus === "confirmed" &&
         currentTicket?.status === "active" &&
@@ -801,6 +843,7 @@ export function createTicketApplicationService({
           email: registration.email,
           status: registration.status,
           registrationClosesAt: event.registrationClosesAt,
+          suspended: event.suspended,
         })
         .from(registration)
         .innerJoin(event, eq(event.id, registration.eventId))
@@ -813,6 +856,8 @@ export function createTicketApplicationService({
         .for("update")
         .limit(1);
       if (!managed) return { outcome: "invalid" } as const;
+      assertEventNotSuspended(managed);
+      await lockEventForMutation(transaction, managed.eventId);
       if (
         managed.status !== "confirmed" ||
         managed.registrationClosesAt <= updatedAt
@@ -895,6 +940,7 @@ export function createTicketApplicationService({
   async function resendTicket(managementToken: string): Promise<TicketManagementResult> {
     const view = await getManagementView(managementToken);
     if (!view) return { outcome: "invalid" };
+    if (view.event.suspended) return { outcome: "unavailable" };
     if (view.registrationStatus !== "confirmed" || view.ticket?.status !== "active") {
       return { outcome: "inactive" };
     }
@@ -912,6 +958,16 @@ export function createTicketApplicationService({
       )
       .limit(1);
     if (!managed) return { outcome: "invalid" };
+    try {
+      await database.transaction((transaction) =>
+        lockEventForMutation(transaction, managed.eventId),
+      );
+    } catch (error) {
+      if (error instanceof EventSuspendedError) {
+        return { outcome: "unavailable" };
+      }
+      throw error;
+    }
     try {
       await sendTicketEmail({
         email: view.email,
@@ -948,6 +1004,7 @@ export function createTicketApplicationService({
           venueName: event.venueName,
           venueAddress: event.venueAddress,
           checkInOpensAt: event.checkInOpensAt,
+          suspended: event.suspended,
         })
         .from(registration)
         .innerJoin(event, eq(event.id, registration.eventId))
@@ -960,6 +1017,8 @@ export function createTicketApplicationService({
         .for("update")
         .limit(1);
       if (!managed) return { outcome: "invalid" } as const;
+      assertEventNotSuspended(managed);
+      await lockEventForMutation(transaction, managed.eventId);
       if (managed.registrationStatus !== "confirmed") {
         return { outcome: "inactive" } as const;
       }
@@ -1045,6 +1104,7 @@ export function createTicketApplicationService({
           registrationStatus: registration.status,
           eventId: event.id,
           checkInOpensAt: event.checkInOpensAt,
+          suspended: event.suspended,
         })
         .from(registration)
         .innerJoin(event, eq(event.id, registration.eventId))
@@ -1057,6 +1117,8 @@ export function createTicketApplicationService({
         .for("update")
         .limit(1);
       if (!managed) return { outcome: "invalid" } as const;
+      assertEventNotSuspended(managed);
+      await lockEventForMutation(transaction, managed.eventId);
       if (managed.registrationStatus !== "confirmed") {
         return { outcome: "inactive" } as const;
       }

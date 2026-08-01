@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { getOrganizerEvent } from "@/features/events/server/get-event";
 import { getActiveStaffSession } from "@/lib/staff-session";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 import { EventSidebar } from "./event-sidebar";
 
@@ -52,6 +53,16 @@ export default async function EventWorkspaceSectionsLayout({
       />
 
       <main className="flex min-w-0 flex-1 flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+        {event.suspended ? (
+          <Alert variant="warning">
+            <AlertTitle>Event currently unavailable</AlertTitle>
+            <AlertDescription>
+              Event changes and new admission activity are temporarily paused.
+              Read-only history, Registrations, Check-ins, metrics, and exports
+              remain available.
+            </AlertDescription>
+          </Alert>
+        ) : null}
         {children}
       </main>
     </div>

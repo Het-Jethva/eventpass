@@ -31,9 +31,7 @@ export class SupportAccessExpiredError extends PlatformAdminError {
 }
 
 export class EventSuspendedError extends PlatformAdminError {
-  constructor(
-    message = "This Event is suspended by a Platform Administrator.",
-  ) {
+  constructor(message = "This Event is currently unavailable.") {
     super(message);
     this.name = "EventSuspendedError";
   }

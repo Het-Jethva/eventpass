@@ -103,6 +103,17 @@ export default async function EventStaffPage({
         </p>
       </div>
 
+      {staffing.suspended ? (
+        <Alert variant="warning">
+          <IconShieldCheck aria-hidden="true" />
+          <AlertTitle>Event currently unavailable</AlertTitle>
+          <AlertDescription>
+            Staffing changes are temporarily paused. Existing staff and
+            read-only Event history remain available.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
       {query.error ? (
         <Alert variant="destructive">
           <IconShieldCheck aria-hidden="true" />

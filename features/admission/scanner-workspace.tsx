@@ -67,11 +67,13 @@ function announceFeedback(outcome: AdmissionOutcome, enabled: boolean) {
 export function ScannerWorkspace({
   eventId,
   eventStatus,
+  eventSuspended,
   actorRole,
   checkInWindow,
 }: {
   eventId: string;
   eventStatus: string;
+  eventSuspended: boolean;
   actorRole: string;
   checkInWindow: string;
 }) {
@@ -313,9 +315,21 @@ export function ScannerWorkspace({
         </div>
       </section>
 
+      {eventSuspended ? (
+        <Alert variant="warning">
+          <IconAlertTriangle aria-hidden="true" />
+          <AlertTitle>Event currently unavailable</AlertTitle>
+          <AlertDescription>
+            Online admission is temporarily unavailable. Any already-cached
+            offline authorization remains usable until it expires, and pending
+            Scan Attempts will continue to synchronize.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
       <PwaUpdateManager />
 
-      <ScannerPreparation eventId={eventId} />
+      <ScannerPreparation eventId={eventId} eventSuspended={eventSuspended} />
 
       {pendingAttemptCount > 0 || syncMessage ? (
         <section

@@ -169,6 +169,7 @@ export function RegistrationManagementControls({
   fields,
   canEdit,
   canReplaceOrCancel,
+  unavailable,
 }: {
   token: string;
   attendeeName: string;
@@ -176,6 +177,7 @@ export function RegistrationManagementControls({
   fields: RegistrationManagementView["fields"];
   canEdit: boolean;
   canReplaceOrCancel: boolean;
+  unavailable: boolean;
 }) {
   const [editState, editAction, editPending] = useActionState(
     updateRegistrationAction.bind(null, token, fields.map(({ id }) => id)),
@@ -254,7 +256,7 @@ export function RegistrationManagementControls({
           <Feedback state={resendState} />
           <Feedback state={replaceState} />
           <form action={resendAction}>
-            <Button type="submit" variant="outline" disabled={resendPending}>
+            <Button type="submit" variant="outline" disabled={resendPending || unavailable}>
               {resendPending ? <Spinner data-icon="inline-start" /> : <IconMailForward data-icon="inline-start" />}
               {resendPending ? "Sending…" : "Resend existing ticket"}
             </Button>

@@ -67,7 +67,13 @@ function formatEventTime(value: string, timeZone: string) {
   }).format(new Date(value));
 }
 
-export function ScannerPreparation({ eventId }: { eventId: string }) {
+export function ScannerPreparation({
+  eventId,
+  eventSuspended,
+}: {
+  eventId: string;
+  eventSuspended: boolean;
+}) {
   const [deviceId, setDeviceId] = useState("");
   const [deviceLabel, setDeviceLabel] = useState("");
   const [snapshot, setSnapshot] = useState<OfflineEventSnapshot | null>(null);
@@ -211,6 +217,18 @@ export function ScannerPreparation({ eventId }: { eventId: string }) {
       </div>
 
       <div className="mt-5 flex flex-col gap-5">
+        {eventSuspended ? (
+          <Alert variant="warning">
+            <IconCloudOff />
+            <AlertTitle>Event currently unavailable</AlertTitle>
+            <AlertDescription>
+              Fresh Offline Event Snapshots and Scanner Authorizations are
+              temporarily unavailable. Pending offline Scan Attempts can still
+              synchronize.
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
         {currentSnapshot ? (
           <Alert
             variant={readiness === "ready" ? "default" : "destructive"}
@@ -283,7 +301,11 @@ export function ScannerPreparation({ eventId }: { eventId: string }) {
             variant={currentSnapshot ? "outline" : "default"}
             className="min-h-11 sm:self-start"
             disabled={
-              !online || !deviceId || deviceLabel.trim().length < 2 || pending
+              eventSuspended ||
+              !online ||
+              !deviceId ||
+              deviceLabel.trim().length < 2 ||
+              pending
             }
             onClick={() => void prepare()}
           >

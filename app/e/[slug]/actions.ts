@@ -67,6 +67,13 @@ export async function submitRegistrationAction(
       values,
     };
   }
+  if (result.outcome === "event_unavailable") {
+    return {
+      status: "error",
+      message: "This Event is currently unavailable.",
+      values,
+    };
+  }
 
   const destination = new URLSearchParams({
     outcome: result.outcome === "capacity_hold" ? "hold" : "waitlist",

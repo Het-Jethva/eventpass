@@ -47,6 +47,15 @@ export default async function StaffInvitationPage({
               It may have expired, been revoked, already been used, or belong to another signed-in email.
             </AlertDescription>
           </Alert>
+        ) : invitation.suspended ? (
+          <Alert variant="warning">
+            <IconAlertCircle aria-hidden="true" />
+            <AlertTitle>Event currently unavailable</AlertTitle>
+            <AlertDescription>
+              This Event is currently unavailable, so the Staff Invitation
+              cannot be accepted right now.
+            </AlertDescription>
+          </Alert>
         ) : (
           <div className="flex flex-col gap-5">
             <div className="rounded-2xl border p-5">

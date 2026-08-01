@@ -10,6 +10,7 @@ import {
   type CreateDraftEventInput,
 } from "./create-draft-event";
 import { localDateTimeInTimeZoneToUtc } from "./event-schedule";
+import { lockEventForMutation } from "./event-suspension";
 
 export const updateDraftEventInputSchema = createDraftEventInputSchema;
 export type UpdateDraftEventInput = CreateDraftEventInput;
@@ -26,6 +27,7 @@ export async function updateDraftEvent(
   const input = updateDraftEventInputSchema.parse(rawInput);
 
   return db.transaction(async (transaction) => {
+    await lockEventForMutation(transaction, eventId);
     const [authorization] = await transaction
       .select({ id: event.id, slug: event.slug, publishedAt: event.publishedAt })
       .from(eventStaff)

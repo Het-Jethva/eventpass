@@ -9,6 +9,7 @@ import {
   ticket,
   user,
 } from "../../../lib/db/schema";
+import { lockEventForMutation } from "../../events/server/event-suspension";
 
 const QUICK_REVERSAL_WINDOW_MS = 30_000;
 export const ACTIVE_CHECK_IN_PAGE_SIZE = 25;
@@ -36,6 +37,7 @@ export function createCheckInCorrectionService({
     }
 
     return database.transaction(async (transaction) => {
+    await lockEventForMutation(transaction, values.eventId);
     const [target] = await transaction
       .select({
         id: checkIn.id,

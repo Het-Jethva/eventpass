@@ -50,6 +50,7 @@ export default async function ScannerPage({
       <ScannerWorkspace
         eventId={scannerEvent.id}
         eventStatus={scannerEvent.status}
+        eventSuspended={scannerEvent.suspended}
         actorRole={scannerEvent.role}
         checkInWindow={formatWindow(
           scannerEvent.checkInOpensAt,

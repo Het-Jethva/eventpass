@@ -26,6 +26,7 @@ const eventSelection = {
   publishedAt: event.publishedAt,
   canceledAt: event.canceledAt,
   cancellationReason: event.cancellationReason,
+  suspended: event.suspended,
 };
 
 export type EventDetails = typeof event.$inferSelect;

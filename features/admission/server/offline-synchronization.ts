@@ -15,6 +15,7 @@ import {
 } from "../../../lib/db/schema";
 import { verifyTicket } from "../../tickets/ticket-crypto";
 import { verifyScannerAuthorization } from "../scanner-authorization";
+import { lockEventForMutation } from "../../events/server/event-suspension";
 
 type SynchronizationDatabase = typeof import("../../../lib/db").db;
 
@@ -570,6 +571,7 @@ export function createOfflineSynchronizationService({
       if (!conflict || conflict.status !== "unresolved") {
         throw new Error("This Check-in Conflict is no longer unresolved.");
       }
+      await lockEventForMutation(transaction, conflict.eventId);
       const [assignment] = await transaction
         .select({ role: eventStaff.role })
         .from(eventStaff)

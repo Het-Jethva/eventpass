@@ -32,6 +32,10 @@ import {
 } from "../../registration/registration-submission";
 import { createTicketCode as createRandomTicketCode } from "../../tickets/server/create-ticket-code";
 import { signTicket } from "../../tickets/ticket-crypto";
+import {
+  isEventSuspended,
+  lockEvent,
+} from "../../events/server/event-suspension";
 
 import { encodeCsv, parseBoundedCsv } from "../csv";
 
@@ -274,7 +278,12 @@ export function createRegistrationImportService({
   ): Promise<RegistrationImportPreview | null> {
     const previewedAt = now();
     const [authorizedEvent] = await database
-      .select({ id: event.id, capacity: event.capacity, status: event.status })
+      .select({
+        id: event.id,
+        capacity: event.capacity,
+        status: event.status,
+        suspended: event.suspended,
+      })
       .from(eventStaff)
       .innerJoin(event, eq(event.id, eventStaff.eventId))
       .where(
@@ -285,7 +294,13 @@ export function createRegistrationImportService({
         ),
       )
       .limit(1);
-    if (!authorizedEvent || authorizedEvent.status === "canceled") return null;
+    if (
+      !authorizedEvent ||
+      authorizedEvent.status === "canceled" ||
+      isEventSuspended(authorizedEvent)
+    ) {
+      return null;
+    }
 
     const parsed = parseBoundedCsv(csv);
     const fields = await getFields(database, eventId);
@@ -415,17 +430,22 @@ export function createRegistrationImportService({
       },
     });
     const expiresAt = new Date(previewedAt.getTime() + 30 * 60_000);
-    const [created] = await database
-      .insert(registrationImport)
-      .values({
-        eventId,
-        actorUserId,
-        payload,
-        rowCount: rows.length,
-        expiresAt,
-      })
-      .returning({ id: registrationImport.id });
-    if (!created) throw new Error("Could not save the import preview.");
+    const created = await database.transaction(async (transaction) => {
+      const lockedEvent = await lockEvent(transaction, eventId);
+      if (!lockedEvent || isEventSuspended(lockedEvent)) return null;
+      const [saved] = await transaction
+        .insert(registrationImport)
+        .values({
+          eventId,
+          actorUserId,
+          payload,
+          rowCount: rows.length,
+          expiresAt,
+        })
+        .returning({ id: registrationImport.id });
+      return saved ?? null;
+    });
+    if (!created) return null;
     return {
       id: created.id,
       expiresAt,
@@ -442,7 +462,12 @@ export function createRegistrationImportService({
     const confirmedAt = now();
     return database.transaction(async (transaction) => {
       const [authorizedEvent] = await transaction
-        .select({ id: event.id, capacity: event.capacity, status: event.status })
+        .select({
+          id: event.id,
+          capacity: event.capacity,
+          status: event.status,
+          suspended: event.suspended,
+        })
         .from(eventStaff)
         .innerJoin(event, eq(event.id, eventStaff.eventId))
         .where(
@@ -454,7 +479,11 @@ export function createRegistrationImportService({
         )
         .for("update")
         .limit(1);
-      if (!authorizedEvent || authorizedEvent.status === "canceled") {
+      if (
+        !authorizedEvent ||
+        authorizedEvent.status === "canceled" ||
+        isEventSuspended(authorizedEvent)
+      ) {
         return { outcome: "forbidden" } as const;
       }
       const [stored] = await transaction

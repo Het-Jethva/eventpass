@@ -29,6 +29,7 @@ import {
   staffInvitation,
   user,
 } from "@/lib/db/schema";
+import { lockEventForMutation } from "@/features/events/server/event-suspension";
 
 const DAY_IN_MS = 24 * 60 * 60 * 1_000;
 
@@ -57,7 +58,7 @@ async function lockEvent(
   transaction: Parameters<Parameters<typeof db.transaction>[0]>[0],
   eventId: string,
 ) {
-  await transaction.execute(sql`select id from ${event} where id = ${eventId} for update`);
+  await lockEventForMutation(transaction, eventId);
 }
 
 async function findActorRole(
@@ -204,6 +205,7 @@ export async function acceptStaffInvitation(
         "This Staff Invitation is expired, revoked, or already used.",
       );
     }
+    await lockEvent(transaction, invitation.eventId);
 
     const [actor] = await transaction
       .select({ email: user.email, suspended: user.suspended })
@@ -289,6 +291,7 @@ export async function revokeStaffInvitation(
     if (!invitation || invitation.consumedAt || invitation.revokedAt) {
       throw new StaffInvitationUnavailableError("That Staff Invitation is no longer pending.");
     }
+    await lockEvent(transaction, invitation.eventId);
 
     const actorRole = await findActorRole(
       transaction,
@@ -326,6 +329,7 @@ export async function removeEventStaff(
     if (!assignment || assignment.role === "owner") {
       throw new StaffingAuthorizationError("The Event Owner cannot be removed.");
     }
+    await lockEvent(transaction, assignment.eventId);
     const actorRole = await findActorRole(transaction, assignment.eventId, actorUserId);
     assertCanManageRole(actorRole, assignment.role as InviteableStaffRole);
     await transaction.delete(eventStaff).where(eq(eventStaff.id, assignment.id));
@@ -501,7 +505,7 @@ export async function getEventStaffing(
   now = new Date(),
 ) {
   const [actorAssignment] = await db
-    .select({ role: eventStaff.role, eventName: event.name })
+    .select({ role: eventStaff.role, eventName: event.name, suspended: event.suspended })
     .from(eventStaff)
     .innerJoin(event, eq(event.id, eventStaff.eventId))
     .where(
@@ -565,6 +569,7 @@ export async function getEventStaffing(
   return {
     eventId,
     eventName: actorAssignment.eventName,
+    suspended: actorAssignment.suspended,
     actorRole,
     staff: staff.map((member) => ({
       ...member,
@@ -587,6 +592,7 @@ export async function inspectStaffInvitation(token: string, now = new Date()) {
       expiresAt: staffInvitation.expiresAt,
       consumedAt: staffInvitation.consumedAt,
       revokedAt: staffInvitation.revokedAt,
+      suspended: event.suspended,
     })
     .from(staffInvitation)
     .innerJoin(event, eq(event.id, staffInvitation.eventId))
@@ -606,5 +612,6 @@ export async function inspectStaffInvitation(token: string, now = new Date()) {
     normalizedEmail: invitation.normalizedEmail,
     role: invitation.role as InviteableStaffRole,
     expiresAt: invitation.expiresAt,
+    suspended: invitation.suspended,
   };
 }

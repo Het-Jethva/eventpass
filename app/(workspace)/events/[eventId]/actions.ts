@@ -26,6 +26,7 @@ import {
   EventCapacityConflictError,
   PublishedEventChangeError,
 } from "@/features/events/server/published-event-application";
+import { EventSuspendedError } from "@/features/events/server/event-suspension";
 
 function formValue(formData: FormData, name: CreateEventFormField) {
   const value = formData.get(name);
@@ -117,7 +118,15 @@ export async function publishEventAction(eventId: string) {
   const staffSession = await getActiveStaffSession();
   if (!staffSession) redirect("/sign-in");
 
-  const publishedEvent = await publishEvent(eventId, staffSession.user.id);
+  let publishedEvent;
+  try {
+    publishedEvent = await publishEvent(eventId, staffSession.user.id);
+  } catch (error) {
+    if (error instanceof EventSuspendedError) {
+      redirect(`/events/${eventId}?error=unavailable`);
+    }
+    throw error;
+  }
   revalidatePath("/events");
   revalidatePath(`/events/${eventId}`);
   revalidatePath(`/e/${publishedEvent.slug}`);
@@ -128,7 +137,14 @@ export async function deleteEventAction(eventId: string) {
   const staffSession = await getActiveStaffSession();
   if (!staffSession) redirect("/sign-in");
 
-  await deleteDraftEvent(eventId, staffSession.user.id);
+  try {
+    await deleteDraftEvent(eventId, staffSession.user.id);
+  } catch (error) {
+    if (error instanceof EventSuspendedError) {
+      redirect(`/events/${eventId}?error=unavailable`);
+    }
+    throw error;
+  }
   revalidatePath("/events");
   redirect("/events");
 }
@@ -137,7 +153,15 @@ export async function returnEventToDraftAction(eventId: string) {
   const staffSession = await getActiveStaffSession();
   if (!staffSession) redirect("/sign-in");
 
-  const draftEvent = await returnEventToDraft(eventId, staffSession.user.id);
+  let draftEvent;
+  try {
+    draftEvent = await returnEventToDraft(eventId, staffSession.user.id);
+  } catch (error) {
+    if (error instanceof EventSuspendedError) {
+      redirect(`/events/${eventId}?error=unavailable`);
+    }
+    throw error;
+  }
   revalidatePath("/events");
   revalidatePath(`/events/${eventId}`);
   revalidatePath(`/e/${draftEvent.slug}`);
@@ -148,9 +172,16 @@ export async function cancelEventAction(eventId: string, formData: FormData) {
   const staffSession = await getActiveStaffSession();
   if (!staffSession) redirect("/sign-in");
 
-  await cancelPublishedEvent(eventId, staffSession.user.id, {
-    reason: formData.get("reason"),
-  });
+  try {
+    await cancelPublishedEvent(eventId, staffSession.user.id, {
+      reason: formData.get("reason"),
+    });
+  } catch (error) {
+    if (error instanceof EventSuspendedError) {
+      redirect(`/events/${eventId}?error=unavailable`);
+    }
+    throw error;
+  }
   revalidatePath("/events");
   revalidatePath(`/events/${eventId}`);
   revalidatePath("/e/[slug]", "page");

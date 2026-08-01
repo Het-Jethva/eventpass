@@ -14,6 +14,7 @@ export async function getScannerEvent(eventId: string, actorUserId: string) {
       eventTimeZone: event.eventTimeZone,
       checkInOpensAt: event.checkInOpensAt,
       checkInClosesAt: event.checkInClosesAt,
+      suspended: event.suspended,
       role: eventStaff.role,
     })
     .from(eventStaff)

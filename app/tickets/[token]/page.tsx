@@ -81,6 +81,17 @@ export default async function TicketPage({
       </header>
 
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10 print:max-w-none print:p-0">
+        {management.event.suspended ? (
+          <Alert variant="warning" className="print:hidden">
+            <IconShieldCheck aria-hidden="true" />
+            <AlertTitle>Event currently unavailable</AlertTitle>
+            <AlertDescription>
+              This Event is currently unavailable. Ticket and Registration
+              information remains visible, but management actions are paused.
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
         {management.event.status === "canceled" ? (
           <Alert variant="destructive">
             <IconTicketOff aria-hidden="true" />
@@ -188,6 +199,7 @@ export default async function TicketPage({
               fields={management.fields}
               canEdit={management.canEdit}
               canReplaceOrCancel={management.canReplaceOrCancel}
+              unavailable={management.event.suspended}
             />
           </section>
         ) : null}

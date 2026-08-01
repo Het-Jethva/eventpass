@@ -58,6 +58,13 @@ const outcomes = {
       "This event was canceled, so the registration cannot be confirmed and no ticket can be issued.",
     success: false,
   },
+  unavailable: {
+    icon: IconAlertTriangle,
+    title: "Event currently unavailable",
+    description:
+      "This Event is currently unavailable, so the Registration could not be confirmed. No Ticket was issued.",
+    success: false,
+  },
 } as const;
 
 export default async function VerificationResultPage({
@@ -72,7 +79,9 @@ export default async function VerificationResultPage({
   const outcome = typeof query.outcome === "string" ? query.outcome : "";
   if (!event || !(outcome in outcomes)) notFound();
 
-  const content = outcomes[outcome as keyof typeof outcomes];
+  const content = event.suspended
+    ? outcomes.unavailable
+    : outcomes[outcome as keyof typeof outcomes];
   const Icon = content.icon;
   return (
     <div className="flex min-h-svh flex-col bg-muted/20">

@@ -21,6 +21,7 @@ export type PublicEventDetails = {
   capacity: number;
   registrationOpensAt: Date;
   registrationClosesAt: Date;
+  suspended: boolean;
 };
 
 function formatRange(startsAt: Date, endsAt: Date, timeZone: string) {
@@ -105,28 +106,40 @@ export function EventPublicDetails({
         </div>
 
         <aside className="h-fit rounded-2xl border bg-background p-5 sm:p-6">
-          <h2 className="text-xl font-medium">Register</h2>
-          <div className="mt-5 flex gap-3">
-            <IconClock aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
-            <div>
-              <p className="text-sm font-medium">Registration window</p>
-              <p className="mt-1 text-support text-muted-foreground">
-                {formatMoment(event.registrationOpensAt, event.eventTimeZone)}
-                <br />
-                through {formatMoment(event.registrationClosesAt, event.eventTimeZone)}
+          {event.suspended ? (
+            <>
+              <h2 className="text-xl font-medium">Currently unavailable</h2>
+              <p className="mt-5 text-support text-muted-foreground">
+                This Event is currently unavailable. Registration and admission
+                are temporarily closed.
               </p>
-            </div>
-          </div>
-          <div className="mt-5 flex gap-3 border-t pt-5">
-            <IconUsers aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
-            <div>
-              <p className="text-sm font-medium">Capacity</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {event.capacity.toLocaleString()} places
-              </p>
-            </div>
-          </div>
-          {registration ? <div className="mt-6 border-t pt-6">{registration}</div> : null}
+            </>
+          ) : (
+            <>
+              <h2 className="text-xl font-medium">Register</h2>
+              <div className="mt-5 flex gap-3">
+                <IconClock aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+                <div>
+                  <p className="text-sm font-medium">Registration window</p>
+                  <p className="mt-1 text-support text-muted-foreground">
+                    {formatMoment(event.registrationOpensAt, event.eventTimeZone)}
+                    <br />
+                    through {formatMoment(event.registrationClosesAt, event.eventTimeZone)}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-5 flex gap-3 border-t pt-5">
+                <IconUsers aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+                <div>
+                  <p className="text-sm font-medium">Capacity</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {event.capacity.toLocaleString()} places
+                  </p>
+                </div>
+              </div>
+              {registration ? <div className="mt-6 border-t pt-6">{registration}</div> : null}
+            </>
+          )}
         </aside>
       </main>
     </div>

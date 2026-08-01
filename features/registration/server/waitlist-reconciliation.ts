@@ -57,12 +57,14 @@ export async function reconcileWaitlistInTransaction({
       status: event.status,
       capacity: event.capacity,
       registrationClosesAt: event.registrationClosesAt,
+      suspended: event.suspended,
     })
     .from(event)
     .where(eq(event.id, eventId))
     .for("update")
     .limit(1);
   if (!lockedEvent) return [];
+  if (lockedEvent.suspended) return [];
   if (lockedEvent.status !== "published") return [];
 
   await transaction.execute(sql`

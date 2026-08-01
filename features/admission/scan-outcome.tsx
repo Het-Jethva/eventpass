@@ -142,6 +142,13 @@ export const outcomePresentation: Record<AdmissionOutcome, Presentation> = {
     icon: IconLock,
     tone: "destructive",
   },
+  event_unavailable: {
+    title: "Event currently unavailable",
+    description:
+      "Admission is temporarily unavailable for this Event. Keep any pending offline attempts and try again later.",
+    icon: IconLock,
+    tone: "warning",
+  },
 };
 
 export function ScanOutcome({

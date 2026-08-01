@@ -12,6 +12,7 @@ import {
   ticket,
 } from "../../../lib/db/schema";
 import { verifyTicket } from "../../tickets/ticket-crypto";
+import { isEventSuspended } from "../../events/server/event-suspension";
 
 type AdmissionDatabase = typeof import("../../../lib/db").db;
 
@@ -33,6 +34,7 @@ export type AdmissionOutcome =
   | "replaced"
   | "expired"
   | "outside_window"
+  | "event_unavailable"
   | "unauthorized";
 
 export type AdmissionResult = {
@@ -83,6 +85,7 @@ export function createAdmissionApplicationService({
           status: event.status,
           checkInOpensAt: event.checkInOpensAt,
           checkInClosesAt: event.checkInClosesAt,
+          suspended: event.suspended,
           role: eventStaff.role,
         })
         .from(event)
@@ -94,9 +97,13 @@ export function createAdmissionApplicationService({
           ),
         )
         .where(eq(event.id, eventId))
+        .for("update")
         .limit(1);
 
       if (!authorizedEvent) return { outcome: "unauthorized" };
+      if (isEventSuspended(authorizedEvent)) {
+        return { outcome: "event_unavailable" };
+      }
 
       const code = normalizeTicketCode(input);
       const verificationKeys = getVerificationKeys();

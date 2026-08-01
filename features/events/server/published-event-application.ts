@@ -21,6 +21,7 @@ import {
   assertPostCheckInChangeAllowed,
   PublishedEventChangeError,
 } from "../published-event-policy";
+import { lockEventForMutation } from "./event-suspension";
 
 export { PublishedEventChangeError } from "../published-event-policy";
 
@@ -171,9 +172,7 @@ export function createPublishedEventApplicationService({
     const next = eventValues(input);
 
     const result = await database.transaction(async (transaction) => {
-      await transaction.execute(
-        sql`select id from ${event} where id = ${eventId} for update`,
-      );
+      await lockEventForMutation(transaction, eventId);
       const [current] = await transaction
         .select({
           id: event.id,
@@ -340,9 +339,7 @@ export function createPublishedEventApplicationService({
     const input = cancelPublishedEventInputSchema.parse(rawInput);
     const canceledAt = now();
     const result = await database.transaction(async (transaction) => {
-      await transaction.execute(
-        sql`select id from ${event} where id = ${eventId} for update`,
-      );
+      await lockEventForMutation(transaction, eventId);
       const [current] = await transaction
         .select({
           id: event.id,

@@ -17,6 +17,12 @@ type StoredSnapshot = {
   performanceNow: number;
 };
 
+type SnapshotCache = {
+  stored: StoredSnapshot;
+  ticketsById: Map<string, OfflineEventSnapshot["tickets"][number]>;
+  locallyAcceptedTicketIds: Set<string>;
+};
+
 export type PendingScanAttemptRecord = {
   id: string;
   eventId: string;
@@ -76,6 +82,79 @@ export function createOfflineScannerStore(
   databaseName = "eventpass-offline-scanner",
 ) {
   const database = new OfflineScannerDatabase(databaseName);
+  let snapshotCache: SnapshotCache | null = null;
+  let snapshotCacheLoaded = false;
+  let snapshotCacheLoad: Promise<SnapshotCache | null> | null = null;
+  let snapshotMutationQueue = Promise.resolve();
+
+  function createSnapshotCache(
+    stored: StoredSnapshot,
+    locallyAcceptedTicketIds: Set<string>,
+  ): SnapshotCache {
+    return {
+      stored,
+      ticketsById: new Map(
+        stored.snapshot.tickets.map((ticket) => [ticket.ticketId, ticket]),
+      ),
+      locallyAcceptedTicketIds,
+    };
+  }
+
+  async function readLocallyAcceptedTicketIds(eventId: string) {
+    const attempts = await database.pendingScanAttempts
+      .where("eventId")
+      .equals(eventId)
+      .filter(
+        (attempt) =>
+          attempt.capturedOutcome === "provisional" &&
+          attempt.ticketId !== null,
+      )
+      .toArray();
+    return new Set(
+      attempts.flatMap((attempt) =>
+        attempt.ticketId ? [attempt.ticketId] : [],
+      ),
+    );
+  }
+
+  async function ensureSnapshotCache() {
+    if (snapshotCacheLoaded) return snapshotCache;
+    if (snapshotCacheLoad) return snapshotCacheLoad;
+
+    snapshotCacheLoad = (async () => {
+      const stored = await database.snapshots.toCollection().first();
+      if (!stored) {
+        snapshotCache = null;
+        snapshotCacheLoaded = true;
+        return null;
+      }
+
+      snapshotCache = createSnapshotCache(
+        stored,
+        await readLocallyAcceptedTicketIds(stored.eventId),
+      );
+      snapshotCacheLoaded = true;
+      return snapshotCache;
+    })();
+
+    try {
+      return await snapshotCacheLoad;
+    } finally {
+      snapshotCacheLoad = null;
+    }
+  }
+
+  function enqueueSnapshotMutation<T>(mutation: () => Promise<T>) {
+    const next = snapshotMutationQueue.then(
+      () => mutation(),
+      () => mutation(),
+    );
+    snapshotMutationQueue = next.then(
+      () => undefined,
+      () => undefined,
+    );
+    return next;
+  }
 
   async function getOrCreateScannerDevice() {
     const existing = await database.scannerProfile.get("current");
@@ -95,7 +174,13 @@ export function createOfflineScannerStore(
   }
 
   async function getCachedSnapshot() {
-    return (await database.snapshots.toCollection().first())?.snapshot ?? null;
+    return (await ensureSnapshotCache())?.stored.snapshot ?? null;
+  }
+
+  async function getCachedTicket(eventId: string, ticketId: string) {
+    const cached = await ensureSnapshotCache();
+    if (!cached || cached.stored.eventId !== eventId) return undefined;
+    return cached.ticketsById.get(ticketId);
   }
 
   async function countPendingScanAttempts(eventId: string) {
@@ -106,38 +191,54 @@ export function createOfflineScannerStore(
     snapshot: OfflineEventSnapshot,
     options: { replaceExisting?: boolean } = {},
   ) {
-    await database.transaction(
-      "rw",
-      database.snapshots,
-      database.pendingScanAttempts,
-      async () => {
-        const existing = await database.snapshots.toCollection().first();
-        if (existing && existing.eventId !== snapshot.event.id) {
-          const pendingAttemptCount = await countPendingScanAttempts(
-            existing.eventId,
-          );
-          if (!options.replaceExisting) {
-            throw new SnapshotReplacementRequiredError(
+    await enqueueSnapshotMutation(async () => {
+      await ensureSnapshotCache();
+      const cached = await database.transaction(
+        "rw",
+        database.snapshots,
+        database.pendingScanAttempts,
+        async () => {
+          const existing = await database.snapshots.toCollection().first();
+          if (existing && existing.eventId !== snapshot.event.id) {
+            const pendingAttemptCount = await countPendingScanAttempts(
               existing.eventId,
-              existing.snapshot.event.name,
-              pendingAttemptCount,
             );
+            if (!options.replaceExisting) {
+              throw new SnapshotReplacementRequiredError(
+                existing.eventId,
+                existing.snapshot.event.name,
+                pendingAttemptCount,
+              );
+            }
+            await database.snapshots.delete(existing.eventId);
           }
-          await database.snapshots.delete(existing.eventId);
-        }
-        await database.snapshots.put({
-          eventId: snapshot.event.id,
-          snapshot,
-          performanceTimeOrigin: performance.timeOrigin,
-          performanceNow: performance.now(),
-        });
-      },
-    );
+          const stored: StoredSnapshot = {
+            eventId: snapshot.event.id,
+            snapshot,
+            performanceTimeOrigin: performance.timeOrigin,
+            performanceNow: performance.now(),
+          };
+          await database.snapshots.put(stored);
+          return {
+            stored,
+            locallyAcceptedTicketIds: await readLocallyAcceptedTicketIds(
+              snapshot.event.id,
+            ),
+          };
+        },
+      );
+      snapshotCache = createSnapshotCache(
+        cached.stored,
+        cached.locallyAcceptedTicketIds,
+      );
+      snapshotCacheLoaded = true;
+    });
   }
 
   async function captureAttemptTiming(eventId: string) {
-    const stored = await database.snapshots.get(eventId);
-    if (!stored) return null;
+    const cached = await ensureSnapshotCache();
+    if (!cached || cached.stored.eventId !== eventId) return null;
+    const stored = cached.stored;
     const sameMonotonicClock =
       stored.performanceTimeOrigin === performance.timeOrigin;
     const monotonicElapsedMs = sameMonotonicClock
@@ -160,15 +261,25 @@ export function createOfflineScannerStore(
   }
 
   async function savePendingScanAttempt(attempt: PendingScanAttemptRecord) {
-    await database.pendingScanAttempts.put(attempt);
+    await enqueueSnapshotMutation(async () => {
+      await ensureSnapshotCache();
+      await database.pendingScanAttempts.put(attempt);
+      if (
+        attempt.capturedOutcome === "provisional" &&
+        attempt.ticketId &&
+        snapshotCache?.stored.eventId === attempt.eventId
+      ) {
+        snapshotCache.locallyAcceptedTicketIds.add(attempt.ticketId);
+      }
+    });
   }
 
   async function hasLocallyAcceptedTicket(eventId: string, ticketId: string) {
-    const attempts = await database.pendingScanAttempts
-      .where("[eventId+ticketId]")
-      .equals([eventId, ticketId])
-      .toArray();
-    return attempts.some((attempt) => attempt.capturedOutcome === "provisional");
+    const cached = await ensureSnapshotCache();
+    return (
+      cached?.stored.eventId === eventId &&
+      cached.locallyAcceptedTicketIds.has(ticketId)
+    );
   }
 
   async function listPendingScanAttempts(eventId: string) {
@@ -186,39 +297,65 @@ export function createOfflineScannerStore(
       outcome: string;
     }>,
   ) {
-    await database.transaction(
-      "rw",
-      database.snapshots,
-      database.pendingScanAttempts,
-      async () => {
-        const stored = await database.snapshots.get(eventId);
-        if (stored) {
-          const checkedInTicketIds = new Set(
-            results
-              .filter(
-                (result) =>
-                  result.ticketId &&
-                  (result.outcome === "accepted" ||
-                    result.outcome === "duplicate"),
-              )
-              .map((result) => result.ticketId),
-          );
-          if (checkedInTicketIds.size > 0) {
-            stored.snapshot.tickets = stored.snapshot.tickets.map((ticket) =>
-              checkedInTicketIds.has(ticket.ticketId)
-                ? { ...ticket, existingCheckInState: "checked_in" }
-                : ticket,
-            );
-            await database.snapshots.put(stored);
-          }
-        }
-        await database.pendingScanAttempts.bulkDelete(
-          results
-            .filter((result) => result.outcome !== "conflict")
-            .map((result) => result.id),
-        );
-      },
+    const checkedInTicketIds = new Set(
+      results
+        .filter(
+          (result) =>
+            result.ticketId &&
+            (result.outcome === "accepted" ||
+              result.outcome === "duplicate"),
+        )
+        .map((result) => result.ticketId),
     );
+    await enqueueSnapshotMutation(async () => {
+      await ensureSnapshotCache();
+      const acknowledgment = await database.transaction(
+        "rw",
+        database.snapshots,
+        database.pendingScanAttempts,
+        async () => {
+          const stored = await database.snapshots.get(eventId);
+          if (stored) {
+            if (checkedInTicketIds.size > 0) {
+              stored.snapshot.tickets = stored.snapshot.tickets.map((ticket) =>
+                checkedInTicketIds.has(ticket.ticketId)
+                  ? { ...ticket, existingCheckInState: "checked_in" }
+                  : ticket,
+              );
+              await database.snapshots.put(stored);
+            }
+          }
+          await database.pendingScanAttempts.bulkDelete(
+            results
+              .filter((result) => result.outcome !== "conflict")
+              .map((result) => result.id),
+          );
+          return {
+            stored,
+            locallyAcceptedTicketIds: await readLocallyAcceptedTicketIds(
+              eventId,
+            ),
+          };
+        },
+      );
+
+      const cached = snapshotCache;
+      if (acknowledgment.stored && cached?.stored.eventId === eventId) {
+        cached.stored.snapshot.tickets = cached.stored.snapshot.tickets.map(
+          (ticket) => {
+            if (!checkedInTicketIds.has(ticket.ticketId)) return ticket;
+            const updatedTicket = {
+              ...ticket,
+              existingCheckInState: "checked_in" as const,
+            };
+            cached.ticketsById.set(ticket.ticketId, updatedTicket);
+            return updatedTicket;
+          },
+        );
+        cached.locallyAcceptedTicketIds =
+          acknowledgment.locallyAcceptedTicketIds;
+      }
+    });
   }
 
   async function countAllPendingScanAttempts() {
@@ -230,19 +367,31 @@ export function createOfflineScannerStore(
     checkInClosesAt: string,
     now = new Date(),
   ) {
-    const isClosed = now.getTime() >= new Date(checkInClosesAt).getTime();
-    const pendingCount = await countPendingScanAttempts(eventId);
-    if (isClosed && pendingCount === 0) {
-      const cached = await database.snapshots.get(eventId);
-      if (cached) {
-        await database.snapshots.delete(eventId);
-        return true;
+    return enqueueSnapshotMutation(async () => {
+      const isClosed = now.getTime() >= new Date(checkInClosesAt).getTime();
+      const pendingCount = await countPendingScanAttempts(eventId);
+      if (isClosed && pendingCount === 0) {
+        const cached = await database.snapshots.get(eventId);
+        if (cached) {
+          await database.snapshots.delete(eventId);
+          if (snapshotCache?.stored.eventId === eventId) {
+            snapshotCache = null;
+            snapshotCacheLoaded = true;
+          }
+          return true;
+        }
+        if (snapshotCache?.stored.eventId === eventId) {
+          snapshotCache = null;
+          snapshotCacheLoaded = true;
+        }
       }
-    }
-    return false;
+      return false;
+    });
   }
 
   function close() {
+    snapshotCache = null;
+    snapshotCacheLoaded = false;
     database.close();
   }
 
@@ -250,6 +399,7 @@ export function createOfflineScannerStore(
     getOrCreateScannerDevice,
     updateScannerDeviceLabel,
     getCachedSnapshot,
+    getCachedTicket,
     cacheSnapshot,
     captureAttemptTiming,
     countPendingScanAttempts,

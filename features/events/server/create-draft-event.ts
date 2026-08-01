@@ -48,7 +48,7 @@ export const createDraftEventInputSchema = z
       .number()
       .int("Capacity must be a whole number.")
       .min(1, "Capacity must be at least 1.")
-      .max(1_000_000, "Capacity cannot exceed 1,000,000."),
+      .max(3_000, "Capacity cannot exceed 3,000."),
     registrationOpensAtLocal: localDateTime,
     registrationClosesAtLocal: localDateTime,
     checkInOpensAtLocal: localDateTime,

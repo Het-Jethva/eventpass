@@ -125,8 +125,9 @@ export async function admitOffline(values: {
   );
   const ticket =
     ticketPayload?.eventId === values.eventId
-      ? snapshot.tickets.find(
-          (candidate) => candidate.ticketId === ticketPayload.ticketId,
+      ? await offlineScannerStore.getCachedTicket(
+          values.eventId,
+          ticketPayload.ticketId,
         )
       : undefined;
   let outcome: OfflineAdmissionOutcome;

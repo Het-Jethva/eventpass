@@ -270,14 +270,19 @@ export function CreateEventForm({
                 disabled={isPending}
               />
             </EventField>
-            <EventField field="capacity" label="Capacity" state={state}>
+            <EventField
+              field="capacity"
+              label="Capacity"
+              state={state}
+              description="Between 1 and 3,000 attendees."
+            >
               <Input
                 id="capacity"
                 name="capacity"
                 type="number"
                 inputMode="numeric"
                 min={1}
-                max={1_000_000}
+                max={3_000}
                 defaultValue={value(state, "capacity")}
                 aria-invalid={Boolean(state.fieldErrors?.capacity)}
                 placeholder="250"

@@ -24,7 +24,7 @@
     "clsx": "^2.1.1",
     "dexie": "^4.4.4",
     "drizzle-orm": "^0.45.2",
-    "next": "16.2.11",
+    "next": "16.2.12",
     "qrcode": "^1.5.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -42,9 +42,25 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "drizzle-kit": "^0.31.10",
+    "esbuild": "^0.25.0",
     "eslint": "^9",
-    "eslint-config-next": "16.2.11",
+    "eslint-config-next": "16.2.12",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "overrides": {
+    "@hono/node-server": "^2.0.5",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@esbuild-kit/core-utils": {
+      "esbuild": "$esbuild"
+    },
+    "brace-expansion@1": "^1.1.17",
+    "postcss": "^8.5.18",
+    "sharp": "^0.35.0"
+  },
+  "allowScripts": {
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.1": true,
+    "unrs-resolver@1.12.2": true
   }
 }

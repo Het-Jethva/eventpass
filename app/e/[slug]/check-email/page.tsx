@@ -17,12 +17,18 @@ export default async function RegistrationCheckEmailPage({
 }) {
   const [{ slug }, query] = await Promise.all([params, searchParams]);
   const event = await getPublishedEvent(slug);
-  if (!event || (query.outcome !== "hold" && query.outcome !== "waitlist")) {
+  const outcome =
+    typeof query.outcome === "string" &&
+    ["hold", "waitlist", "neutral"].includes(query.outcome)
+      ? query.outcome
+      : null;
+  if (!event || !outcome) {
     notFound();
   }
 
-  const hasCapacityHold = query.outcome === "hold";
-  const deliveryFailed = query.delivery === "failed";
+  const isNeutral = outcome === "neutral";
+  const hasCapacityHold = outcome === "hold";
+  const deliveryFailed = !isNeutral && query.delivery === "failed";
 
   return (
     <div className="flex min-h-svh flex-col bg-muted/20">
@@ -41,23 +47,35 @@ export default async function RegistrationCheckEmailPage({
             Check your email
           </h1>
           <p className="mt-4 max-w-xl text-reading text-muted-foreground">
-            Use the single-use link we sent to verify your email address and
-            continue your registration.
+            {isNeutral
+              ? "If your Registration can be processed, we’ll send a single-use verification link shortly."
+              : "Use the single-use link we sent to verify your email address and continue your registration."}
           </p>
 
-          <Alert className="mt-8">
-            <IconClock aria-hidden="true" />
-            <AlertTitle>
-              {hasCapacityHold
-                ? "Your place is held for 15 minutes"
-                : "No place is being held"}
-            </AlertTitle>
-            <AlertDescription>
-              {hasCapacityHold
-                ? "Verify before the link expires to claim this place. Your registration is not confirmed yet."
-                : "The event is full. Verify your email to join the waitlist; your place in line starts once you do."}
-            </AlertDescription>
-          </Alert>
+          {isNeutral ? (
+            <Alert className="mt-8">
+              <IconClock aria-hidden="true" />
+              <AlertTitle>Check your inbox</AlertTitle>
+              <AlertDescription>
+                If you submitted a Registration, the next steps will be in the
+                email. If you did not, you can ignore this message.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <Alert className="mt-8">
+              <IconClock aria-hidden="true" />
+              <AlertTitle>
+                {hasCapacityHold
+                  ? "Your place is held for 15 minutes"
+                  : "No place is being held"}
+              </AlertTitle>
+              <AlertDescription>
+                {hasCapacityHold
+                  ? "Verify before the link expires to claim this place. Your registration is not confirmed yet."
+                  : "The event is full. Verify your email to join the waitlist; your place in line starts once you do."}
+              </AlertDescription>
+            </Alert>
+          )}
 
           {deliveryFailed ? (
             <Alert variant="destructive" className="mt-4">

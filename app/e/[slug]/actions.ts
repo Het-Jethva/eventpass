@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { submitRegistration } from "@/features/registration/server/submit-registration";
@@ -19,6 +20,10 @@ export async function submitRegistrationAction(
   _previousState: RegistrationActionState,
   formData: FormData,
 ): Promise<RegistrationActionState> {
+  if (stringValue(formData, "website").trim()) {
+    redirect(`/e/${slug}/check-email?outcome=neutral`);
+  }
+
   const answers = Object.fromEntries(
     fieldIds.map((fieldId) => {
       const values = formData
@@ -35,7 +40,7 @@ export async function submitRegistrationAction(
 
   let result;
   try {
-    result = await submitRegistration(slug, values);
+    result = await submitRegistration(slug, values, await headers());
   } catch {
     return {
       status: "error",
@@ -53,10 +58,12 @@ export async function submitRegistrationAction(
     };
   }
   if (result.outcome === "existing_registration") {
+    redirect(`/e/${slug}/check-email?outcome=neutral`);
+  }
+  if (result.outcome === "rate_limited") {
     return {
-      status: "existing",
-      message:
-        "An active Registration already exists for this email address and Event.",
+      status: "error",
+      message: "Your Registration could not be submitted right now. Try again later.",
       values,
     };
   }
@@ -75,9 +82,5 @@ export async function submitRegistrationAction(
     };
   }
 
-  const destination = new URLSearchParams({
-    outcome: result.outcome === "capacity_hold" ? "hold" : "waitlist",
-  });
-  if (result.deliveryStatus === "failed") destination.set("delivery", "failed");
-  redirect(`/e/${slug}/check-email?${destination.toString()}`);
+  redirect(`/e/${slug}/check-email?outcome=neutral`);
 }

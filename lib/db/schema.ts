@@ -265,6 +265,36 @@ export const event = pgTable(
   ],
 );
 
+export const registrationAttempt = pgTable(
+  "registration_attempt",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => event.id, { onDelete: "cascade" }),
+    emailDigest: text("email_digest").notNull(),
+    ipDigest: text("ip_digest").notNull(),
+    attemptedAt: timestamp("attempted_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("registration_attempt_event_email_attempted_at_idx").on(
+      table.eventId,
+      table.emailDigest,
+      table.attemptedAt,
+    ),
+    index("registration_attempt_event_ip_attempted_at_idx").on(
+      table.eventId,
+      table.ipDigest,
+      table.attemptedAt,
+    ),
+    index("registration_attempt_attempted_at_idx").on(table.attemptedAt),
+  ],
+);
+
 export const eventStaff = pgTable(
   "event_staff",
   {

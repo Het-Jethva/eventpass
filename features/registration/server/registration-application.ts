@@ -22,6 +22,7 @@ import {
   type AdmissionOfferMessage,
 } from "./waitlist-reconciliation";
 import { isEventSuspended } from "@/features/events/server/event-suspension";
+import { isRegistrationAttemptLimited } from "@/lib/registration-attempt-throttle";
 
 type RegistrationDatabase = typeof import("../../../lib/db").db;
 
@@ -55,6 +56,7 @@ export type RegistrationSubmissionResult =
       outcome: "existing_registration";
       registrationId: string;
     }
+  | { outcome: "rate_limited" }
   | { outcome: "event_unavailable" }
   | { outcome: "registration_closed" }
   | {
@@ -102,9 +104,9 @@ export function createRegistrationApplicationService({
   async function submit(
     eventSlug: string,
     values: RegistrationSubmissionValues,
+    requestHeaders: Headers,
   ): Promise<RegistrationSubmissionResult> {
     const submittedAt = now();
-    const token = createToken();
     let emailMessage: VerificationEmail | null = null;
     let offerMessages: AdmissionOfferMessage[] = [];
 
@@ -135,13 +137,6 @@ export function createRegistrationApplicationService({
         ) {
           return { outcome: "registration_closed" };
         }
-
-        offerMessages = await reconcileWaitlistInTransaction({
-          transaction,
-          eventId: publishedEvent.id,
-          reconciledAt: submittedAt,
-          createOfferToken,
-        });
 
         const fieldRows = await transaction
           .select({
@@ -204,6 +199,18 @@ export function createRegistrationApplicationService({
           return { outcome: "invalid", ...validation };
         }
 
+        if (
+          await isRegistrationAttemptLimited({
+            transaction,
+            eventId: publishedEvent.id,
+            normalizedEmail: validation.data.normalizedEmail,
+            headers: requestHeaders,
+            attemptedAt: submittedAt,
+          })
+        ) {
+          return { outcome: "rate_limited" };
+        }
+
         const [existing] = await transaction
           .select({ registrationId: registration.id })
           .from(registration)
@@ -216,6 +223,13 @@ export function createRegistrationApplicationService({
           )
           .limit(1);
         if (existing) return { outcome: "existing_registration", ...existing };
+
+        offerMessages = await reconcileWaitlistInTransaction({
+          transaction,
+          eventId: publishedEvent.id,
+          reconciledAt: submittedAt,
+          createOfferToken,
+        });
 
         const [capacityUsage] = await transaction
           .select({
@@ -277,6 +291,7 @@ export function createRegistrationApplicationService({
         }
 
         const verificationExpiresAt = new Date(submittedAt.getTime() + 15 * 60_000);
+        const token = createToken();
         await transaction.insert(registrationVerification).values({
           registrationId: created.id,
           tokenDigest: digestToken(token),

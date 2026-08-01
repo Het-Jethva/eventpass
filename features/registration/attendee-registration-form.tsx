@@ -191,11 +191,7 @@ export function AttendeeRegistrationForm({
       {state.status !== "idle" ? (
         <Alert variant={state.status === "error" ? "destructive" : "default"}>
           <IconAlertCircle aria-hidden="true" />
-          <AlertTitle>
-            {state.status === "existing"
-              ? "Registration already exists"
-              : "Registration not submitted"}
-          </AlertTitle>
+          <AlertTitle>Registration not submitted</AlertTitle>
           <AlertDescription>{state.message}</AlertDescription>
         </Alert>
       ) : null}
@@ -260,6 +256,15 @@ export function AttendeeRegistrationForm({
         })}
       </FieldGroup>
 
+      <input
+        type="text"
+        name="website"
+        hidden
+        tabIndex={-1}
+        autoComplete="off"
+        aria-hidden="true"
+      />
+
       <Button type="submit" size="lg" className="w-full" disabled={pending}>
         {pending ? (
           <>
@@ -274,8 +279,8 @@ export function AttendeeRegistrationForm({
         )}
       </Button>
       <p className="text-support text-muted-foreground">
-        Submitting does not confirm your place. The next screen will state whether
-        your place is held for 15 minutes, or to confirm your spot on the waitlist.
+        Submitting does not confirm your place. The next screen will explain what
+        to do next.
       </p>
       <p className="sr-only" aria-live="polite">
         {pending ? "Submitting your registration." : ""}

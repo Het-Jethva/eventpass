@@ -179,23 +179,29 @@ export async function reconcileWaitlistInTransaction({
     reconciledAt,
     lockedEvent.registrationClosesAt,
   );
-  const messages: AdmissionOfferMessage[] = [];
-  for (const candidate of candidates) {
+  const offers = candidates.map((candidate) => {
     const token = createOfferToken();
-    await transaction.insert(admissionOffer).values({
-      registrationId: candidate.id,
-      tokenDigest: digestBearerToken(token),
-      expiresAt,
-    });
-    messages.push({
-      email: candidate.email,
-      attendeeName: candidate.attendeeName,
-      eventId: lockedEvent.id,
-      eventName: lockedEvent.name,
-      eventSlug: lockedEvent.slug,
-      expiresAt,
-      token,
-    });
+    return {
+      row: {
+        registrationId: candidate.id,
+        tokenDigest: digestBearerToken(token),
+        expiresAt,
+      },
+      message: {
+        email: candidate.email,
+        attendeeName: candidate.attendeeName,
+        eventId: lockedEvent.id,
+        eventName: lockedEvent.name,
+        eventSlug: lockedEvent.slug,
+        expiresAt,
+        token,
+      },
+    };
+  });
+  if (offers.length > 0) {
+    await transaction
+      .insert(admissionOffer)
+      .values(offers.map(({ row }) => row));
   }
-  return messages;
+  return offers.map(({ message }) => message);
 }

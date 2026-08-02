@@ -22,6 +22,7 @@ import {
   type AdmissionOfferMessage,
 } from "./waitlist-reconciliation";
 import { isEventSuspended } from "@/features/events/server/event-suspension";
+import { deliverAdmissionOfferMessages } from "@/lib/email/deliver-admission-offers";
 import { isRegistrationAttemptLimited } from "@/lib/registration-attempt-throttle";
 
 type RegistrationDatabase = typeof import("../../../lib/db").db;
@@ -338,13 +339,7 @@ export function createRegistrationApplicationService({
       return { outcome: "existing_registration", ...existing };
     }
 
-    for (const message of offerMessages) {
-      try {
-        await sendAdmissionOfferEmail(message);
-      } catch {
-        // Domain state is committed independently from delivery outcomes.
-      }
-    }
+    await deliverAdmissionOfferMessages(offerMessages, sendAdmissionOfferEmail);
     if (!emailMessage || !("deliveryStatus" in result)) return result;
     try {
       await sendVerificationEmail(emailMessage);

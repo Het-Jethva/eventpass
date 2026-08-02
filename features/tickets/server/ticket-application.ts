@@ -28,6 +28,7 @@ import {
   lockEvent,
   lockEventForMutation,
 } from "../../events/server/event-suspension";
+import { deliverAdmissionOfferMessages } from "@/lib/email/deliver-admission-offers";
 import { createTicketCode as createRandomTicketCode } from "./create-ticket-code";
 import { signTicket } from "../ticket-crypto";
 
@@ -377,13 +378,7 @@ export function createTicketApplicationService({
       } as const;
     });
 
-    for (const message of offerMessages) {
-      try {
-        await sendAdmissionOfferEmail(message);
-      } catch {
-        // Domain state is committed independently from delivery outcomes.
-      }
-    }
+    await deliverAdmissionOfferMessages(offerMessages, sendAdmissionOfferEmail);
     if (waitlistMessage) {
       try {
         await sendWaitlistEmail(waitlistMessage);
@@ -554,13 +549,10 @@ export function createTicketApplicationService({
       throw error;
     }
 
-    for (const message of promotedMessages) {
-      try {
-        await sendAdmissionOfferEmail(message);
-      } catch {
-        // Domain state is committed independently from delivery outcomes.
-      }
-    }
+    await deliverAdmissionOfferMessages(
+      promotedMessages,
+      sendAdmissionOfferEmail,
+    );
     if (result.outcome !== "confirmed" || !emailMessage) return result;
     try {
       await sendTicketEmail(emailMessage);
@@ -616,13 +608,10 @@ export function createTicketApplicationService({
         .limit(1);
       return activeOffer ?? null;
     });
-    for (const message of promotedMessages) {
-      try {
-        await sendAdmissionOfferEmail(message);
-      } catch {
-        // Domain state is committed independently from delivery outcomes.
-      }
-    }
+    await deliverAdmissionOfferMessages(
+      promotedMessages,
+      sendAdmissionOfferEmail,
+    );
     return view;
   }
 
@@ -637,13 +626,7 @@ export function createTicketApplicationService({
         createOfferToken,
       });
     });
-    for (const message of messages) {
-      try {
-        await sendAdmissionOfferEmail(message);
-      } catch {
-        // Domain state is committed independently from delivery outcomes.
-      }
-    }
+    await deliverAdmissionOfferMessages(messages, sendAdmissionOfferEmail);
     return { promoted: messages.length };
   }
 
@@ -1231,13 +1214,7 @@ export function createTicketApplicationService({
       });
       return { outcome: "canceled" } as const;
     });
-    for (const message of offerMessages) {
-      try {
-        await sendAdmissionOfferEmail(message);
-      } catch {
-        // Cancellation remains committed independently from delivery outcomes.
-      }
-    }
+    await deliverAdmissionOfferMessages(offerMessages, sendAdmissionOfferEmail);
     return result;
   }
 

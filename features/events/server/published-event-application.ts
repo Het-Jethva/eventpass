@@ -17,6 +17,7 @@ import {
   reconcileWaitlistInTransaction,
   type AdmissionOfferMessage,
 } from "../../registration/server/waitlist-reconciliation";
+import { deliverAdmissionOfferMessages } from "@/lib/email/deliver-admission-offers";
 import {
   assertPostCheckInChangeAllowed,
   PublishedEventChangeError,
@@ -326,7 +327,7 @@ export function createPublishedEventApplicationService({
 
     await Promise.all([
       dispatch(result.deliveryIds, deliverNotification),
-      Promise.allSettled(result.offerMessages.map(sendAdmissionOfferEmail)),
+      deliverAdmissionOfferMessages(result.offerMessages, sendAdmissionOfferEmail),
     ]);
     return { materialChanges: result.changes.length };
   }

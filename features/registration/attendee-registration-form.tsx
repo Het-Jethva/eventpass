@@ -60,7 +60,7 @@ function TextAnswer({
     <Field data-invalid={Boolean(errors?.length)}>
       <FieldLabel htmlFor={id}>
         {field.label}
-        {field.required ? <span aria-hidden="true">*</span> : null}
+        {field.required ? <span aria-hidden="true"> *</span> : null}
       </FieldLabel>
       {field.answerType === "long_text" ? (
         <Textarea {...shared} rows={5} maxLength={4_000} />
@@ -188,8 +188,11 @@ export function AttendeeRegistrationForm({
 
   return (
     <form action={formAction} className="space-y-6" noValidate>
-      {state.status !== "idle" ? (
-        <Alert variant={state.status === "error" ? "destructive" : "default"}>
+      {/* `status` is `"idle" | "error"`, so the non-idle branch is always the
+          error — the variant ternary it carried had a branch that could not
+          render. */}
+      {state.status === "error" ? (
+        <Alert variant="destructive">
           <IconAlertCircle aria-hidden="true" />
           <AlertTitle>Registration not submitted</AlertTitle>
           <AlertDescription>{state.message}</AlertDescription>
@@ -198,7 +201,16 @@ export function AttendeeRegistrationForm({
 
       <FieldGroup>
         <Field>
-          <FieldLabel htmlFor="name">Name *</FieldLabel>
+          {/* One treatment for "required" across this form. Name and Email
+              spelled the asterisk into the label text, so a screen reader read
+              "Name star" on top of the `required` the input already announces,
+              while the organizer-authored questions below hid theirs — and the
+              two that were hidden disagreed with each other about the leading
+              space. The attribute carries the meaning; the glyph is decoration. */}
+          <FieldLabel htmlFor="name">
+            Name
+            <span aria-hidden="true"> *</span>
+          </FieldLabel>
           <Input
             id="name"
             name="name"
@@ -214,7 +226,10 @@ export function AttendeeRegistrationForm({
           />
         </Field>
         <Field>
-          <FieldLabel htmlFor="email">Email address *</FieldLabel>
+          <FieldLabel htmlFor="email">
+            Email address
+            <span aria-hidden="true"> *</span>
+          </FieldLabel>
           <Input
             id="email"
             name="email"

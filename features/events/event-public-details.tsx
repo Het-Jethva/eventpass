@@ -72,10 +72,20 @@ export function EventPublicDetails({
             {event.description}
           </p>
 
+          {/* The icons belong inside the `dt`. As siblings of `dt` and `dd`
+              they were stray elements in a `dl`, which allows only those two
+              and a plain `div` wrapper — and they rendered at the icon
+              library's 24px default beside 16px labels, a size used nowhere
+              else on this page. `size-5` matches the aside opposite. */}
           <dl className="mt-10 divide-y border-y">
-            <div className="grid gap-2 py-5 sm:grid-cols-[1.5rem_9rem_1fr] sm:items-start">
-              <IconCalendarEvent aria-hidden="true" className="mt-0.5" />
-              <dt className="font-medium">Schedule</dt>
+            <div className="grid gap-2 py-5 sm:grid-cols-[11rem_1fr] sm:items-start">
+              <dt className="flex items-start gap-2 font-medium">
+                <IconCalendarEvent
+                  aria-hidden="true"
+                  className="mt-0.5 size-5 shrink-0"
+                />
+                Schedule
+              </dt>
               <dd className="text-muted-foreground">
                 {formatRange(event.startsAt, event.endsAt, event.eventTimeZone)}
                 <span className="mt-1 block text-sm">
@@ -83,9 +93,11 @@ export function EventPublicDetails({
                 </span>
               </dd>
             </div>
-            <div className="grid gap-2 py-5 sm:grid-cols-[1.5rem_9rem_1fr] sm:items-start">
-              <IconMapPin aria-hidden="true" className="mt-0.5" />
-              <dt className="font-medium">Venue</dt>
+            <div className="grid gap-2 py-5 sm:grid-cols-[11rem_1fr] sm:items-start">
+              <dt className="flex items-start gap-2 font-medium">
+                <IconMapPin aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+                Venue
+              </dt>
               <dd className="text-muted-foreground">
                 <span className="block text-foreground">{event.venueName}</span>
                 {event.venueAddress}

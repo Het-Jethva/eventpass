@@ -230,11 +230,27 @@ export function ScannerPreparation({
         ) : null}
 
         {currentSnapshot ? (
+          // Three states, three signals. A stale snapshot and a dead
+          // authorization both rendered destructive with the same icon, which
+          // told a volunteer their phone had lost access when it had only
+          // fallen behind — a refresh away from ready, not a failure.
           <Alert
-            variant={readiness === "ready" ? "default" : "destructive"}
+            variant={
+              readiness === "ready"
+                ? "default"
+                : readiness === "refresh_required"
+                  ? "warning"
+                  : "destructive"
+            }
             aria-live="polite"
           >
-            {readiness === "ready" ? <IconShieldCheck /> : <IconRefresh />}
+            {readiness === "ready" ? (
+              <IconShieldCheck />
+            ) : readiness === "refresh_required" ? (
+              <IconRefresh />
+            ) : (
+              <IconCloudOff />
+            )}
             <AlertTitle>
               {readiness === "ready"
                 ? "Ready to work offline"

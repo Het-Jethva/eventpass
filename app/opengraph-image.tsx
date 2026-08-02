@@ -14,10 +14,13 @@ export const contentType = "image/png";
 // this surface has to restate both. Every value below is the sRGB conversion of
 // a light-mode token in globals.css — nothing here is a new colour, and if a
 // token moves these have to be re-derived.
-const INK = "#22222b"; // --foreground
-const PAPER = "#fcfdfe"; // --background
-const MUTED = "#6f6f7d"; // --muted-foreground
-const HAIRLINE = "#e6e6ea"; // --border
+// Re-derived after the neutral ramp moved to hue 260. Three of these four had
+// drifted from the tokens they name — the card was rendering its ink two steps
+// lighter and warmer than the product's own foreground.
+const INK = "#0c1015"; // --foreground        oklch(0.17 0.013 260)
+const PAPER = "#fcfdfe"; // --background      oklch(0.994 0.002 260)
+const MUTED = "#5f656e"; // --muted-foreground oklch(0.505 0.016 260)
+const HAIRLINE = "#e1e3e7"; // --border       oklch(0.916 0.005 260)
 
 async function geistSubset(text: string, weight: 400 | 500 | 600) {
   // The product speaks in one typeface. A card that falls back to Satori's

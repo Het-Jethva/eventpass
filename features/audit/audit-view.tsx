@@ -221,11 +221,19 @@ export function AuditView({
             <EmptyMedia variant="icon">
               <IconHistory aria-hidden="true" />
             </EmptyMedia>
-            <EmptyTitle>Nothing matches</EmptyTitle>
+            {/* The title branches with the description. An event whose log is
+                simply empty was told "Nothing matches" — naming a search it had
+                not run. The roster's empty state already makes this
+                distinction; this one only made it in the sentence below. */}
+            <EmptyTitle>
+              {isFiltered || initialQuery
+                ? "Nothing matches"
+                : "Nothing recorded yet"}
+            </EmptyTitle>
             <EmptyDescription>
               {isFiltered || initialQuery
                 ? "The whole log was searched, not just the visible page. Try a shorter search or a different filter."
-                : "Nothing has been recorded for this event yet."}
+                : "Activity on this event — registrations, scans, and organizer changes — appears here as it happens."}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>

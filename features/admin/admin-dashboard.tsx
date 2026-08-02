@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { IconCalendar, IconShield, IconUsers } from "@tabler/icons-react";
 
+import { ErrorState } from "@/components/error-state";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { AdminAccountsList, type AccountItem } from "./admin-accounts-list";
@@ -52,12 +54,14 @@ export function AdminDashboard({
     registrations: SupportAttendeeRecord[];
   } | null>(null);
   const [isLoadingSupportData, setIsLoadingSupportData] = useState(false);
+  const [supportDataFailed, setSupportDataFailed] = useState(false);
 
   async function handleInspect(eventId: string) {
     const ev = events.find((e) => e.id === eventId);
     setInspectingEventId(eventId);
     setInspectingEventName(ev?.name ?? "Event");
     setIsLoadingSupportData(true);
+    setSupportDataFailed(false);
 
     try {
       const data = await onFetchSupportData(eventId);
@@ -66,10 +70,12 @@ export function AdminDashboard({
         registrations: data.registrations,
       });
     } catch {
-      setSupportAccessData({
-        activeSupportAccess: null,
-        registrations: [],
-      });
+      // A failed fetch used to be written into state as "no active access, no
+      // registrations" — which is exactly what a healthy but empty event looks
+      // like. On the one surface that decides whether attendee data is being
+      // read under a recorded grant, a load failure must not read as an answer.
+      setSupportAccessData(null);
+      setSupportDataFailed(true);
     } finally {
       setIsLoadingSupportData(false);
     }
@@ -106,6 +112,26 @@ export function AdminDashboard({
             <Spinner />
             Loading attendee data…
           </div>
+        ) : supportDataFailed ? (
+          <div className="flex flex-col gap-4">
+            <ErrorState
+              title="Attendee data could not be loaded"
+              description={`Nothing was read for ${inspectingEventName}. No support access was opened by this attempt.`}
+              onRetry={() => void handleInspect(inspectingEventId)}
+            />
+            {/* Retry alone would strand an administrator on a failing event. */}
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-fit self-center"
+              onClick={() => {
+                setInspectingEventId(null);
+                setSupportDataFailed(false);
+              }}
+            >
+              Back to events
+            </Button>
+          </div>
         ) : (
           <SupportAccessView
             eventId={inspectingEventId}
@@ -116,6 +142,7 @@ export function AdminDashboard({
             onBack={() => {
               setInspectingEventId(null);
               setSupportAccessData(null);
+              setSupportDataFailed(false);
             }}
           />
         )

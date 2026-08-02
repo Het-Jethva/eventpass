@@ -87,7 +87,7 @@ function AttendeeFieldPreview({
         />
         <FieldContent>
           <FieldLabel htmlFor={fieldName} className="font-normal">
-            {label}{field.required ? " *" : ""}
+            {label}{field.required ? <span aria-hidden="true"> *</span> : null}
           </FieldLabel>
           {field.helpText ? (
             <FieldDescription id={descriptionId}>{field.helpText}</FieldDescription>
@@ -101,7 +101,7 @@ function AttendeeFieldPreview({
     return (
       <FieldSet>
         <FieldLegend variant="label">
-          {label}{field.required ? " *" : ""}
+          {label}{field.required ? <span aria-hidden="true"> *</span> : null}
         </FieldLegend>
         {field.helpText ? <FieldDescription>{field.helpText}</FieldDescription> : null}
         <RadioGroup name={fieldName} required={field.required}>
@@ -122,7 +122,7 @@ function AttendeeFieldPreview({
     return (
       <FieldSet>
         <FieldLegend variant="label">
-          {label}{field.required ? " *" : ""}
+          {label}{field.required ? <span aria-hidden="true"> *</span> : null}
         </FieldLegend>
         {field.helpText ? <FieldDescription>{field.helpText}</FieldDescription> : null}
         <FieldGroup className="gap-3">
@@ -146,7 +146,7 @@ function AttendeeFieldPreview({
   return (
     <Field>
       <FieldLabel htmlFor={fieldName}>
-        {label}{field.required ? " *" : ""}
+        {label}{field.required ? <span aria-hidden="true"> *</span> : null}
       </FieldLabel>
       {field.answerType === "long_text" ? (
         <Textarea
@@ -207,11 +207,22 @@ function RegistrationFormPreview({ fields }: { fields: OrganizerRegistrationFiel
         >
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="preview-name">Name *</FieldLabel>
+              {/* Same treatment as the attendee form this previews: the
+                  `required` attribute carries the meaning, the glyph is
+                  decoration. A preview that spells the asterisk into its label
+                  text is not previewing what the attendee's screen reader
+                  hears. */}
+              <FieldLabel htmlFor="preview-name">
+                Name
+                <span aria-hidden="true"> *</span>
+              </FieldLabel>
               <Input id="preview-name" name="name" autoComplete="name" required />
             </Field>
             <Field>
-              <FieldLabel htmlFor="preview-email">Email address *</FieldLabel>
+              <FieldLabel htmlFor="preview-email">
+                Email address
+                <span aria-hidden="true"> *</span>
+              </FieldLabel>
               <Input
                 id="preview-email"
                 name="email"

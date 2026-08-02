@@ -302,10 +302,14 @@ export function ScannerWorkspace({
           {eventStatus === "canceled" ? (
             <Badge variant="destructive">Event canceled</Badge>
           ) : null}
+          {/* 44px, not the 40px `icon-lg` ships. Every other control on this
+              surface carries `min-h-11` for the same reason: it is operated
+              one-handed, at a door, by someone not looking at it. */}
           <Button
             type="button"
             variant="outline"
             size="icon-lg"
+            className="size-11"
             onClick={() => setFeedbackEnabled((enabled) => !enabled)}
             aria-label={`${feedbackEnabled ? "Disable" : "Enable"} sound and vibration feedback`}
             aria-pressed={feedbackEnabled}
@@ -333,7 +337,7 @@ export function ScannerWorkspace({
 
       {pendingAttemptCount > 0 || syncMessage ? (
         <section
-          aria-label="scan attempt synchronization"
+          aria-label="Scan attempt synchronization"
           className="flex flex-wrap items-center justify-between gap-3 border-b pb-6"
         >
           <p className="text-sm text-muted-foreground" aria-live="polite">
@@ -341,20 +345,26 @@ export function ScannerWorkspace({
               ? `${pendingAttemptCount} scan${pendingAttemptCount === 1 ? "" : "s"} waiting to sync from this device.`
               : syncMessage}
           </p>
-          <Button
-            type="button"
-            variant="outline"
-            className="min-h-11"
-            disabled={syncing || pendingAttemptCount === 0}
-            onClick={() => void synchronize()}
-          >
-            {syncing ? (
-              <Spinner data-icon="inline-start" />
-            ) : (
-              <IconCloudUpload data-icon="inline-start" />
-            )}
-            {syncing ? "Synchronizing…" : "Retry synchronization"}
-          </Button>
+          {/* Only when there is something to retry. This section also renders
+              for a bare `syncMessage` — everything already synced — and the
+              button then sat there permanently disabled next to the sentence
+              saying so, offering an action that had already happened. */}
+          {pendingAttemptCount > 0 ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11"
+              disabled={syncing}
+              onClick={() => void synchronize()}
+            >
+              {syncing ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <IconCloudUpload data-icon="inline-start" />
+              )}
+              {syncing ? "Synchronizing…" : "Retry synchronization"}
+            </Button>
+          ) : null}
           {pendingAttemptCount > 0 && syncMessage ? (
             <p className="w-full text-sm text-muted-foreground" aria-live="polite">
               {syncMessage}

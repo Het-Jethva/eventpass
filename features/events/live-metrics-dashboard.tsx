@@ -119,10 +119,12 @@ function ProportionRow({
           </span>
         </span>
       </div>
+      {/* The line above already reads "Accepted 12 / 40 · 30%". Giving the bar
+          `role="img"` and the same sentence again made every row announce
+          twice. */}
       <div
+        aria-hidden="true"
         className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
-        role="img"
-        aria-label={`${label}: ${value} of ${total}, ${percentage} percent`}
       >
         <div
           className={cn("h-full transition-all duration-300", BAR_TONE[tone])}
@@ -451,54 +453,72 @@ export function LiveMetricsDashboard({
         </div>
 
         {checkInsOverTime.length > 0 ? (
-          <>
-            {/*
-              Values are always rendered rather than revealed on hover. Hover
-              does not exist on a phone, which is where an organizer actually
-              watches a door, so the chart previously had no numbers at all
-              there — and state must never hide behind hover.
+          /*
+            Values are always rendered rather than revealed on hover. Hover
+            does not exist on a phone, which is where an organizer actually
+            watches a door, so the chart previously had no numbers at all
+            there — and state must never hide behind hover.
 
-              `<table>` rather than divs so the series is readable by a screen
-              reader and keyboard as an ordinary two-column table; the bars are
-              presentational decoration layered on the same cells.
-            */}
-            <table className="w-full">
-              <caption className="sr-only">
-                Arrivals per hour, in the event time zone
-              </caption>
-              <thead className="sr-only">
-                <tr>
-                  <th scope="col">Hour</th>
-                  <th scope="col">Arrivals</th>
-                </tr>
-              </thead>
-              <tbody className="flex h-36 items-end gap-2 border-b pt-4 pb-2">
-                {checkInsOverTime.map((point) => (
-                  <tr
-                    key={point.hourIso}
-                    className="flex h-full flex-1 flex-col items-center justify-end gap-1.5"
+            `<table>` rather than divs so the series is readable by a screen
+            reader and keyboard as an ordinary two-column table; the bars are
+            presentational decoration layered on the same cells.
+
+            Two corrections to that intent. The roles are stated explicitly
+            because `display: flex` on `tbody` and `tr` — which is what stands
+            the bars up — drops the implicit table semantics the markup was
+            chosen for. And the row header now comes first in the markup: with
+            the hour label last, the columns declared above lined up against
+            the wrong cells, so the count was announced as the hour. Reading
+            order belongs to the markup, stacking order to `order-*`.
+          */
+          <table className="w-full" role="table">
+            <caption className="sr-only">
+              Arrivals per hour, in the event time zone
+            </caption>
+            <thead className="sr-only" role="rowgroup">
+              <tr role="row">
+                <th scope="col" role="columnheader">
+                  Hour
+                </th>
+                <th scope="col" role="columnheader">
+                  Arrivals
+                </th>
+              </tr>
+            </thead>
+            <tbody
+              role="rowgroup"
+              className="flex h-36 items-end gap-2 border-b pt-4 pb-2"
+            >
+              {checkInsOverTime.map((point) => (
+                <tr
+                  key={point.hourIso}
+                  role="row"
+                  className="flex h-full flex-1 flex-col items-center justify-end gap-1.5"
+                >
+                  <th
+                    scope="row"
+                    role="rowheader"
+                    className="order-3 w-full truncate text-center font-mono text-xs font-normal text-muted-foreground"
                   >
-                    <td className="font-mono text-xs font-medium tabular-nums">
-                      {point.count}
-                    </td>
-                    <td
-                      aria-hidden="true"
-                      className="w-full max-w-12 rounded-t-sm bg-primary/85"
-                      style={{
-                        height: `${Math.max(8, Math.round((point.count / maxHourly) * 100))}%`,
-                      }}
-                    />
-                    <th
-                      scope="row"
-                      className="w-full truncate text-center font-mono text-xs font-normal text-muted-foreground"
-                    >
-                      {point.label}
-                    </th>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
+                    {point.label}
+                  </th>
+                  <td
+                    role="cell"
+                    className="order-1 font-mono text-xs font-medium tabular-nums"
+                  >
+                    {point.count}
+                  </td>
+                  <td
+                    aria-hidden="true"
+                    className="order-2 w-full max-w-12 rounded-t-sm bg-primary/85"
+                    style={{
+                      height: `${Math.max(8, Math.round((point.count / maxHourly) * 100))}%`,
+                    }}
+                  />
+                </tr>
+              ))}
+            </tbody>
+          </table>
         ) : (
           <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
             Nobody has been checked in yet.
@@ -587,38 +607,38 @@ export function LiveMetricsDashboard({
               confirm their registration.
             </p>
           ) : (
-          <>
-          <p className="font-mono text-sm text-muted-foreground tabular-nums">
-            {deliveryOutcomes.total.toLocaleString()}{" "}
-            {deliveryOutcomes.total === 1 ? "message" : "messages"}
-          </p>
-          <div className="flex flex-col gap-3">
-            <ProportionRow
-              label="Delivered"
-              value={deliveryOutcomes.delivered + deliveryOutcomes.sent}
-              total={deliveryOutcomes.total}
-              tone="success"
-            />
-            <ProportionRow
-              label="In flight"
-              value={deliveryOutcomes.pending + deliveryOutcomes.submitted}
-              total={deliveryOutcomes.total}
-              tone="neutral"
-            />
-            <ProportionRow
-              label="Retrying"
-              value={deliveryOutcomes.transientFailure}
-              total={deliveryOutcomes.total}
-              tone="warning"
-            />
-            <ProportionRow
-              label="Permanently failed"
-              value={deliveryOutcomes.permanentFailure}
-              total={deliveryOutcomes.total}
-              tone="destructive"
-            />
-          </div>
-          </>
+            <>
+              <p className="font-mono text-sm text-muted-foreground tabular-nums">
+                {deliveryOutcomes.total.toLocaleString()}{" "}
+                {deliveryOutcomes.total === 1 ? "message" : "messages"}
+              </p>
+              <div className="flex flex-col gap-3">
+                <ProportionRow
+                  label="Delivered"
+                  value={deliveryOutcomes.delivered + deliveryOutcomes.sent}
+                  total={deliveryOutcomes.total}
+                  tone="success"
+                />
+                <ProportionRow
+                  label="In flight"
+                  value={deliveryOutcomes.pending + deliveryOutcomes.submitted}
+                  total={deliveryOutcomes.total}
+                  tone="neutral"
+                />
+                <ProportionRow
+                  label="Retrying"
+                  value={deliveryOutcomes.transientFailure}
+                  total={deliveryOutcomes.total}
+                  tone="warning"
+                />
+                <ProportionRow
+                  label="Permanently failed"
+                  value={deliveryOutcomes.permanentFailure}
+                  total={deliveryOutcomes.total}
+                  tone="destructive"
+                />
+              </div>
+            </>
           )}
         </section>
       </div>

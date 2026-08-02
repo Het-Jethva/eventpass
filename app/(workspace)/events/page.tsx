@@ -32,6 +32,18 @@ const ROLE_LABELS: Record<string, string> = {
   check_in_volunteer: "Check-in volunteer",
 };
 
+const STATUS_LABELS: Record<string, string> = {
+  draft: "Draft",
+  published: "Published",
+  canceled: "Canceled",
+};
+
+const STATUS_VARIANTS: Record<string, "secondary" | "default" | "destructive"> = {
+  draft: "secondary",
+  published: "default",
+  canceled: "destructive",
+};
+
 function formatSchedule(startsAt: Date, endsAt: Date, timeZone: string) {
   const formatter = new Intl.DateTimeFormat("en", {
     year: "numeric",
@@ -106,8 +118,14 @@ export default async function EventsPage() {
                   <ViewTransition name={`event-${eventItem.id}`}>
                     <h2 className="truncate font-medium">{eventItem.name}</h2>
                   </ViewTransition>
-                  <Badge variant={eventItem.status === "draft" ? "secondary" : "default"}>
-                    {eventItem.status === "draft" ? "Draft" : "Published"}
+                  {/* Three statuses, not two. `status` is 'draft' | 'published'
+                      | 'canceled', and the binary this replaced labelled a
+                      Canceled Event "Published" — on the index an organizer
+                      scans to find the event they need, disagreeing with the
+                      badge the event's own sidebar shows once opened. Same
+                      label and variant as that sidebar. */}
+                  <Badge variant={STATUS_VARIANTS[eventItem.status] ?? "default"}>
+                    {STATUS_LABELS[eventItem.status] ?? "Published"}
                   </Badge>
                   <Badge variant="outline">
                     {ROLE_LABELS[eventItem.role] ?? eventItem.role}

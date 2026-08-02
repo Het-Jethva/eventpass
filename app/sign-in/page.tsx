@@ -60,7 +60,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
 
         <SignInForm callbackURL={safeCallback} />
 
-        <p className="text-center text-xs text-muted-foreground">
+        <p className="text-center text-xs text-balance text-muted-foreground">
           By continuing, you confirm that you are authorized to access an
           EventPass staff workspace.
         </p>

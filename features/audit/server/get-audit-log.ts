@@ -161,9 +161,9 @@ export async function getEventAuditLog({
       u.name::text as actor_name,
       null::text as actor_email,
       'ticket'::text as target_type,
-      coalesce(t.code, 'unknown')::text as target_id,
-      (case when t.code is null then 'Unrecognized code'
-            else t.code end)::text as target_label,
+      coalesce(sa.ticket_id::text, 'unknown')::text as target_id,
+      (case when sa.ticket_id is null then 'Unrecognized code'
+            else 'ticket:' || left(sa.ticket_id::text, 8) end)::text as target_label,
       null::text as reason,
       sa.source::text as source,
       sa.timestamp_confidence::text as timestamp_confidence,
@@ -173,7 +173,6 @@ export async function getEventAuditLog({
       sa.attempted_at as sort_at
     from scan_attempt sa
     join "user" u on u.id = sa.actor_user_id
-    left join ticket t on t.id = sa.ticket_id
     where sa.event_id = ${eventId}
   `;
 

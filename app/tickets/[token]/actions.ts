@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import {
   cancelRegistration,
@@ -75,21 +76,22 @@ export async function resendTicketAction(
   previousState: ManagementActionState,
 ): Promise<ManagementActionState> {
   void previousState;
+  let result: Awaited<ReturnType<typeof resendTicket>>;
   try {
-    const result = await resendTicket(token);
-    if (result.outcome === "sent" && result.deliveryStatus === "sent") {
-      return { status: "success", message: "The existing Ticket was sent again." };
-    }
-    if (result.outcome === "sent") {
-      return {
-        status: "error",
-        message: "The Ticket remains active, but the email could not be sent. Try again later.",
-      };
-    }
-    return { status: "error", message: "This Ticket can no longer be resent." };
+    result = await resendTicket(token);
   } catch {
     return { status: "error", message: "The Ticket email could not be sent. Try again." };
   }
+
+  if (result.outcome === "sent") {
+    if (!result.managementToken) {
+      return { status: "error", message: "The Ticket email could not be sent. Try again." };
+    }
+    const suffix = result.deliveryStatus === "failed" ? "?delivery=failed" : "";
+    redirect(`/tickets/${encodeURIComponent(result.managementToken)}${suffix}`);
+  }
+
+  return { status: "error", message: "This Ticket can no longer be resent." };
 }
 
 export async function replaceTicketAction(

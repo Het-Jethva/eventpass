@@ -9,6 +9,9 @@ const SENSITIVE_FIELDS = new Set([
   "messagebody",
   "rawqrinput",
   "rawinput",
+  "ticketcode",
+  "signedpayload",
+  "ticketjws",
   "password",
   "secret",
 ]);

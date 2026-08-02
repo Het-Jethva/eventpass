@@ -157,6 +157,7 @@ export type TicketManagementResult = {
     | "inactive"
     | "unavailable";
   deliveryStatus?: "sent" | "failed";
+  managementToken?: string;
 };
 
 export function digestBearerToken(token: string) {
@@ -938,49 +939,128 @@ export function createTicketApplicationService({
   }
 
   async function resendTicket(managementToken: string): Promise<TicketManagementResult> {
-    const view = await getManagementView(managementToken);
-    if (!view) return { outcome: "invalid" };
-    if (view.event.suspended) return { outcome: "unavailable" };
-    if (view.registrationStatus !== "confirmed" || view.ticket?.status !== "active") {
-      return { outcome: "inactive" };
+    if (!isWellFormedCapability(managementToken)) {
+      return { outcome: "invalid" };
     }
-    const [managed] = await database
-      .select({ eventId: registration.eventId })
-      .from(registration)
-      .where(
-        and(
-          eq(
-            registration.managementTokenDigest,
-            digestBearerToken(managementToken),
-          ),
-          isNull(registration.managementTokenRevokedAt),
-        ),
-      )
-      .limit(1);
-    if (!managed) return { outcome: "invalid" };
+
+    const previousManagementTokenDigest = digestBearerToken(managementToken);
+    let emailMessage: TicketEmail | null = null;
+    let result: TicketManagementResult;
+
     try {
-      await database.transaction((transaction) =>
-        lockEventForMutation(transaction, managed.eventId),
-      );
+      result = await database.transaction(async (transaction) => {
+        const [located] = await transaction
+          .select({ eventId: registration.eventId })
+          .from(registration)
+          .where(
+            and(
+              eq(registration.managementTokenDigest, previousManagementTokenDigest),
+              isNull(registration.managementTokenRevokedAt),
+            ),
+          )
+          .limit(1);
+        if (!located) return { outcome: "invalid" } as const;
+
+        const lockedEvent = await lockEventForMutation(transaction, located.eventId);
+        if (!lockedEvent) return { outcome: "invalid" } as const;
+
+        const [managed] = await transaction
+          .select({
+            registrationId: registration.id,
+            registrationStatus: registration.status,
+            email: registration.email,
+            attendeeName: registration.attendeeName,
+            eventId: event.id,
+            eventName: event.name,
+            eventTimeZone: event.eventTimeZone,
+            startsAt: event.startsAt,
+            endsAt: event.endsAt,
+            venueName: event.venueName,
+            venueAddress: event.venueAddress,
+          })
+          .from(registration)
+          .innerJoin(event, eq(event.id, registration.eventId))
+          .where(
+            and(
+              eq(registration.eventId, located.eventId),
+              eq(registration.managementTokenDigest, previousManagementTokenDigest),
+              isNull(registration.managementTokenRevokedAt),
+            ),
+          )
+          .for("update")
+          .limit(1);
+        if (!managed) return { outcome: "invalid" } as const;
+        if (managed.registrationStatus !== "confirmed") {
+          return { outcome: "inactive" } as const;
+        }
+
+        const [activeTicket] = await transaction
+          .select({ code: ticket.code, signedPayload: ticket.signedPayload })
+          .from(ticket)
+          .where(
+            and(
+              eq(ticket.registrationId, managed.registrationId),
+              eq(ticket.status, "active"),
+            ),
+          )
+          .for("update")
+          .limit(1);
+        if (!activeTicket) return { outcome: "inactive" } as const;
+
+        const newManagementToken = createManagementToken();
+        const rotatedAt = now();
+        const [rotated] = await transaction
+          .update(registration)
+          .set({
+            managementTokenDigest: digestBearerToken(newManagementToken),
+            updatedAt: rotatedAt,
+          })
+          .where(
+            and(
+              eq(registration.id, managed.registrationId),
+              eq(registration.managementTokenDigest, previousManagementTokenDigest),
+              isNull(registration.managementTokenRevokedAt),
+            ),
+          )
+          .returning({ id: registration.id });
+        if (!rotated) return { outcome: "invalid" } as const;
+
+        emailMessage = {
+          email: managed.email,
+          attendeeName: managed.attendeeName,
+          eventId: managed.eventId,
+          event: {
+            name: managed.eventName,
+            eventTimeZone: managed.eventTimeZone,
+            startsAt: managed.startsAt,
+            endsAt: managed.endsAt,
+            venueName: managed.venueName,
+            venueAddress: managed.venueAddress,
+          },
+          ticketCode: activeTicket.code,
+          ticketJws: activeTicket.signedPayload,
+          managementToken: newManagementToken,
+        };
+
+        return {
+          outcome: "sent",
+          deliveryStatus: "sent",
+          managementToken: newManagementToken,
+        } as const;
+      });
     } catch (error) {
       if (error instanceof EventSuspendedError) {
         return { outcome: "unavailable" };
       }
       throw error;
     }
+
+    if (result.outcome !== "sent" || !emailMessage) return result;
     try {
-      await sendTicketEmail({
-        email: view.email,
-        attendeeName: view.attendeeName,
-        eventId: managed.eventId,
-        event: view.event,
-        ticketCode: view.ticket.code,
-        ticketJws: view.ticket.signedPayload,
-        managementToken,
-      });
-      return { outcome: "sent", deliveryStatus: "sent" };
+      await sendTicketEmail(emailMessage);
+      return result;
     } catch {
-      return { outcome: "sent", deliveryStatus: "failed" };
+      return { ...result, deliveryStatus: "failed" };
     }
   }
 

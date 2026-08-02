@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import {
   IconClockHour4,
   IconDatabase,
@@ -6,6 +7,22 @@ import {
 } from "@tabler/icons-react";
 
 import { EventPassMark } from "@/components/eventpass-mark";
+
+// The wordmark goes home, as it does in both the marketing and workspace
+// headers. It was inert on this shell, which made sign-in — the surface a
+// mistyped staff link most often lands on — the one page in the product with no
+// way out except the browser's back button.
+function HomeMark() {
+  return (
+    <Link
+      href="/"
+      aria-label="EventPass home"
+      className="w-fit rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
+    >
+      <EventPassMark />
+    </Link>
+  );
+}
 
 const assurances = [
   {
@@ -29,13 +46,14 @@ export function PublicAuthShell({ children }: { children: ReactNode }) {
   return (
     <main className="grid min-h-svh lg:grid-cols-[minmax(22rem,0.85fr)_minmax(30rem,1.15fr)]">
       <aside className="hidden border-r bg-muted/40 p-10 lg:flex lg:flex-col lg:justify-between xl:p-14">
-        <EventPassMark />
+        <HomeMark />
 
         <div className="flex max-w-md flex-col gap-10">
+          {/* No label above the heading. "Staff workspace" said nothing the
+              heading and the three safeguards below it do not already say, and
+              a small grey line stacked over a headline is a decoration the
+              sentence has to be read around. */}
           <div className="flex flex-col gap-4">
-            <p className="text-sm font-medium text-muted-foreground">
-              Staff workspace
-            </p>
             <h2 className="text-3xl font-headline text-balance">
               Calm operations start with trustworthy access.
             </h2>
@@ -69,7 +87,7 @@ export function PublicAuthShell({ children }: { children: ReactNode }) {
 
       <section className="flex min-h-svh flex-col">
         <header className="flex h-20 items-center border-b px-6 lg:hidden">
-          <EventPassMark />
+          <HomeMark />
         </header>
         <div className="flex flex-1 items-center justify-center px-6 py-12 sm:px-10">
           <div className="w-full max-w-md">{children}</div>

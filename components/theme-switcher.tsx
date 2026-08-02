@@ -46,19 +46,18 @@ const OPTIONS = [
 export function ThemeSwitcher() {
   const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
+  // Writes the preference and hands off. The root layout's script owns the
+  // class, the `theme-color` meta tags and the OS-change listener; duplicating
+  // that resolution here is how the two drifted apart in the first place —
+  // choosing `system` re-read the media query once and then stopped listening.
   function applyTheme(mode: ThemeMode) {
-    const isDark =
-      mode === "dark" ||
-      (mode === "system" &&
-        window.matchMedia("(prefers-color-scheme: dark)").matches);
-
     if (mode === "system") {
       localStorage.removeItem(STORAGE_KEY);
     } else {
       localStorage.setItem(STORAGE_KEY, mode);
     }
 
-    document.documentElement.classList.toggle("dark", isDark);
+    window.__eventpassTheme?.();
     for (const listener of listeners) listener();
   }
 

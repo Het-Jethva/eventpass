@@ -555,7 +555,7 @@ export function ScannerWorkspace({
         <form onSubmit={handleManualSubmit} noValidate>
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="ticket-code">ticket code</FieldLabel>
+              <FieldLabel htmlFor="ticket-code">Ticket code</FieldLabel>
               <Input
                 id="ticket-code"
                 name="ticketCode"
@@ -563,7 +563,11 @@ export function ScannerWorkspace({
                 onChange={(event) =>
                   setManualCode(event.target.value.toUpperCase())
                 }
-                placeholder="01234-56789"
+                // A Ticket Code is Crockford Base32, so it is letters as often
+                // as digits. The all-numeric placeholder it shipped with told a
+                // volunteer squinting at a printout to expect a number, then
+                // rejected the letters they typed as if they had misread.
+                placeholder="7QM4X-K3B9T"
                 autoComplete="off"
                 autoCapitalize="characters"
                 spellCheck={false}

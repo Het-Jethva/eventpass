@@ -126,12 +126,16 @@ export default async function EventsPage() {
                   to click was the third item in a row of facts — and because
                   the row wrapped on content width, no two rows lined up. */}
               <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground sm:flex-nowrap sm:justify-end">
+                {/* size-4, like every other icon set beside 14px text in the
+                    product. These two were the only ones left at the library's
+                    24px default, which put a pin and a pair of figures taller
+                    than the venue name they were labelling. */}
                 <span className="inline-flex min-w-0 items-center gap-1.5">
-                  <IconMapPin aria-hidden="true" className="shrink-0" />
+                  <IconMapPin aria-hidden="true" className="size-4 shrink-0" />
                   <span className="truncate">{eventItem.venueName}</span>
                 </span>
                 <span className="inline-flex shrink-0 items-center gap-1.5 tabular-nums">
-                  <IconUsers aria-hidden="true" />
+                  <IconUsers aria-hidden="true" className="size-4" />
                   Capacity {eventItem.capacity.toLocaleString()}
                 </span>
                 <Link

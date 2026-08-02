@@ -38,4 +38,4 @@ Avoid dark cybersecurity dashboards, purple-gradient SaaS styling, oversized mar
 
 ## Accessibility & Inclusion
 
-Target WCAG 2.2 AA. Communicate scan outcomes through text, icons, color, and optional sound or vibration rather than color alone; provide at least 44px scanner touch targets, strong contrast for bright environments, keyboard and screen-reader support, and reduced-motion alternatives.
+Target WCAG 2.2 AA. Communicate scan outcomes through text, icons, color, and optional sound or vibration rather than color alone; provide at least 44px scanner touch targets, strong contrast for bright environments, and keyboard and screen-reader support. Motion is deliberately unconditional: the product authors one entrance on the landing page and nothing else, and a scan outcome never animates, so there is no reduced-motion alternative to offer.

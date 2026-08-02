@@ -169,6 +169,14 @@
 }
 
 :root {
+  /* The theme is chosen by a class, so the UA has to be told which one won.
+     Without this the browser keeps painting its own chrome from the OS
+     preference: scrollbars, the date and time pickers behind the Event schedule
+     fields, the file picker on the Registration Import, and every native form
+     control. A staff user on a dark laptop who picks the light theme was
+     reading a light workspace through dark scrollbars. */
+  color-scheme: light;
+
   --radius-control: 0.375rem;
   --radius-container: 0.75rem;
   --radius-overlay: 1rem;
@@ -268,6 +276,8 @@
 }
 
 .dark {
+  color-scheme: dark;
+
   --background: oklch(0.155 0.012 260);
   --foreground: oklch(0.975 0.003 260);
   --card: oklch(0.198 0.014 260);

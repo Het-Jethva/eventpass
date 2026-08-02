@@ -23,9 +23,15 @@ export default async function ScannerPage({
 }: {
   params: Promise<{ eventId: string }>;
 }) {
-  const session = await getActiveStaffSession();
-  if (!session) redirect("/sign-in");
   const { eventId } = await params;
+  const session = await getActiveStaffSession();
+  // Carries the door back to sign-in. A volunteer handed a scanner link opens it
+  // on a phone that has never signed in, and the bare redirect landed them on
+  // the events list with the queue already forming — the one page in the product
+  // where "sign in, then find your way back" is the wrong instruction.
+  if (!session) {
+    redirect(`/sign-in?callbackUrl=${encodeURIComponent(`/scanner/${eventId}`)}`);
+  }
   const scannerEvent = await getScannerEvent(eventId, session.user.id);
   if (!scannerEvent) notFound();
 

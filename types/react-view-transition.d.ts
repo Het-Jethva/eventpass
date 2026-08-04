@@ -1,9 +1,9 @@
 import "react";
 
-// `ViewTransition` ships in React's experimental build, which Next substitutes
-// for `react` when experimental.viewTransition is enabled. The runtime export
-// therefore exists, but @types/react 19.2 does not declare it, so it is
-// declared here rather than reaching for `any` at every call site.
+// `ViewTransition` ships in the React canary the App Router builds against, so
+// the runtime export exists. @types/react declares it only under the opt-in
+// `react/canary` types, which the default `react` module does not expose, so it
+// is declared here rather than reaching for `any` at every call site.
 declare module "react" {
   interface ViewTransitionProps {
     children?: React.ReactNode;

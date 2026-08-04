@@ -16,13 +16,31 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { staffIdentityClient } from "@/lib/auth-client";
 
-function isRateLimitError(error: unknown) {
-  return (
+function errorStatus(error: unknown) {
+  if (
     typeof error === "object" &&
     error !== null &&
     "status" in error &&
-    error.status === 429
-  );
+    typeof error.status === "number"
+  ) {
+    return error.status;
+  }
+
+  return null;
+}
+
+function messageForError(error: unknown) {
+  const status = errorStatus(error);
+
+  if (status === 429) {
+    return "Too many sign-in attempts. Wait a minute, then try again.";
+  }
+
+  if (status === null || status >= 500) {
+    return "Something went wrong on our end, so no link was sent. Your address is fine — please try again shortly.";
+  }
+
+  return "We could not send a sign-in link. Check the address and try again.";
 }
 
 export function SignInForm({ callbackURL = "/events" }: { callbackURL?: string }) {
@@ -41,11 +59,7 @@ export function SignInForm({ callbackURL = "/events" }: { callbackURL?: string }
         await staffIdentityClient.requestMagicLink(email, website, callbackURL);
         router.push("/sign-in/check-email");
       } catch (requestError) {
-        setError(
-          isRateLimitError(requestError)
-            ? "Too many sign-in attempts. Wait a minute, then try again."
-            : "We could not send a sign-in link. Check the address and try again.",
-        );
+        setError(messageForError(requestError));
       }
     });
   }

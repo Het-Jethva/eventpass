@@ -247,6 +247,7 @@ openssl ec -in ticket-key.pem -pubout -out ticket-key.pub
 |---|---|
 | `npm run dev` | Development server |
 | `npm run build` | Production build |
+| `npm run vercel-build` | Deployment build — applies pending migrations, then builds |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run db:generate` | Generate a Drizzle migration |

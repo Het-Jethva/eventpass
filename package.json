@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev --webpack",
     "build": "next build --webpack",
+    "vercel-build": "npm run db:migrate && npm run build",
     "start": "next start",
     "lint": "eslint app components features lib",
     "typecheck": "tsc --noEmit",

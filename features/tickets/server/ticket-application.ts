@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
-import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 
 import {
   admissionOffer,
@@ -654,7 +654,6 @@ export function createTicketApplicationService({
       .where(
         and(
           eq(registration.managementTokenDigest, digestBearerToken(managementToken)),
-          isNull(registration.managementTokenRevokedAt),
           eq(registration.status, "confirmed"),
         ),
       )
@@ -706,7 +705,6 @@ export function createTicketApplicationService({
       .where(
         and(
           eq(registration.managementTokenDigest, digestBearerToken(managementToken)),
-          isNull(registration.managementTokenRevokedAt),
           inArray(registration.status, ["confirmed", "canceled"]),
         ),
       )
@@ -832,10 +830,7 @@ export function createTicketApplicationService({
         .from(registration)
         .innerJoin(event, eq(event.id, registration.eventId))
         .where(
-          and(
-            eq(registration.managementTokenDigest, digestBearerToken(managementToken)),
-            isNull(registration.managementTokenRevokedAt),
-          ),
+          eq(registration.managementTokenDigest, digestBearerToken(managementToken)),
         )
         .for("update")
         .limit(1);
@@ -936,10 +931,7 @@ export function createTicketApplicationService({
           .select({ eventId: registration.eventId })
           .from(registration)
           .where(
-            and(
-              eq(registration.managementTokenDigest, previousManagementTokenDigest),
-              isNull(registration.managementTokenRevokedAt),
-            ),
+            eq(registration.managementTokenDigest, previousManagementTokenDigest),
           )
           .limit(1);
         if (!located) return { outcome: "invalid" } as const;
@@ -967,7 +959,6 @@ export function createTicketApplicationService({
             and(
               eq(registration.eventId, located.eventId),
               eq(registration.managementTokenDigest, previousManagementTokenDigest),
-              isNull(registration.managementTokenRevokedAt),
             ),
           )
           .for("update")
@@ -1002,7 +993,6 @@ export function createTicketApplicationService({
             and(
               eq(registration.id, managed.registrationId),
               eq(registration.managementTokenDigest, previousManagementTokenDigest),
-              isNull(registration.managementTokenRevokedAt),
             ),
           )
           .returning({ id: registration.id });
@@ -1072,10 +1062,7 @@ export function createTicketApplicationService({
         .from(registration)
         .innerJoin(event, eq(event.id, registration.eventId))
         .where(
-          and(
-            eq(registration.managementTokenDigest, digestBearerToken(managementToken)),
-            isNull(registration.managementTokenRevokedAt),
-          ),
+          eq(registration.managementTokenDigest, digestBearerToken(managementToken)),
         )
         .for("update")
         .limit(1);
@@ -1172,10 +1159,7 @@ export function createTicketApplicationService({
         .from(registration)
         .innerJoin(event, eq(event.id, registration.eventId))
         .where(
-          and(
-            eq(registration.managementTokenDigest, digestBearerToken(managementToken)),
-            isNull(registration.managementTokenRevokedAt),
-          ),
+          eq(registration.managementTokenDigest, digestBearerToken(managementToken)),
         )
         .for("update")
         .limit(1);

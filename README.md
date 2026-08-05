@@ -90,7 +90,7 @@ operations dashboard alongside an immutable audit history.
 **Attendees** register with no account, hold a place for 15 minutes while they
 verify by email, receive a signed QR ticket plus a 10-character Crockford
 Base32 fallback code, join a FIFO waitlist when the event is full, and manage,
-resend, replace, or cancel through a revocable bearer link.
+resend, replace, or cancel through a bearer link that rotates on every resend.
 
 **Volunteers** open a distraction-free mobile scanner, admit by camera or manual
 code entry, read one unmistakable outcome per scan (accepted, duplicate,
@@ -131,6 +131,8 @@ promote the waitlist in FIFO order by email-verification time.
 
 One active registration per normalized email per event is enforced by a partial
 unique constraint rather than an application check.
+
+See [ADR 0005](docs/adr/0005-serialize-capacity-on-a-per-event-row-lock.md).
 </details>
 
 <details>

@@ -69,7 +69,7 @@ A place reserved for the earliest Waitlist Entry while its Attendee decides whet
 _Avoid_: Ticket, promotion
 
 **Registration Management Link**:
-A revocable bearer capability that lets an Attendee view one Registration, edit its name and answers until registration closes, resend or replace its Ticket, or cancel before check-in opens. The verified email address cannot be changed.
+A bearer capability that lets an Attendee view one Registration, edit its name and answers until registration closes, resend or replace its Ticket, or cancel before check-in opens. Resending rotates the link and invalidates the previous one, so an exposed link can be superseded; the verified email address cannot be changed.
 _Avoid_: Login link, attendee session
 
 **Registration Field**:

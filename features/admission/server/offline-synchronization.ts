@@ -274,6 +274,52 @@ export function createOfflineSynchronizationService({
     return database.transaction(async (transaction) => {
       await lockAttemptIds(transaction, attemptIds);
 
+      // A signed capability proves who held the device offline. It cannot prove
+      // that access still stands, and this is the one admission path that never
+      // asked: `admitOnline` and `prepareOfflineScanner` both check the staff
+      // assignment and suspension, while synchronization wrote authoritative
+      // Check-ins on the signature alone. ADR 0003 promises that online role
+      // revocation takes effect immediately, and a device that is syncing is
+      // online, so the promise has to be kept here.
+      //
+      // The two cases are not the same failure. A Suspension blocks further
+      // online activity and is reversible, so the batch is refused and the
+      // device keeps its queue to drain once the Suspension lifts. Revoked
+      // staff access is not reversible on its own, and refusing those attempts
+      // would strand them on the phone forever — the snapshot is purged only
+      // once every attempt is acknowledged, and a PWA update is deferred while
+      // any remain. Those attempts are recorded for the audit trail and denied
+      // admission instead.
+      const [eventRecord] = await transaction
+        .select({ suspended: event.suspended })
+        .from(event)
+        .where(eq(event.id, payload.eventId))
+        .limit(1);
+      const [staffUser] = await transaction
+        .select({ suspended: user.suspended })
+        .from(user)
+        .where(eq(user.id, payload.volunteerUserId))
+        .limit(1);
+      if (
+        !eventRecord ||
+        eventRecord.suspended ||
+        !staffUser ||
+        staffUser.suspended
+      ) {
+        return { outcome: "unauthorized", results: [] };
+      }
+      const [assignment] = await transaction
+        .select({ role: eventStaff.role })
+        .from(eventStaff)
+        .where(
+          and(
+            eq(eventStaff.eventId, payload.eventId),
+            eq(eventStaff.userId, payload.volunteerUserId),
+          ),
+        )
+        .limit(1);
+      const staffAccessRevoked = !assignment;
+
       const existingRows = await transaction
         .select({
           id: scanAttempt.id,
@@ -552,6 +598,7 @@ export function createOfflineSynchronizationService({
           outcome = attempt.capturedOutcome;
         } else if (
           authorizationExpired ||
+          staffAccessRevoked ||
           !attempt.signedTicketIsValid ||
           !presentedTicket
         ) {

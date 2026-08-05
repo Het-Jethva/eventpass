@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 
 import { createCheckInCorrectionService } from "./check-in-correction-application";
 
+export { CheckInCorrectionError } from "./check-in-correction-application";
+
 const checkInCorrectionService = createCheckInCorrectionService({
   database: db,
 });

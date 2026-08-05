@@ -3,7 +3,11 @@
 import { z } from "zod";
 
 import { admitOnline } from "@/features/admission/server/admission";
-import { reverseCheckIn } from "@/features/admission/server/check-in-corrections";
+import {
+  CheckInCorrectionError,
+  reverseCheckIn,
+} from "@/features/admission/server/check-in-corrections";
+import { EventSuspendedError } from "@/features/events/server/event-suspension";
 import type { AdmissionResult } from "@/features/admission/server/admission-application";
 import type { ScannerPreparationResult } from "@/features/admission/offline-snapshot";
 import { prepareOfflineScanner } from "@/features/admission/server/prepare-scanner";
@@ -73,7 +77,8 @@ export async function quickReverseCheckInAction(values: {
     return {
       outcome: "error" as const,
       message:
-        error instanceof Error
+        error instanceof CheckInCorrectionError ||
+        error instanceof EventSuspendedError
           ? error.message
           : "This Check-in could not be reversed.",
     };

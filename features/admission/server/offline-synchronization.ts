@@ -124,6 +124,17 @@ type PreparedAttempt = OfflineScanAttemptInput & {
   signedTicketIsValid: boolean;
 };
 
+/**
+ * A Check-in Conflict resolution the caller may report verbatim.
+ *
+ * Conflict resolution is the one admission path that still signalled refusal
+ * with a bare Error, so its callers had to widen to `instanceof Error` to say
+ * anything useful — and a driver or database failure then reached an
+ * Organizer's screen wearing the same clothes as "pick an attempt from this
+ * conflict". Naming the domain refusals separates the two.
+ */
+export class CheckInConflictError extends Error {}
+
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -833,7 +844,9 @@ export function createOfflineSynchronizationService({
     reason: string;
   }) {
     const reason = values.reason.trim();
-    if (!reason) throw new Error("A resolution reason is required.");
+    if (!reason) {
+      throw new CheckInConflictError("A resolution reason is required.");
+    }
 
     return database.transaction(async (transaction) => {
       const [conflict] = await transaction
@@ -843,7 +856,9 @@ export function createOfflineSynchronizationService({
         .for("update")
         .limit(1);
       if (!conflict || conflict.status !== "unresolved") {
-        throw new Error("This Check-in Conflict is no longer unresolved.");
+        throw new CheckInConflictError(
+          "This Check-in Conflict is no longer unresolved.",
+        );
       }
       await lockEventForMutation(transaction, conflict.eventId);
       const [assignment] = await transaction
@@ -858,7 +873,9 @@ export function createOfflineSynchronizationService({
         )
         .limit(1);
       if (!assignment) {
-        throw new Error("Only an Organizer can resolve Check-in Conflicts.");
+        throw new CheckInConflictError(
+          "Only an Organizer can resolve Check-in Conflicts.",
+        );
       }
       const [selectedAttempt] = await transaction
         .select({
@@ -878,7 +895,9 @@ export function createOfflineSynchronizationService({
         )
         .limit(1);
       if (!selectedAttempt) {
-        throw new Error("Select a Scan Attempt from this Check-in Conflict.");
+        throw new CheckInConflictError(
+          "Select a Scan Attempt from this Check-in Conflict.",
+        );
       }
 
       await transaction

@@ -4,8 +4,15 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { resolveCheckInConflict } from "@/features/admission/server/synchronize-offline";
-import { reverseCheckIn } from "@/features/admission/server/check-in-corrections";
+import {
+  CheckInConflictError,
+  resolveCheckInConflict,
+} from "@/features/admission/server/synchronize-offline";
+import {
+  CheckInCorrectionError,
+  reverseCheckIn,
+} from "@/features/admission/server/check-in-corrections";
+import { EventSuspendedError } from "@/features/events/server/event-suspension";
 import { getActiveStaffSession } from "@/lib/staff-session";
 
 const resolutionSchema = z.object({
@@ -70,7 +77,8 @@ export async function resolveCheckInConflictAction(
         parsed.data.eventId,
         new URLSearchParams({
           error:
-            error instanceof Error
+            error instanceof CheckInConflictError ||
+            error instanceof EventSuspendedError
               ? error.message
               : "The Check-in Conflict could not be resolved.",
         }),
@@ -114,7 +122,8 @@ export async function reverseOrganizerCheckInAction(
     return {
       outcome: "error" as const,
       message:
-        error instanceof Error
+        error instanceof CheckInCorrectionError ||
+        error instanceof EventSuspendedError
           ? error.message
           : "This Check-in could not be reversed.",
     };

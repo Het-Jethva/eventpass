@@ -5,6 +5,8 @@ import { getTicketVerificationKeyObjects } from "@/features/tickets/server/ticke
 
 import { createOfflineSynchronizationService } from "./offline-synchronization";
 
+export { CheckInConflictError } from "./offline-synchronization";
+
 const offlineSynchronization = createOfflineSynchronizationService({
   database: db,
   getVerificationKeys: getTicketVerificationKeyObjects,

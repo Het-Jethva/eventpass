@@ -150,7 +150,7 @@ export function ScannerPreparation({
       });
       if (result.outcome === "unauthorized") {
         setError(
-          "Current Check-in volunteer access is required to prepare this event for offline admission.",
+          "Current staff access to this event is required to prepare it for offline admission.",
         );
         return;
       }

@@ -131,11 +131,11 @@ An identified, timestamped download of the minimum Event data needed for offline
 _Avoid_: Attendee export, ticket database
 
 **Scanner Authorization**:
-A signed, Event-scoped capability allowing one authenticated volunteer's device to validate Tickets and later synchronize Scan Attempts through that Event's check-in window. It grants no Event-management access.
+A signed, Event-scoped capability allowing one authenticated Event Staff member's device to validate Tickets and later synchronize Scan Attempts through that Event's check-in window. It grants no Event-management access.
 _Avoid_: Staff session, offline login
 
 **Scanner Device**:
-A browser profile identified by a random UUID and volunteer-supplied label for binding Scanner Authorization and Scan Attempts without browser fingerprinting.
+A browser profile identified by a random UUID and staff-supplied label for binding Scanner Authorization and Scan Attempts without browser fingerprinting.
 _Avoid_: Fingerprint, phone
 
 **Audit Entry**:

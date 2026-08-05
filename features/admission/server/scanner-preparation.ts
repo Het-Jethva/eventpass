@@ -71,17 +71,16 @@ export function createScannerPreparationService({
           checkInOpensAt: event.checkInOpensAt,
           checkInClosesAt: event.checkInClosesAt,
           suspended: event.suspended,
-          role: eventStaff.role,
         })
         .from(eventStaff)
         .innerJoin(event, eq(event.id, eventStaff.eventId))
-        .where(
-          and(
-            eq(event.id, eventId),
-            eq(eventStaff.userId, actorUserId),
-            eq(eventStaff.role, "check_in_volunteer"),
-          ),
-        )
+        // Any Event Staff, not volunteers alone. `admitOnline` has always
+        // accepted every role, so restricting preparation to volunteers left an
+        // Owner who scans at their own door able to admit online and unable to
+        // download the snapshot that keeps them working when the venue network
+        // drops. The snapshot carries no email addresses or answers, so an
+        // Organizer gains nothing here they cannot already read.
+        .where(and(eq(event.id, eventId), eq(eventStaff.userId, actorUserId)))
         .for("update")
         .limit(1);
 

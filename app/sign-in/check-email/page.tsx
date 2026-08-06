@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { IconArrowLeft, IconMailCheck } from "@tabler/icons-react";
 
+import { PendingLink } from "@/components/pending-link";
 import { PublicAuthShell } from "@/components/public-auth-shell";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 
 export default function CheckEmailPage() {
   return (
@@ -29,10 +29,14 @@ export default function CheckEmailPage() {
           </p>
         </div>
 
-        <Button variant="outline" render={<Link href="/sign-in" />}>
+        <PendingLink
+          href="/sign-in"
+          className={buttonVariants({ variant: "outline" })}
+          pendingLabel="Opening sign in"
+        >
           <IconArrowLeft data-icon="inline-start" />
           Use a different email
-        </Button>
+        </PendingLink>
       </div>
     </PublicAuthShell>
   );

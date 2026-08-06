@@ -1,10 +1,12 @@
 "use client"
 
 import * as React from "react"
+import { useFormStatus } from "react-dom"
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Spinner } from "@/components/ui/spinner"
 
 function AlertDialog({ ...props }: AlertDialogPrimitive.Root.Props) {
   return <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />
@@ -154,6 +156,30 @@ function AlertDialogAction({
   )
 }
 
+function AlertDialogSubmitAction({
+  children,
+  disabled,
+  pendingLabel,
+  ...props
+}: React.ComponentProps<typeof AlertDialogAction> & {
+  pendingLabel: string
+}) {
+  const { pending } = useFormStatus()
+
+  return (
+    <AlertDialogAction disabled={disabled || pending} {...props}>
+      {pending ? (
+        <>
+          <Spinner aria-hidden="true" />
+          <span aria-live="polite">{pendingLabel}</span>
+        </>
+      ) : (
+        children
+      )}
+    </AlertDialogAction>
+  )
+}
+
 function AlertDialogCancel({
   className,
   variant = "outline",
@@ -184,4 +210,5 @@ export {
   AlertDialogPortal,
   AlertDialogTitle,
   AlertDialogTrigger,
+  AlertDialogSubmitAction,
 }

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
 import {
   IconCalendarEvent,
@@ -8,12 +9,12 @@ import {
   IconUsers,
 } from "@tabler/icons-react";
 
-import { buttonVariants } from "@/components/ui/button";
+import { FormSubmitButton } from "@/components/form-submit-button";
 import { getOrganizerEvent } from "@/features/events/server/get-event";
 import { getOrganizerEventMetrics } from "@/features/events/server/get-event-metrics";
 import { LiveMetricsDashboard } from "@/features/events/live-metrics-dashboard";
+import { LiveMetricsSkeleton } from "@/features/events/live-metrics-skeleton";
 import { getActiveStaffSession } from "@/lib/staff-session";
-import { cn } from "@/lib/utils";
 import { DeleteEventControl } from "@/features/events/delete-event-control";
 import { CancelEventControl } from "@/features/events/cancel-event-control";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -42,6 +43,21 @@ function formatRange(startsAt: Date, endsAt: Date, timeZone: string) {
   }).formatRange(startsAt, endsAt);
 }
 
+async function EventMetrics({
+  eventId,
+  staffUserId,
+}: {
+  eventId: string;
+  staffUserId: string;
+}) {
+  const initialMetrics = await getOrganizerEventMetrics(eventId, staffUserId);
+  if (!initialMetrics) notFound();
+
+  return (
+    <LiveMetricsDashboard eventId={eventId} initialMetrics={initialMetrics} />
+  );
+}
+
 export default async function EventOverviewPage({
   params,
   searchParams,
@@ -54,12 +70,9 @@ export default async function EventOverviewPage({
   const staffSession = await getActiveStaffSession();
   if (!staffSession) redirect("/sign-in");
 
-  const [event, initialMetrics] = await Promise.all([
-    getOrganizerEvent(eventId, staffSession.user.id),
-    getOrganizerEventMetrics(eventId, staffSession.user.id),
-  ]);
+  const event = await getOrganizerEvent(eventId, staffSession.user.id);
 
-  if (!event || !initialMetrics) notFound();
+  if (!event) notFound();
 
   const isDraft = event.status === "draft";
   const isPublished = event.status === "published";
@@ -94,7 +107,9 @@ export default async function EventOverviewPage({
       ) : null}
 
       {/* Live Operational Metrics Dashboard */}
-      <LiveMetricsDashboard eventId={event.id} initialMetrics={initialMetrics} />
+      <Suspense fallback={<LiveMetricsSkeleton />}>
+        <EventMetrics eventId={event.id} staffUserId={staffSession.user.id} />
+      </Suspense>
 
       {/* Configuration Details Section */}
       <section
@@ -152,12 +167,14 @@ export default async function EventOverviewPage({
             </p>
           </div>
           <form action={publishEventAction.bind(null, event.id)}>
-            <button
-              className={cn(buttonVariants({ size: "lg" }), "w-full sm:w-auto")}
+            <FormSubmitButton
+              pendingLabel="Publishing event"
+              size="lg"
+              className="w-full sm:w-auto"
             >
               <IconSend data-icon="inline-start" />
               Publish event
-            </button>
+            </FormSubmitButton>
           </form>
         </section>
       ) : null}
@@ -172,9 +189,12 @@ export default async function EventOverviewPage({
             </p>
           </div>
           <form action={returnEventToDraftAction.bind(null, event.id)}>
-            <button className={buttonVariants({ variant: "outline" })}>
+            <FormSubmitButton
+              pendingLabel="Returning to draft"
+              variant="outline"
+            >
               Return to draft
-            </button>
+            </FormSubmitButton>
           </form>
         </section>
       ) : null}

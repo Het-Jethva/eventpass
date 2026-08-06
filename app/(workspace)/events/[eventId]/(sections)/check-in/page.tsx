@@ -8,7 +8,7 @@ import {
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { FormSubmitButton } from "@/components/form-submit-button";
 import {
   Field,
   FieldDescription,
@@ -297,9 +297,12 @@ export default async function CheckInConflictsPage({
                       permanent record.
                     </FieldDescription>
                   </Field>
-                  <Button type="submit" className="min-h-11 sm:self-start">
+                  <FormSubmitButton
+                    pendingLabel="Resolving conflict"
+                    className="min-h-11 sm:self-start"
+                  >
                     Resolve Check-in Conflict
-                  </Button>
+                  </FormSubmitButton>
                 </FieldGroup>
               </form>
             </section>

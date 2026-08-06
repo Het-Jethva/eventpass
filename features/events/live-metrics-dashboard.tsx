@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import {
   IconAlertTriangle,
   IconArrowRight,
@@ -12,6 +11,7 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { PendingLink } from "@/components/pending-link";
 import type { LiveEventMetricsResult } from "@/features/events/event-metrics-policy";
 import { cn } from "@/lib/utils";
 
@@ -360,14 +360,15 @@ export function LiveMetricsDashboard({
         </div>
 
         {checkInConflictStats.unresolved > 0 ? (
-          <Link
+          <PendingLink
             href={`/events/${eventId}/check-in`}
             className={buttonVariants({ variant: "destructive", size: "sm" })}
+            pendingLabel="Opening conflicts"
           >
             <IconAlertTriangle data-icon="inline-start" />
             Resolve {checkInConflictStats.unresolved} Check-in Conflict
             {checkInConflictStats.unresolved > 1 ? "s" : ""}
-          </Link>
+          </PendingLink>
         ) : null}
       </div>
 
@@ -414,9 +415,10 @@ export function LiveMetricsDashboard({
               <ul className="flex flex-col gap-1.5">
                 {attention.map((item) => (
                   <li key={item.label}>
-                    <Link
+                    <PendingLink
                       href={item.href}
                       className="group flex items-baseline justify-between gap-3 rounded-md py-1 text-sm hover:underline"
+                      pendingLabel="Opening"
                     >
                       <span className="text-muted-foreground group-hover:text-foreground">
                         {item.label}
@@ -429,7 +431,7 @@ export function LiveMetricsDashboard({
                       >
                         {item.count.toLocaleString()}
                       </span>
-                    </Link>
+                    </PendingLink>
                   </li>
                 ))}
               </ul>
@@ -535,13 +537,14 @@ export function LiveMetricsDashboard({
             <h2 id="scan-outcomes-heading" className="font-medium">
               Scan outcomes
             </h2>
-            <Link
+            <PendingLink
               href={`/events/${eventId}/audit`}
               className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground hover:underline"
+              pendingLabel="Opening"
             >
               Audit log
               <IconArrowRight aria-hidden="true" className="size-3.5" />
-            </Link>
+            </PendingLink>
           </div>
           <p className="font-mono text-sm text-muted-foreground tabular-nums">
             {scanAttemptStats.total.toLocaleString()} attempts ·{" "}
@@ -593,13 +596,14 @@ export function LiveMetricsDashboard({
             <h2 id="delivery-heading" className="font-medium">
               Ticket delivery
             </h2>
-            <Link
+            <PendingLink
               href={`/events/${eventId}/registrations`}
               className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground hover:underline"
+              pendingLabel="Opening"
             >
               Registrations
               <IconArrowRight aria-hidden="true" className="size-3.5" />
-            </Link>
+            </PendingLink>
           </div>
           {deliveryOutcomes.total === 0 ? (
             <p className="text-sm text-muted-foreground">

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { IconArrowRight } from "@tabler/icons-react";
 
 import { EventPassMark } from "@/components/eventpass-mark";
+import { PendingLink } from "@/components/pending-link";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -100,12 +101,13 @@ export default function Home() {
           </nav>
           <div className="ml-auto flex items-center gap-2">
             <ThemeSwitcher />
-            <Link
+            <PendingLink
               href="/sign-in"
               className={buttonVariants({ variant: "outline", size: "sm" })}
+              pendingLabel="Opening sign in"
             >
               Sign in
-            </Link>
+            </PendingLink>
           </div>
         </div>
       </header>
@@ -130,10 +132,14 @@ export default function Home() {
                 when the venue network gives out.
               </p>
               <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
-                <Link href="/sign-in" className={buttonVariants({ size: "lg" })}>
+                <PendingLink
+                  href="/sign-in"
+                  className={buttonVariants({ size: "lg" })}
+                  pendingLabel="Opening sign in"
+                >
                   Get started
                   <IconArrowRight data-icon="inline-end" />
-                </Link>
+                </PendingLink>
                 <a
                   href="#door"
                   className={buttonVariants({ variant: "outline", size: "lg" })}
@@ -248,13 +254,14 @@ export default function Home() {
               Create the event, share the registration link, and hand your door
               team a scanner that will not let you down at the worst moment.
             </p>
-            <Link
+            <PendingLink
               href="/sign-in"
               className={buttonVariants({ size: "lg", className: "mt-2" })}
+              pendingLabel="Opening sign in"
             >
               Get started
               <IconArrowRight data-icon="inline-end" />
-            </Link>
+            </PendingLink>
           </div>
         </section>
       </main>

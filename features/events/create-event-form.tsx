@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState } from "react";
-import Link from "next/link";
 import { IconAlertCircle, IconArrowLeft, IconPlus } from "@tabler/icons-react";
 
 import { createEventAction } from "@/app/(workspace)/events/new/actions";
@@ -12,6 +11,7 @@ import {
 } from "@/app/(workspace)/events/new/form-state";
 import { updateEventAction } from "@/app/(workspace)/events/[eventId]/actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { PendingLink } from "@/components/pending-link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Field,
@@ -397,13 +397,14 @@ export function CreateEventForm({
       </FieldGroup>
 
       <div className="flex flex-col-reverse gap-3 border-t pt-6 sm:flex-row sm:items-center sm:justify-end">
-        <Link
+        <PendingLink
           href={eventId ? `/events/${eventId}` : "/events"}
           className={cn(buttonVariants({ variant: "outline" }), "h-10")}
+          pendingLabel="Canceling"
         >
           <IconArrowLeft data-icon="inline-start" />
           Cancel
-        </Link>
+        </PendingLink>
         <Button type="submit" size="lg" disabled={isPending}>
           {isPending ? (
             <>

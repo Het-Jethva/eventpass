@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { EventPassMark } from "@/components/eventpass-mark";
+import { PendingLink } from "@/components/pending-link";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { Badge } from "@/components/ui/badge";
 import { SignOutButton } from "@/features/staff-identity/sign-out-button";
@@ -52,10 +53,11 @@ export function WorkspaceHeader({
           aria-label="Primary"
         >
           {links.map((link) => (
-            <Link
+            <PendingLink
               key={link.href}
               href={link.href}
               aria-current={link.active ? "page" : undefined}
+              pendingLabel={`Opening ${link.label}`}
               className={cn(
                 "flex h-full items-center border-b-2 px-2 text-sm font-medium transition-colors",
                 link.active
@@ -64,7 +66,7 @@ export function WorkspaceHeader({
               )}
             >
               {link.label}
-            </Link>
+            </PendingLink>
           ))}
         </nav>
         <div className="ml-auto flex items-center gap-2 sm:gap-3">

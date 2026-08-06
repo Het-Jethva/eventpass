@@ -1,10 +1,10 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { IconAlertTriangle, IconClock, IconMailCheck } from "@tabler/icons-react";
 
 import { EventPassMark } from "@/components/eventpass-mark";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
+import { PendingLink } from "@/components/pending-link";
 import { getPublishedEvent } from "@/features/events/server/get-event";
 import { cn } from "@/lib/utils";
 
@@ -88,12 +88,13 @@ export default async function RegistrationCheckEmailPage({
             </Alert>
           ) : null}
 
-          <Link
+          <PendingLink
             href={`/e/${slug}`}
             className={cn(buttonVariants({ variant: "outline" }), "mt-8")}
+            pendingLabel="Opening event"
           >
             Return to event
-          </Link>
+          </PendingLink>
         </section>
       </main>
     </div>

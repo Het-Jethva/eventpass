@@ -10,7 +10,7 @@ import {
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { FormSubmitButton } from "@/components/form-submit-button";
 import {
   Field,
   FieldDescription,
@@ -208,7 +208,9 @@ export default async function EventStaffPage({
                   Organizers manage configuration and volunteers. Check-in volunteers receive admission access only.
                 </FieldDescription>
               </Field>
-              <Button type="submit">Send invitation</Button>
+              <FormSubmitButton pendingLabel="Sending invitation">
+                Send invitation
+              </FormSubmitButton>
             </FieldGroup>
           </form>
         </div>
@@ -237,7 +239,13 @@ export default async function EventStaffPage({
                   </div>
                   {canManageRole(staffing.actorRole, invitation.role) ? (
                     <form action={revokeStaffInvitationAction.bind(null, eventId, invitation.id)}>
-                      <Button size="sm" variant="outline" type="submit">Revoke invitation</Button>
+                      <FormSubmitButton
+                        size="sm"
+                        variant="outline"
+                        pendingLabel="Revoking invitation"
+                      >
+                        Revoke invitation
+                      </FormSubmitButton>
                     </form>
                   ) : null}
                 </li>
@@ -257,7 +265,9 @@ export default async function EventStaffPage({
               </p>
               {transfer.proposedOwnerUserId === session.user.id ? (
                 <form action={acceptOwnershipTransferAction.bind(null, eventId, transfer.id)}>
-                  <Button type="submit">Accept ownership</Button>
+                  <FormSubmitButton pendingLabel="Accepting ownership">
+                    Accept ownership
+                  </FormSubmitButton>
                 </form>
               ) : null}
             </div>
@@ -292,7 +302,12 @@ export default async function EventStaffPage({
                       The proposal expires after 24 hours. Ownership changes only when that organizer accepts.
                     </FieldDescription>
                   </Field>
-                  <Button type="submit" variant="outline">Propose transfer</Button>
+                  <FormSubmitButton
+                    variant="outline"
+                    pendingLabel="Proposing transfer"
+                  >
+                    Propose transfer
+                  </FormSubmitButton>
                 </FieldGroup>
               </form>
             ) : (

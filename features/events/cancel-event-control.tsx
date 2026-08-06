@@ -4,7 +4,6 @@ import { IconBan } from "@tabler/icons-react";
 
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -12,6 +11,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
+  AlertDialogSubmitAction,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
@@ -59,10 +59,14 @@ export function CancelEventControl({
           </Field>
           <AlertDialogFooter>
             <AlertDialogCancel>Keep event</AlertDialogCancel>
-            <AlertDialogAction type="submit" variant="destructive">
+            <AlertDialogSubmitAction
+              type="submit"
+              variant="destructive"
+              pendingLabel="Canceling event"
+            >
               <IconBan data-icon="inline-start" />
               Cancel event permanently
-            </AlertDialogAction>
+            </AlertDialogSubmitAction>
           </AlertDialogFooter>
         </form>
       </AlertDialogContent>

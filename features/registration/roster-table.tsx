@@ -1,4 +1,3 @@
-import Link from "next/link";
 import {
   IconAlertTriangle,
   IconCircleCheck,
@@ -11,6 +10,7 @@ import {
 import type { Icon } from "@tabler/icons-react";
 
 import { Badge } from "@/components/ui/badge";
+import { PendingLink } from "@/components/pending-link";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Empty,
@@ -222,13 +222,14 @@ export function RosterTable({
 
       {nextHref ? (
         <div className="flex justify-center">
-          <Link
+          <PendingLink
             href={nextHref}
             className={buttonVariants({ variant: "outline" })}
             prefetch={false}
+            pendingLabel="Loading more"
           >
             Next {ROSTER_PAGE_SIZE} Registrations
-          </Link>
+          </PendingLink>
         </div>
       ) : null}
     </div>

@@ -526,3 +526,10 @@
     color-scheme: light;
   }
 }
+/* Keep the control's dimensions stable while its action-specific pending copy
+   occupies the same box. This also prevents transparent navigation links from
+   showing the old and pending labels on top of one another. */
+[data-slot="pending-link"]:has([data-pending="true"])
+  > [data-slot="pending-link-content"] {
+  visibility: hidden;
+}

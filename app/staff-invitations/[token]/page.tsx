@@ -1,10 +1,11 @@
-import Link from "next/link";
 import { IconAlertCircle, IconMailCheck, IconUsers } from "@tabler/icons-react";
 
 import { PublicAuthShell } from "@/components/public-auth-shell";
+import { FormSubmitButton } from "@/components/form-submit-button";
+import { PendingLink } from "@/components/pending-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { inspectStaffInvitation } from "@/features/staffing/server/staffing-application";
 import { normalizeStaffEmail } from "@/features/staff-identity/normalize-staff-email";
 import { getActiveStaffSession } from "@/lib/staff-session";
@@ -72,17 +73,23 @@ export default async function StaffInvitationPage({
                 <p className="text-support text-muted-foreground">
                   Sign in as {invitation.normalizedEmail} to accept this email-bound invitation.
                 </p>
-                <Link
+                <PendingLink
                   href={`/sign-in?callbackUrl=${encodeURIComponent(`/staff-invitations/${token}`)}`}
                   className={buttonVariants()}
+                  pendingLabel="Opening sign in"
                 >
                   <IconMailCheck data-icon="inline-start" />
                   Sign in to accept
-                </Link>
+                </PendingLink>
               </div>
             ) : emailMatches ? (
               <form action={acceptStaffInvitationAction.bind(null, token)}>
-                <Button className="w-full" type="submit">Accept invitation</Button>
+                <FormSubmitButton
+                  className="w-full"
+                  pendingLabel="Accepting invitation"
+                >
+                  Accept invitation
+                </FormSubmitButton>
               </form>
             ) : (
               <Alert variant="destructive">

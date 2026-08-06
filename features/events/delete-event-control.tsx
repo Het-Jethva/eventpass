@@ -4,7 +4,6 @@ import { IconTrash } from "@tabler/icons-react";
 
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -12,6 +11,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
+  AlertDialogSubmitAction,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 
@@ -39,10 +39,14 @@ export function DeleteEventControl({
         <AlertDialogFooter>
           <AlertDialogCancel>Keep draft</AlertDialogCancel>
           <form action={action}>
-            <AlertDialogAction type="submit" variant="destructive">
+            <AlertDialogSubmitAction
+              type="submit"
+              variant="destructive"
+              pendingLabel="Deleting draft"
+            >
               <IconTrash data-icon="inline-start" />
               Delete draft
-            </AlertDialogAction>
+            </AlertDialogSubmitAction>
           </form>
         </AlertDialogFooter>
       </AlertDialogContent>

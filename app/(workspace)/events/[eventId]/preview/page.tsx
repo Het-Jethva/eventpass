@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { IconArrowLeft } from "@tabler/icons-react";
 
 import { buttonVariants } from "@/components/ui/button";
+import { PendingLink } from "@/components/pending-link";
 import { EventPublicDetails } from "@/features/events/event-public-details";
 import { getOrganizerEvent } from "@/features/events/server/get-event";
 import { getActiveStaffSession } from "@/lib/staff-session";
@@ -27,10 +27,14 @@ export default async function EventPreviewPage({
       <div className="sticky top-0 z-10 border-b bg-foreground text-background">
         <div className="mx-auto flex min-h-12 max-w-5xl items-center justify-between gap-4 px-4 py-2 text-sm sm:px-6">
           <p><span className="font-medium">Preview:</span> this page is visible only to organizers.</p>
-          <Link href={`/events/${event.id}`} className={buttonVariants({ variant: "secondary", size: "sm" })}>
+          <PendingLink
+            href={`/events/${event.id}`}
+            className={buttonVariants({ variant: "secondary", size: "sm" })}
+            pendingLabel="Opening event"
+          >
             <IconArrowLeft data-icon="inline-start" />
             Back to event
-          </Link>
+          </PendingLink>
         </div>
       </div>
       <EventPublicDetails event={event} />

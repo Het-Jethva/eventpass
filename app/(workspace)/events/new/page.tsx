@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { IconArrowLeft } from "@tabler/icons-react";
 
+import { PendingLink } from "@/components/pending-link";
 import { CreateEventForm } from "@/features/events/create-event-form";
 import type { CreateEventFormField } from "./actions";
 import { utcToLocalDateTimeInput } from "@/features/events/server/event-schedule";
@@ -35,13 +35,14 @@ export default function NewEventPage() {
         {/* A real link, not a label stacked over the heading. It looked like a
             breadcrumb and did nothing; the event sidebar already carries this
             exact control, so this is that one. */}
-        <Link
+        <PendingLink
           href="/events"
           className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          pendingLabel="Events"
         >
           <IconArrowLeft aria-hidden="true" className="size-4" />
           Events
-        </Link>
+        </PendingLink>
         <h1 className="text-2xl font-headline">
           Create a draft event
         </h1>

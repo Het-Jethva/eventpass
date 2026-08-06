@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   IconAlertTriangle,
@@ -14,6 +13,7 @@ import QRCode from "qrcode";
 import { EventPassMark } from "@/components/eventpass-mark";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
+import { PendingLink } from "@/components/pending-link";
 import { formatTicketCode } from "@/features/tickets/ticket-code";
 import { PrintTicketButton } from "@/features/tickets/print-ticket-button";
 import { RegistrationManagementControls } from "@/features/tickets/registration-management-controls";
@@ -199,12 +199,13 @@ export default async function TicketPage({
             </AlertDescription>
           </Alert>
 
-          <Link
+          <PendingLink
             href={`/e/${management.event.slug}`}
             className={cn(buttonVariants({ variant: "outline" }), "w-fit")}
+            pendingLabel="Opening event"
           >
             View event
-          </Link>
+          </PendingLink>
         </section>
 
         {activeTicket ? (

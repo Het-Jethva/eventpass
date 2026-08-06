@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { IconArrowLeft, IconScan } from "@tabler/icons-react";
 
 import { buttonVariants } from "@/components/ui/button";
+import { PendingLink } from "@/components/pending-link";
 import { ScannerWorkspace } from "@/features/admission/scanner-workspace";
 import { getScannerEvent } from "@/features/admission/server/scanner";
 import { getActiveStaffSession } from "@/lib/staff-session";
@@ -39,13 +39,14 @@ export default async function ScannerPage({
     <main className="min-h-svh bg-background">
       <header className="border-b">
         <div className="mx-auto flex min-h-16 w-full max-w-3xl items-center gap-3 px-4 py-3 sm:px-6">
-          <Link
+          <PendingLink
             href={`/events/${scannerEvent.id}`}
             className={buttonVariants({ variant: "ghost", size: "icon-lg" })}
             aria-label={`Back to ${scannerEvent.name}`}
+            pendingLabel=""
           >
             <IconArrowLeft />
-          </Link>
+          </PendingLink>
           <IconScan aria-hidden="true" className="size-6 shrink-0" />
           <div className="min-w-0">
             <p className="truncate font-medium">{scannerEvent.name}</p>

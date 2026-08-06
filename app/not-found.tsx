@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { IconCompass } from "@tabler/icons-react";
 
+import { PendingLink } from "@/components/pending-link";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Empty,
@@ -43,12 +43,16 @@ export default function NotFound() {
             Home leads; the workspace stays reachable for staff who arrived here
             from an Event they cannot see. */}
         <EmptyContent>
-          <Link href="/" className={buttonVariants()}>
+          <PendingLink href="/" className={buttonVariants()} pendingLabel="Opening home">
             Go to EventPass
-          </Link>
-          <Link href="/events" className={buttonVariants({ variant: "outline" })}>
+          </PendingLink>
+          <PendingLink
+            href="/events"
+            className={buttonVariants({ variant: "outline" })}
+            pendingLabel="Opening events"
+          >
             Open the staff workspace
-          </Link>
+          </PendingLink>
         </EmptyContent>
       </Empty>
     </main>

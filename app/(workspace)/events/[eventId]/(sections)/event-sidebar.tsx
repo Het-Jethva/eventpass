@@ -20,6 +20,7 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { PendingLink } from "@/components/pending-link";
 import { cn } from "@/lib/utils";
 
 // Seven sections previously lived in a horizontally scrolling strip with the
@@ -69,13 +70,14 @@ function SidebarBody({
   return (
     <div className="flex h-full flex-col gap-6 p-4">
       <div className="flex flex-col gap-3">
-        <Link
+        <PendingLink
           href="/events"
           className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          pendingLabel="Events"
         >
           <IconArrowLeft aria-hidden="true" className="size-4" />
           Events
-        </Link>
+        </PendingLink>
         <div className="flex flex-col gap-1.5">
           {/* Paired with the same name in the events list. Only the persistent
               rail claims it — the drawer renders the same body, and two live
@@ -105,11 +107,12 @@ function SidebarBody({
             : pathname.startsWith(item.href);
           const Icon = item.icon;
           return (
-            <Link
+            <PendingLink
               key={item.href}
               href={item.href}
               onClick={onNavigate}
               aria-current={isActive ? "page" : undefined}
+              pendingLabel="Loading"
               className={cn(
                 "inline-flex min-h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium transition-colors",
                 isActive
@@ -119,7 +122,7 @@ function SidebarBody({
             >
               <Icon aria-hidden="true" className="size-4 shrink-0" />
               {item.label}
-            </Link>
+            </PendingLink>
           );
         })}
       </nav>
@@ -127,13 +130,14 @@ function SidebarBody({
       {showScanner || showPublicPage ? (
         <div className="mt-auto flex flex-col gap-2 border-t pt-4">
           {showScanner ? (
-            <Link
+            <PendingLink
               href={`/scanner/${eventId}`}
               className={buttonVariants({ size: "sm" })}
+              pendingLabel="Opening scanner"
             >
               <IconScan data-icon="inline-start" />
               Open scanner
-            </Link>
+            </PendingLink>
           ) : null}
           {showPublicPage ? (
             <Link

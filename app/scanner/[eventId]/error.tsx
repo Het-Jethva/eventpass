@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { IconAlertTriangle, IconRefresh } from "@tabler/icons-react";
 
+import { PendingLink } from "@/components/pending-link";
 import { Button, buttonVariants } from "@/components/ui/button";
 
 /**
@@ -37,12 +37,13 @@ export default function ScannerError({
           <IconRefresh data-icon="inline-start" />
           Reload the scanner
         </Button>
-        <Link
+        <PendingLink
           href="/events"
           className={buttonVariants({ variant: "outline", size: "lg" })}
+          pendingLabel="Opening events"
         >
           Back to events
-        </Link>
+        </PendingLink>
       </div>
       {error.digest ? (
         <p className="font-mono text-xs text-muted-foreground">

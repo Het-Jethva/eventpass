@@ -4,7 +4,6 @@ import { IconUserMinus } from "@tabler/icons-react";
 
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -12,6 +11,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
+  AlertDialogSubmitAction,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 
@@ -39,9 +39,13 @@ export function StaffRemoveControl({
         <AlertDialogFooter>
           <AlertDialogCancel>Keep access</AlertDialogCancel>
           <form action={action}>
-            <AlertDialogAction type="submit" variant="destructive">
+            <AlertDialogSubmitAction
+              type="submit"
+              variant="destructive"
+              pendingLabel="Removing access"
+            >
               Remove access
-            </AlertDialogAction>
+            </AlertDialogSubmitAction>
           </form>
         </AlertDialogFooter>
       </AlertDialogContent>

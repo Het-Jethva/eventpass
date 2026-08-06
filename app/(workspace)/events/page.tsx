@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { ViewTransition } from "react";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   IconCalendarEvent,
@@ -11,6 +10,7 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { PendingLink } from "@/components/pending-link";
 import {
   Empty,
   EmptyContent,
@@ -76,10 +76,14 @@ export default async function EventsPage() {
             Events you work on.
           </p>
         </div>
-        <Link href="/events/new" className={buttonVariants()}>
+        <PendingLink
+          href="/events/new"
+          className={buttonVariants()}
+          pendingLabel="Opening form"
+        >
           <IconPlus data-icon="inline-start" />
           Create event
-        </Link>
+        </PendingLink>
       </div>
 
       {events.length === 0 ? (
@@ -95,10 +99,14 @@ export default async function EventsPage() {
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
-            <Link href="/events/new" className={buttonVariants()}>
+            <PendingLink
+              href="/events/new"
+              className={buttonVariants()}
+              pendingLabel="Opening form"
+            >
               <IconPlus data-icon="inline-start" />
               Create your first event
-            </Link>
+            </PendingLink>
           </EmptyContent>
         </Empty>
       ) : (
@@ -156,13 +164,14 @@ export default async function EventsPage() {
                   <IconUsers aria-hidden="true" className="size-4" />
                   Capacity {eventItem.capacity.toLocaleString()}
                 </span>
-                <Link
+                <PendingLink
                   href={`/events/${eventItem.id}`}
                   className={buttonVariants({ variant: "outline", size: "sm", className: "shrink-0" })}
+                  pendingLabel="Opening"
                 >
                   Open
                   <span className="sr-only"> {eventItem.name}</span>
-                </Link>
+                </PendingLink>
               </div>
             </li>
           ))}

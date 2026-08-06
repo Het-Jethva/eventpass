@@ -1,10 +1,11 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { IconClock, IconTicket } from "@tabler/icons-react";
 
 import { EventPassMark } from "@/components/eventpass-mark";
+import { FormSubmitButton } from "@/components/form-submit-button";
+import { PendingLink } from "@/components/pending-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { getAdmissionOfferView } from "@/features/tickets/server/tickets";
 import { cn } from "@/lib/utils";
 
@@ -58,10 +59,13 @@ export default async function AdmissionOfferPage({
                 </AlertDescription>
               </Alert>
               <form action={claimAdmissionOfferAction.bind(null, token)} className="mt-8">
-                <Button type="submit" size="lg">
+                <FormSubmitButton
+                  size="lg"
+                  pendingLabel="Issuing ticket"
+                >
                   <IconTicket aria-hidden="true" />
                   Claim place and issue ticket
-                </Button>
+                </FormSubmitButton>
               </form>
             </>
           ) : offer?.suspended || outcome === "unavailable" ? (
@@ -92,12 +96,13 @@ export default async function AdmissionOfferPage({
               </p>
             </>
           )}
-          <Link
+          <PendingLink
             href={offer ? `/e/${offer.eventSlug}` : "/"}
             className={cn(buttonVariants({ variant: "outline" }), "mt-8")}
+            pendingLabel="Opening event"
           >
             {offer ? "Return to event" : "Go to EventPass"}
-          </Link>
+          </PendingLink>
         </section>
       </main>
     </div>

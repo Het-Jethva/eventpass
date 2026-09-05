@@ -425,7 +425,7 @@ describeWithDatabase("Ticket application service", () => {
     expect(answer?.value).toBe("Front-row access");
   });
 
-  it("refuses Registration edits once the Event is not Published", async () => {
+  it("refuses Registration edits, replacements, and cancellations once the Event is not Published", async () => {
     const held = await createHeldRegistration();
     const verified = await service.verifyRegistration(
       held.event.slug,
@@ -449,6 +449,12 @@ describeWithDatabase("Ticket application service", () => {
         answers: {},
       }),
     ).toEqual({ outcome: "closed" });
+    expect(await service.replaceTicket(verified.managementToken)).toEqual({
+      outcome: "closed",
+    });
+    expect(await service.cancelRegistration(verified.managementToken)).toEqual({
+      outcome: "closed",
+    });
   });
 
   it("resends the existing Ticket and replaces it without reusing its identity", async () => {

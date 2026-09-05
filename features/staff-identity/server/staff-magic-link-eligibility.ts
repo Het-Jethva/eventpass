@@ -3,7 +3,6 @@ import "server-only";
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
 
 import { isPlatformAdmin } from "@/features/admin/admin-policy";
-import { shouldSendStaffMagicLink } from "@/features/staff-identity/magic-link-policy";
 import { normalizeStaffEmail } from "@/features/staff-identity/normalize-staff-email";
 import { db } from "@/lib/db";
 import { staffInvitation, user } from "@/lib/db/schema";
@@ -34,9 +33,11 @@ export async function isEligibleStaffMagicLinkRecipient(
     )
     .limit(1);
 
-  return shouldSendStaffMagicLink({
-    hasAccount: Boolean(existing),
-    hasPendingInvitation: Boolean(invitation),
-    isConfiguredPlatformAdmin: isPlatformAdmin({ userEmail: normalizedEmail }),
-  });
+  // Invitees have no user row until they sign in; the invitation page requires
+  // a session for that address before it can be accepted.
+  return (
+    Boolean(existing) ||
+    Boolean(invitation) ||
+    isPlatformAdmin({ userEmail: normalizedEmail })
+  );
 }

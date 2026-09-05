@@ -20,7 +20,6 @@ type StoredSnapshot = {
 type SnapshotCache = {
   stored: StoredSnapshot;
   ticketsById: Map<string, OfflineEventSnapshot["tickets"][number]>;
-  ticketsByCode: Map<string, OfflineEventSnapshot["tickets"][number]>;
   locallyAcceptedTicketIds: Set<string>;
 };
 
@@ -96,9 +95,6 @@ export function createOfflineScannerStore(
       stored,
       ticketsById: new Map(
         stored.snapshot.tickets.map((ticket) => [ticket.ticketId, ticket]),
-      ),
-      ticketsByCode: new Map(
-        stored.snapshot.tickets.map((ticket) => [ticket.ticketCode, ticket]),
       ),
       locallyAcceptedTicketIds,
     };
@@ -190,7 +186,9 @@ export function createOfflineScannerStore(
   async function getCachedTicketByCode(eventId: string, ticketCode: string) {
     const cached = await ensureSnapshotCache();
     if (!cached || cached.stored.eventId !== eventId) return undefined;
-    return cached.ticketsByCode.get(ticketCode);
+    return cached.stored.snapshot.tickets.find(
+      (ticket) => ticket.ticketCode === ticketCode,
+    );
   }
 
   async function countPendingScanAttempts(eventId: string) {
@@ -359,7 +357,6 @@ export function createOfflineScannerStore(
               existingCheckInState: "checked_in" as const,
             };
             cached.ticketsById.set(ticket.ticketId, updatedTicket);
-            cached.ticketsByCode.set(ticket.ticketCode, updatedTicket);
             return updatedTicket;
           },
         );

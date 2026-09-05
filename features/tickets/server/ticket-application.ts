@@ -1147,6 +1147,7 @@ export function createTicketApplicationService({
           endsAt: event.endsAt,
           venueName: event.venueName,
           venueAddress: event.venueAddress,
+          eventStatus: event.status,
           checkInOpensAt: event.checkInOpensAt,
         })
         .from(registration)
@@ -1166,7 +1167,12 @@ export function createTicketApplicationService({
       if (managed.registrationStatus !== "confirmed") {
         return { outcome: "inactive" } as const;
       }
-      if (managed.checkInOpensAt <= replacedAt) return { outcome: "closed" } as const;
+      if (
+        managed.eventStatus !== "published" ||
+        managed.checkInOpensAt <= replacedAt
+      ) {
+        return { outcome: "closed" } as const;
+      }
       const [activeTicket] = await transaction
         .select({ id: ticket.id })
         .from(ticket)
@@ -1273,6 +1279,7 @@ export function createTicketApplicationService({
           registrationId: registration.id,
           registrationStatus: registration.status,
           eventId: event.id,
+          eventStatus: event.status,
           checkInOpensAt: event.checkInOpensAt,
         })
         .from(registration)
@@ -1292,7 +1299,12 @@ export function createTicketApplicationService({
       if (managed.registrationStatus !== "confirmed") {
         return { outcome: "inactive" } as const;
       }
-      if (managed.checkInOpensAt <= canceledAt) return { outcome: "closed" } as const;
+      if (
+        managed.eventStatus !== "published" ||
+        managed.checkInOpensAt <= canceledAt
+      ) {
+        return { outcome: "closed" } as const;
+      }
       const invalidatedTickets = await transaction
         .update(ticket)
         .set({ status: "canceled", invalidatedAt: canceledAt })

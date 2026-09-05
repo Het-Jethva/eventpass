@@ -133,6 +133,7 @@ export type AdmissionOfferView = {
   attendeeName: string;
   eventName: string;
   eventSlug: string;
+  eventTimeZone: string;
   expiresAt: Date;
   suspended: boolean;
 };
@@ -630,6 +631,7 @@ export function createTicketApplicationService({
           attendeeName: registration.attendeeName,
           eventName: event.name,
           eventSlug: event.slug,
+          eventTimeZone: event.eventTimeZone,
           expiresAt: admissionOffer.expiresAt,
           suspended: event.suspended,
         })

@@ -22,9 +22,15 @@ function escapeHtml(value: string) {
  * UTC: an Attendee reads "claim by 6:00 PM" against the clock on their wall.
  */
 export function formatAdmissionOfferDeadline(expiresAt: Date, eventTimeZone: string) {
+  // Components spelled out because `dateStyle`/`timeStyle` cannot be combined
+  // with `timeZoneName`; the mix throws "Invalid option : option".
   return new Intl.DateTimeFormat("en", {
-    dateStyle: "full",
-    timeStyle: "short",
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
     timeZone: eventTimeZone,
     timeZoneName: "short",
   }).format(expiresAt);

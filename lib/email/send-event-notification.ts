@@ -73,10 +73,16 @@ export function displayMaterialChangeValue(
   if (value === null || value === "") return "Not set";
   if (typeof value === "number") return value.toLocaleString("en");
   const date = /^\d{4}-\d{2}-\d{2}T/.test(value) ? new Date(value) : null;
+  // Components spelled out because `dateStyle`/`timeStyle` cannot be combined
+  // with `timeZoneName`; the mix throws "Invalid option : option".
   return date && !Number.isNaN(date.getTime())
     ? new Intl.DateTimeFormat("en", {
-        dateStyle: "full",
-        timeStyle: "short",
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
         timeZone: eventTimeZone,
         timeZoneName: "short",
       }).format(date)

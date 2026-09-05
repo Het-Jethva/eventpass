@@ -7,6 +7,7 @@ import { PendingLink } from "@/components/pending-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import { getAdmissionOfferView } from "@/features/tickets/server/tickets";
+import { formatAdmissionOfferDeadline } from "@/lib/email/send-admission-offer";
 import { cn } from "@/lib/utils";
 
 import { claimAdmissionOfferAction } from "./actions";
@@ -54,7 +55,7 @@ export default async function AdmissionOfferPage({
                 <IconClock aria-hidden="true" />
                 <AlertTitle>Time-limited offer</AlertTitle>
                 <AlertDescription>
-                  Claim by {offer.expiresAt.toLocaleString("en", { timeZone: "UTC", timeZoneName: "short" })}.
+                  Claim by {formatAdmissionOfferDeadline(offer.expiresAt, offer.eventTimeZone)}.
                   After this deadline the place goes to the next person waiting.
                 </AlertDescription>
               </Alert>

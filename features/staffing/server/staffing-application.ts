@@ -505,7 +505,12 @@ export async function getEventStaffing(
   now = new Date(),
 ) {
   const [actorAssignment] = await db
-    .select({ role: eventStaff.role, eventName: event.name, suspended: event.suspended })
+    .select({
+      role: eventStaff.role,
+      eventName: event.name,
+      eventTimeZone: event.eventTimeZone,
+      suspended: event.suspended,
+    })
     .from(eventStaff)
     .innerJoin(event, eq(event.id, eventStaff.eventId))
     .where(
@@ -569,6 +574,7 @@ export async function getEventStaffing(
   return {
     eventId,
     eventName: actorAssignment.eventName,
+    eventTimeZone: actorAssignment.eventTimeZone,
     suspended: actorAssignment.suspended,
     actorRole,
     staff: staff.map((member) => ({

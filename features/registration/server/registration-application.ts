@@ -2,7 +2,7 @@ import "server-only";
 
 import { createHash, randomBytes } from "node:crypto";
 
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import {
   validateRegistrationSubmission,
@@ -221,7 +221,11 @@ export function createRegistrationApplicationService({
         });
 
         const [existing] = await transaction
-          .select({ registrationId: registration.id })
+          .select({
+            registrationId: registration.id,
+            status: registration.status,
+            capacityOutcome: registration.capacityOutcome,
+          })
           .from(registration)
           .where(
             and(
@@ -231,7 +235,88 @@ export function createRegistrationApplicationService({
             ),
           )
           .limit(1);
-        if (existing) return { outcome: "existing_registration", ...existing };
+        if (existing && existing.status !== "unconfirmed") {
+          return { outcome: "existing_registration", registrationId: existing.registrationId };
+        }
+        if (existing) {
+          const [activeVerification] = await transaction
+            .select({
+              id: registrationVerification.id,
+              expiresAt: registrationVerification.expiresAt,
+            })
+            .from(registrationVerification)
+            .where(
+              and(
+                eq(
+                  registrationVerification.registrationId,
+                  existing.registrationId,
+                ),
+                isNull(registrationVerification.consumedAt),
+                sql`${registrationVerification.expiresAt} > ${submittedAt}`,
+              ),
+            )
+            .limit(1);
+          if (!activeVerification) {
+            return {
+              outcome: "existing_registration",
+              registrationId: existing.registrationId,
+            };
+          }
+
+          const [hold] = await transaction
+            .select({ expiresAt: capacityHold.expiresAt })
+            .from(capacityHold)
+            .where(
+              and(
+                eq(capacityHold.registrationId, existing.registrationId),
+                isNull(capacityHold.claimedAt),
+                sql`${capacityHold.expiresAt} > ${submittedAt}`,
+              ),
+            )
+            .limit(1);
+          if (existing.capacityOutcome === "capacity_hold" && !hold) {
+            return {
+              outcome: "existing_registration",
+              registrationId: existing.registrationId,
+            };
+          }
+
+          await transaction
+            .update(registrationVerification)
+            .set({ consumedAt: submittedAt })
+            .where(
+              and(
+                eq(
+                  registrationVerification.registrationId,
+                  existing.registrationId,
+                ),
+                isNull(registrationVerification.consumedAt),
+              ),
+            );
+          const token = createToken();
+          await transaction.insert(registrationVerification).values({
+            registrationId: existing.registrationId,
+            tokenDigest: digestToken(token),
+            expiresAt: activeVerification.expiresAt,
+          });
+          emailMessage = {
+            email: validation.data.email,
+            eventId: publishedEvent.id,
+            eventName: publishedEvent.name,
+            eventSlug,
+            token,
+          };
+          return {
+            outcome:
+              existing.capacityOutcome === "capacity_hold"
+                ? "capacity_hold"
+                : "waitlist_verification",
+            registrationId: existing.registrationId,
+            verificationExpiresAt: activeVerification.expiresAt,
+            capacityHoldExpiresAt: hold?.expiresAt ?? null,
+            deliveryStatus: "sent",
+          };
+        }
 
         const [capacityUsage] = await transaction
           .select({

@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { KeyObject } from "node:crypto";
+import { createHash, type KeyObject } from "node:crypto";
 
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
@@ -92,6 +92,7 @@ type StoredAttemptState = {
 
 type PresentedTicket = {
   id: string;
+  code: string;
   status: string;
   registrationStatus: string;
   eventStatus: string;
@@ -142,6 +143,18 @@ const UUID_PATTERN =
 
 function normalizeId(value: string) {
   return value.toLowerCase();
+}
+
+function digestInput(input: string) {
+  return createHash("sha256").update(input).digest("hex");
+}
+
+function attemptMatchesPresentedTicket(
+  attempt: PreparedAttempt,
+  presentedTicket: PresentedTicket,
+) {
+  if (attempt.signedTicket) return attempt.signedTicketIsValid;
+  return digestInput(presentedTicket.code) === attempt.inputDigest;
 }
 
 function parseFiniteDate(value: string) {
@@ -381,6 +394,7 @@ export function createOfflineSynchronizationService({
           : await transaction
               .select({
                 id: ticket.id,
+                code: ticket.code,
                 status: ticket.status,
                 registrationStatus: registration.status,
                 eventStatus: event.status,
@@ -601,8 +615,8 @@ export function createOfflineSynchronizationService({
         } else if (
           authorizationExpired ||
           staffAccessRevoked ||
-          !attempt.signedTicketIsValid ||
-          !presentedTicket
+          !presentedTicket ||
+          !attemptMatchesPresentedTicket(attempt, presentedTicket)
         ) {
           outcome = !presentedTicket ? "unknown" : "invalid";
         } else if (
@@ -641,8 +655,15 @@ export function createOfflineSynchronizationService({
               competingAttempts.some(
                 (candidate) => candidate.timestampConfidence === "low",
               );
-            if (hasLowConfidence) {
-              const activeCheckIn = activeCheckInsByTicket.get(ticketKey);
+            const currentConflict = latestConflictsByTicket.get(ticketKey);
+            const activeCheckIn = activeCheckInsByTicket.get(ticketKey);
+            const settledCheckIn =
+              Boolean(activeCheckIn) &&
+              (currentConflict?.status === "resolved_auto" ||
+                currentConflict?.status === "resolved_manual");
+            if (hasLowConfidence && settledCheckIn) {
+              outcome = "duplicate";
+            } else if (hasLowConfidence) {
               if (activeCheckIn) {
                 await transaction
                   .update(checkIn)
@@ -656,7 +677,6 @@ export function createOfflineSynchronizationService({
                 checkInId: null,
                 outcome: "conflict",
               });
-              const currentConflict = latestConflictsByTicket.get(ticketKey);
               if (!currentConflict || currentConflict.status !== "unresolved") {
                 const [createdConflict] = await transaction
                   .insert(checkInConflict)

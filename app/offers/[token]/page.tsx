@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { IconClock, IconTicket } from "@tabler/icons-react";
 
@@ -11,6 +12,12 @@ import { formatAdmissionOfferDeadline } from "@/lib/email/send-admission-offer";
 import { cn } from "@/lib/utils";
 
 import { claimAdmissionOfferAction } from "./actions";
+
+export const metadata: Metadata = {
+  title: "Admission offer",
+  referrer: "no-referrer",
+  robots: { index: false, follow: false },
+};
 
 export default async function AdmissionOfferPage({
   params,

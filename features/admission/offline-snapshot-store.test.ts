@@ -102,11 +102,15 @@ describe("Offline scanner store", () => {
     const ticketId = randomUUID();
     eventSnapshot.tickets.push({
       ticketId,
+      ticketCode: "ABCDEFGHJK",
       displayName: "Ada Lovelace",
       validityState: "active",
       existingCheckInState: "not_checked_in",
     });
     await store.cacheSnapshot(eventSnapshot);
+    expect(
+      await store.getCachedTicketByCode(eventSnapshot.event.id, "ABCDEFGHJK"),
+    ).toMatchObject({ ticketId, displayName: "Ada Lovelace" });
     const attemptId = randomUUID();
     await store.savePendingScanAttempt({
       id: attemptId,

@@ -7,6 +7,15 @@
 export const CROCKFORD_BASE32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 export const TICKET_CODE_LENGTH = 10;
 
+export function normalizeTicketCode(input: string) {
+  const normalized = input.toUpperCase().replace(/[\s-]/g, "");
+  return new RegExp(`^[${CROCKFORD_BASE32}]{${TICKET_CODE_LENGTH}}$`).test(
+    normalized,
+  )
+    ? normalized
+    : null;
+}
+
 /** Grouped for reading aloud and comparing character by character. */
 export function formatTicketCode(code: string) {
   return `${code.slice(0, 5)}-${code.slice(5)}`;

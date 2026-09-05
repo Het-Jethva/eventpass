@@ -1,5 +1,6 @@
 "use client";
 
+import { normalizeTicketCode } from "../tickets/ticket-code";
 import type {
   AdmissionOutcome,
   AdmissionResult,
@@ -101,17 +102,29 @@ function resultFor(
   return { outcome, attendeeName };
 }
 
-export async function admitOffline(values: {
-  eventId: string;
-  input: string;
-  inputMethod: "camera" | "manual";
-}): Promise<AdmissionResult> {
-  const snapshot = await offlineScannerStore.getCachedSnapshot();
+type OfflineScannerLookup = {
+  getCachedSnapshot: typeof offlineScannerStore.getCachedSnapshot;
+  captureAttemptTiming: typeof offlineScannerStore.captureAttemptTiming;
+  getCachedTicket: typeof offlineScannerStore.getCachedTicket;
+  getCachedTicketByCode: typeof offlineScannerStore.getCachedTicketByCode;
+  hasLocallyAcceptedTicket: typeof offlineScannerStore.hasLocallyAcceptedTicket;
+  savePendingScanAttempt: typeof offlineScannerStore.savePendingScanAttempt;
+};
+
+export async function admitOffline(
+  values: {
+    eventId: string;
+    input: string;
+    inputMethod: "camera" | "manual";
+  },
+  store: OfflineScannerLookup = offlineScannerStore,
+): Promise<AdmissionResult> {
+  const snapshot = await store.getCachedSnapshot();
   if (!snapshot || snapshot.event.id !== values.eventId) {
     return resultFor("unauthorized");
   }
 
-  const timing = await offlineScannerStore.captureAttemptTiming(values.eventId);
+  const timing = await store.captureAttemptTiming(values.eventId);
   if (!timing) return resultFor("unauthorized");
   const estimatedServerTime = new Date(
     new Date(timing.serverTimeAnchor).getTime() + timing.monotonicElapsedMs,
@@ -119,58 +132,60 @@ export async function admitOffline(values: {
   if (getSnapshotReadiness(snapshot, estimatedServerTime) !== "ready") {
     return resultFor("unauthorized");
   }
-  const ticketPayload = await verifyOfflineTicket(
-    values.input,
-    snapshot.verificationKeys,
-  );
-  const ticket =
-    ticketPayload?.eventId === values.eventId
-      ? await offlineScannerStore.getCachedTicket(
-          values.eventId,
-          ticketPayload.ticketId,
-        )
+  const ticketCode = normalizeTicketCode(values.input);
+  const ticketPayload = ticketCode
+    ? null
+    : await verifyOfflineTicket(values.input, snapshot.verificationKeys);
+  const ticket = ticketCode
+    ? await store.getCachedTicketByCode(values.eventId, ticketCode)
+    : ticketPayload?.eventId === values.eventId
+      ? await store.getCachedTicket(values.eventId, ticketPayload.ticketId)
       : undefined;
   let outcome: OfflineAdmissionOutcome;
-  if (!ticketPayload) outcome = "invalid";
-  else if (ticketPayload.eventId !== values.eventId || !ticket)
+  if (ticketCode && !ticket) {
     outcome = "unknown";
-  else if (
+  } else if (!ticketCode && !ticketPayload) {
+    outcome = "invalid";
+  } else if (!ticket) {
+    outcome = "unknown";
+  } else if (
     snapshot.event.status === "canceled" ||
     ticket.validityState === "canceled"
-  )
+  ) {
     outcome = "canceled";
-  else if (ticket.validityState === "replaced") outcome = "replaced";
-  else if (ticket.validityState === "expired") outcome = "expired";
-  else if (estimatedServerTime >= new Date(snapshot.event.checkInClosesAt))
+  } else if (ticket.validityState === "replaced") {
+    outcome = "replaced";
+  } else if (ticket.validityState === "expired") {
     outcome = "expired";
-  else if (estimatedServerTime < new Date(snapshot.event.checkInOpensAt))
+  } else if (estimatedServerTime >= new Date(snapshot.event.checkInClosesAt)) {
+    outcome = "expired";
+  } else if (estimatedServerTime < new Date(snapshot.event.checkInOpensAt)) {
     outcome = "outside_window";
-  else if (
+  } else if (
     ticket.existingCheckInState === "checked_in" ||
-    (await offlineScannerStore.hasLocallyAcceptedTicket(
-      values.eventId,
-      ticket.ticketId,
-    ))
-  )
+    (await store.hasLocallyAcceptedTicket(values.eventId, ticket.ticketId))
+  ) {
     outcome = "duplicate";
-  else outcome = "provisional";
+  } else {
+    outcome = "provisional";
+  }
 
   const attempt: PendingScanAttemptRecord = {
     id: crypto.randomUUID(),
     eventId: values.eventId,
     ticketId: ticket?.ticketId ?? null,
-    inputDigest: await digestInput(values.input),
+    inputDigest: await digestInput(ticketCode ?? values.input),
     inputMethod: values.inputMethod,
     capturedOutcome: outcome,
     deviceRecordedAt: new Date().toISOString(),
     serverTimeAnchor: timing.serverTimeAnchor,
     monotonicElapsedMs: timing.monotonicElapsedMs,
     timestampConfidence: timing.timestampConfidence,
-    signedTicket: ticket ? values.input : null,
+    signedTicket: ticket && !ticketCode ? values.input : null,
     authorization: snapshot.authorization,
     scannerDeviceId: snapshot.scannerDevice.id,
   };
-  await offlineScannerStore.savePendingScanAttempt(attempt);
+  await store.savePendingScanAttempt(attempt);
   return resultFor(outcome, ticket?.displayName);
 }
 

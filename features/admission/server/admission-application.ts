@@ -13,6 +13,7 @@ import {
   scanAttempt,
   ticket,
 } from "../../../lib/db/schema";
+import { normalizeTicketCode } from "../../tickets/ticket-code";
 import { verifyTicket } from "../../tickets/ticket-crypto";
 import { isEventSuspended } from "../../events/server/event-suspension";
 
@@ -59,11 +60,6 @@ function digestInput(input: string) {
   return createHash("sha256").update(input).digest("hex");
 }
 
-function normalizeTicketCode(input: string) {
-  const normalized = input.toUpperCase().replace(/[\s-]/g, "");
-  return /^[0-9A-HJKMNP-TV-Z]{10}$/.test(normalized) ? normalized : null;
-}
-
 export function createAdmissionApplicationService({
   database,
   getVerificationKeys,
@@ -99,7 +95,6 @@ export function createAdmissionApplicationService({
           ),
         )
         .where(eq(event.id, eventId))
-        .for("update")
         .limit(1);
 
       if (!authorizedEvent) return { outcome: "unauthorized" };

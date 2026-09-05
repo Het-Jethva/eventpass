@@ -8,6 +8,7 @@ import { afterAll, beforeAll, expect, it } from "vitest";
 import { describeWithDatabase, testDatabaseUrl } from "@/lib/test-db-helper";
 import {
   auditEntry,
+  admissionOffer,
   event,
   eventStaff,
   registration,
@@ -222,6 +223,105 @@ describeWithDatabase("Registration import application service", () => {
             .from(registration)
             .where(eq(registration.eventId, createdEvent!.id)),
         ).toHaveLength(0);
+        throw rollback;
+      });
+    } catch (error) {
+      if (error !== rollback) throw error;
+    }
+  });
+
+  it("promotes the waitlist before taking import capacity", async () => {
+    const rollback = Symbol("rollback waitlist Registration import test");
+    try {
+      await database.transaction(async (transaction) => {
+        const [organizer] = await transaction
+          .insert(user)
+          .values({
+            name: "Waitlist Import Organizer",
+            email: `waitlist-import-${randomUUID()}@example.com`,
+            emailVerified: true,
+          })
+          .returning({ id: user.id });
+        const [createdEvent] = await transaction
+          .insert(event)
+          .values({
+            name: "Import waitlist test",
+            description: "Import must not skip waitlist promotion.",
+            slug: `import-waitlist-${randomUUID()}`,
+            status: "published",
+            eventTimeZone: "UTC",
+            startsAt: new Date("2030-03-02T12:00:00.000Z"),
+            endsAt: new Date("2030-03-02T14:00:00.000Z"),
+            venueName: "Test Venue",
+            venueAddress: "Test address",
+            capacity: 1,
+            registrationOpensAt: new Date("2030-01-01T00:00:00.000Z"),
+            registrationClosesAt: new Date("2030-03-02T12:00:00.000Z"),
+            checkInOpensAt: new Date("2030-03-02T11:00:00.000Z"),
+            checkInClosesAt: new Date("2030-03-02T14:00:00.000Z"),
+            publishedAt: new Date("2030-01-01T00:00:00.000Z"),
+          })
+          .returning({ id: event.id });
+        await transaction.insert(eventStaff).values({
+          eventId: createdEvent!.id,
+          userId: organizer!.id,
+          role: "owner",
+        });
+        const waitlistEmail = `waitlisted-${randomUUID()}@example.com`;
+        const [waitlisted] = await transaction
+          .insert(registration)
+          .values({
+            eventId: createdEvent!.id,
+            attendeeName: "Waitlisted Attendee",
+            email: waitlistEmail,
+            normalizedEmail: waitlistEmail,
+            status: "waitlisted",
+            capacityOutcome: "waitlist",
+            verifiedAt: new Date("2030-01-15T12:00:00.000Z"),
+          })
+          .returning({ id: registration.id });
+        const offeredTokens: string[] = [];
+        const service = createRegistrationImportService({
+          database: transaction as unknown as typeof database,
+          getSigningKey: () => ({ id: "import-key", privateKey }),
+          now: () => new Date("2030-02-01T12:00:00.000Z"),
+          createOfferToken: () => {
+            const token = randomUUID().replaceAll("-", "");
+            offeredTokens.push(token);
+            return token;
+          },
+          sendAdmissionOfferEmail: async ({ token }) => {
+            offeredTokens.push(`sent:${token}`);
+          },
+        });
+        const preview = await service.previewImport(
+          createdEvent!.id,
+          organizer!.id,
+          `name,email\nImported,imported-${randomUUID()}@example.com`,
+        );
+        expect(preview?.canConfirm).toBe(true);
+        expect(
+          await service.confirmImport(
+            createdEvent!.id,
+            organizer!.id,
+            preview!.id,
+          ),
+        ).toEqual({ outcome: "stale" });
+        expect(
+          await transaction
+            .select()
+            .from(ticket)
+            .where(eq(ticket.eventId, createdEvent!.id)),
+        ).toHaveLength(0);
+        expect(
+          await transaction
+            .select({ registrationId: admissionOffer.registrationId })
+            .from(admissionOffer)
+            .where(eq(admissionOffer.registrationId, waitlisted!.id)),
+        ).toEqual([{ registrationId: waitlisted!.id }]);
+        expect(offeredTokens.some((token) => token.startsWith("sent:"))).toBe(
+          true,
+        );
         throw rollback;
       });
     } catch (error) {

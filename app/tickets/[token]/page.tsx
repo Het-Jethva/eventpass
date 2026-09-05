@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Your ticket",
+  referrer: "no-referrer",
   robots: { index: false, follow: false },
 };
 
@@ -203,6 +204,7 @@ export default async function TicketPage({
             href={`/e/${management.event.slug}`}
             className={cn(buttonVariants({ variant: "outline" }), "w-fit")}
             pendingLabel="Opening event"
+            referrerPolicy="no-referrer"
           >
             View event
           </PendingLink>

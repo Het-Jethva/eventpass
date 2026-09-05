@@ -40,7 +40,7 @@ function formatAuditTarget(value: string) {
 // One clock format across the product: 24-hour, seconds, no lowercase meridiem.
 // This column is read by comparison against the scanner and the roster, and
 // `31 Jul 03:27:48 pm` matched neither of them.
-function formatAuditTimestamp(date: Date) {
+function formatAuditTimestamp(date: Date, timeZone: string) {
   return new Intl.DateTimeFormat("en-GB", {
     day: "2-digit",
     month: "short",
@@ -48,17 +48,21 @@ function formatAuditTimestamp(date: Date) {
     minute: "2-digit",
     second: "2-digit",
     hour12: false,
+    timeZone,
+    timeZoneName: "short",
   }).format(date);
 }
 
 export function AuditView({
   log,
+  eventTimeZone,
   category,
   source,
   initialQuery,
   nextHref,
 }: {
   log: EventAuditLog;
+  eventTimeZone: string;
   category: AuditCategoryValue;
   source: AuditSourceValue;
   initialQuery: string;
@@ -114,7 +118,7 @@ export function AuditView({
                     <TableRow key={record.id}>
                       <TableCell className="font-mono text-muted-foreground">
                         <time dateTime={record.createdAt}>
-                          {formatAuditTimestamp(date)}
+                          {formatAuditTimestamp(date, eventTimeZone)}
                         </time>
                       </TableCell>
 

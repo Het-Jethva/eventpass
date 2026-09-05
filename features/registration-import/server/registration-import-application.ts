@@ -38,6 +38,11 @@ import {
   isEventSuspended,
   lockEvent,
 } from "../../events/server/event-suspension";
+import {
+  reconcileWaitlistInTransaction,
+  type AdmissionOfferMessage,
+} from "../../registration/server/waitlist-reconciliation";
+import { deliverAdmissionOfferMessages } from "@/lib/email/deliver-admission-offers";
 
 import { encodeCsv, parseBoundedCsv } from "../csv";
 
@@ -51,6 +56,8 @@ type ImportDependencies = {
   createTicketCode?: () => string;
   createTicketId?: () => string;
   createManagementToken?: () => string;
+  createOfferToken?: () => string;
+  sendAdmissionOfferEmail?: (message: AdmissionOfferMessage) => Promise<void>;
 };
 
 const answerSchema = z.union([
@@ -272,6 +279,8 @@ export function createRegistrationImportService({
   createTicketCode = createRandomTicketCode,
   createTicketId = randomUUID,
   createManagementToken = () => randomBytes(32).toString("base64url"),
+  createOfferToken,
+  sendAdmissionOfferEmail = async () => undefined,
 }: ImportDependencies) {
   async function previewImport(
     eventId: string,
@@ -462,7 +471,8 @@ export function createRegistrationImportService({
     importId: string,
   ): Promise<ConfirmImportResult> {
     const confirmedAt = now();
-    return database.transaction(async (transaction) => {
+    let offerMessages: AdmissionOfferMessage[] = [];
+    const result = await database.transaction(async (transaction) => {
       const [authorizedEvent] = await transaction
         .select({
           id: event.id,
@@ -536,6 +546,12 @@ export function createRegistrationImportService({
           ),
         )
         .limit(1);
+      offerMessages = await reconcileWaitlistInTransaction({
+        transaction,
+        eventId,
+        reconciledAt: confirmedAt,
+        createOfferToken,
+      });
       const claimed = await getCapacityUsage(transaction, eventId, confirmedAt);
       if (
         existing.length > 0 ||
@@ -645,6 +661,8 @@ export function createRegistrationImportService({
         alreadyCompleted: false,
       } as const;
     });
+    await deliverAdmissionOfferMessages(offerMessages, sendAdmissionOfferEmail);
+    return result;
   }
 
   async function exportRegistrations(

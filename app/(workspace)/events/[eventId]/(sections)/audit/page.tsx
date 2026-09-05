@@ -68,6 +68,7 @@ export default async function EventAuditPage(props: {
         >
           <AuditResults
             eventId={currentEvent.id}
+            eventTimeZone={currentEvent.eventTimeZone}
             actorUserId={session.user.id}
             searchQuery={searchQuery}
             category={category}
@@ -83,6 +84,7 @@ export default async function EventAuditPage(props: {
 
 async function AuditResults({
   eventId,
+  eventTimeZone,
   actorUserId,
   searchQuery,
   category,
@@ -91,6 +93,7 @@ async function AuditResults({
   basePath,
 }: {
   eventId: string;
+  eventTimeZone: string;
   actorUserId: string;
   searchQuery: string;
   category: AuditCategory;
@@ -121,6 +124,7 @@ async function AuditResults({
   return (
     <AuditView
       log={log}
+      eventTimeZone={eventTimeZone}
       category={category}
       source={source}
       initialQuery={searchQuery}

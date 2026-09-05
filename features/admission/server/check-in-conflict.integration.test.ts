@@ -9,6 +9,7 @@ import { describeWithDatabase, testDatabaseUrl } from "@/lib/test-db-helper";
 import {
   auditEntry,
   checkIn,
+  checkInConflict,
   event,
   eventStaff,
   registration,
@@ -66,11 +67,17 @@ describeWithDatabase("Check-in Conflict application service", () => {
               email: `south-${randomUUID()}@example.com`,
               emailVerified: true,
             },
+            {
+              name: "East Gate",
+              email: `east-${randomUUID()}@example.com`,
+              emailVerified: true,
+            },
           ])
           .returning({ id: user.id });
         const organizerId = staff[0]!.id;
         const northVolunteerId = staff[1]!.id;
         const southVolunteerId = staff[2]!.id;
+        const eastVolunteerId = staff[3]!.id;
         const [createdEvent] = await transaction
           .insert(event)
           .values({
@@ -105,6 +112,11 @@ describeWithDatabase("Check-in Conflict application service", () => {
           {
             eventId: createdEvent!.id,
             userId: southVolunteerId,
+            role: "check_in_volunteer",
+          },
+          {
+            eventId: createdEvent!.id,
+            userId: eastVolunteerId,
             role: "check_in_volunteer",
           },
         ]);
@@ -213,6 +225,47 @@ describeWithDatabase("Check-in Conflict application service", () => {
               ),
             ),
         ).toEqual([{ checkedInAt: new Date("2030-01-02T11:10:00.000Z") }]);
+
+        const eastDeviceId = randomUUID();
+        const lateLowAttempt = attempt(
+          automaticTicket,
+          eastDeviceId,
+          55,
+          "low",
+        );
+        const lateLow = await service.synchronizeOfflineAttempts({
+          authorization: authorization(eastVolunteerId, eastDeviceId),
+          attempts: [lateLowAttempt],
+        });
+        expect(lateLow).toMatchObject({
+          outcome: "acknowledged",
+          results: [{ id: lateLowAttempt.id, outcome: "duplicate" }],
+        });
+        expect(
+          await transaction
+            .select({
+              checkedInAt: checkIn.checkedInAt,
+              invalidatedAt: checkIn.invalidatedAt,
+            })
+            .from(checkIn)
+            .where(
+              and(
+                eq(checkIn.ticketId, automaticTicket.ticketId),
+                isNull(checkIn.invalidatedAt),
+              ),
+            ),
+        ).toEqual([
+          {
+            checkedInAt: new Date("2030-01-02T11:10:00.000Z"),
+            invalidatedAt: null,
+          },
+        ]);
+        expect(
+          await transaction
+            .select({ status: checkInConflict.status })
+            .from(checkInConflict)
+            .where(eq(checkInConflict.ticketId, automaticTicket.ticketId)),
+        ).toEqual([{ status: "resolved_auto" }]);
 
         const reviewedTicket = await createTicket("Grace Hopper", "123456789A");
         const highAttempt = attempt(reviewedTicket, northDeviceId, 45, "high");

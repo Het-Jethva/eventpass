@@ -213,6 +213,56 @@ describeWithDatabase("Ticket application service", () => {
     });
   });
 
+  it("returns an Offer claim token when verification fills an open place", async () => {
+    const [createdEvent] = await database
+      .insert(event)
+      .values({
+        name: "Offer from verification",
+        description: "Waitlist verification that becomes an Offer.",
+        slug: `offer-verify-${randomUUID()}`,
+        status: "published",
+        eventTimeZone: "UTC",
+        startsAt: new Date("2030-01-02T12:00:00.000Z"),
+        endsAt: new Date("2030-01-02T14:00:00.000Z"),
+        venueName: "Test Venue",
+        venueAddress: "Test address",
+        capacity: 1,
+        registrationOpensAt: new Date("2029-12-01T00:00:00.000Z"),
+        registrationClosesAt: new Date("2030-01-02T12:00:00.000Z"),
+        checkInOpensAt: new Date("2030-01-02T11:00:00.000Z"),
+        checkInClosesAt: new Date("2030-01-02T14:00:00.000Z"),
+        publishedAt: new Date("2029-12-01T00:00:00.000Z"),
+      })
+      .returning({ id: event.id, slug: event.slug });
+    eventIds.push(createdEvent!.id);
+    const email = `offer-verify-${randomUUID()}@example.com`;
+    const [pending] = await database
+      .insert(registration)
+      .values({
+        eventId: createdEvent!.id,
+        attendeeName: "Offered Attendee",
+        email,
+        normalizedEmail: email,
+        capacityOutcome: "waitlist",
+      })
+      .returning({ id: registration.id });
+    const token = randomBytes(32).toString("base64url");
+    await database.insert(registrationVerification).values({
+      registrationId: pending!.id,
+      tokenDigest: digestBearerToken(token),
+      expiresAt: new Date("2030-01-01T12:15:00.000Z"),
+    });
+
+    const verified = await service.verifyRegistration(createdEvent!.slug, token);
+    expect(verified.outcome).toBe("offered");
+    if (verified.outcome !== "offered") {
+      throw new Error("Expected an Offer token after verification.");
+    }
+    expect((await service.claimAdmissionOffer(verified.offerToken)).outcome).toBe(
+      "confirmed",
+    );
+  });
+
   it("promotes verified waitlist entries FIFO and claims an offer exactly once", async () => {
     const held = await createHeldRegistration(undefined, 1);
     await service.verifyRegistration(held.event.slug, held.verificationToken);
@@ -373,6 +423,32 @@ describeWithDatabase("Ticket application service", () => {
         ),
       );
     expect(answer?.value).toBe("Front-row access");
+  });
+
+  it("refuses Registration edits once the Event is not Published", async () => {
+    const held = await createHeldRegistration();
+    const verified = await service.verifyRegistration(
+      held.event.slug,
+      held.verificationToken,
+    );
+    expect(verified.outcome).toBe("confirmed");
+    if (verified.outcome !== "confirmed") throw new Error("Expected confirmation.");
+
+    await database
+      .update(event)
+      .set({
+        status: "canceled",
+        canceledAt: new Date("2030-01-01T12:05:00.000Z"),
+        cancellationReason: "Venue unavailable",
+      })
+      .where(eq(event.id, held.event.id));
+
+    expect(
+      await service.updateRegistration(verified.managementToken, {
+        name: "Ada Byron",
+        answers: {},
+      }),
+    ).toEqual({ outcome: "closed" });
   });
 
   it("resends the existing Ticket and replaces it without reusing its identity", async () => {

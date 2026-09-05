@@ -258,6 +258,7 @@ openssl ec -in ticket-key.pem -pubout -out ticket-key.pub
 | `npm run vercel-build` | Deployment build. Applies pending migrations, then builds |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc --noEmit` |
+| `npm test` | Vitest. Integration suites (`*.integration.test.ts`) skip unless `TEST_DATABASE_URL` is set |
 | `npm run db:generate` | Generate a Drizzle migration |
 | `npm run db:migrate` | Apply migrations |
 
@@ -274,6 +275,12 @@ and transaction semantics included.
 docker compose up -d
 DATABASE_URL=postgresql://postgres:postgres@localhost:54432/eventpass npm run db:migrate
 DATABASE_URL=postgresql://postgres:postgres@localhost:54432/eventpass npm run dev
+```
+
+Unit tests run with `npm test`. Integration tests need the same database:
+
+```bash
+TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:54432/eventpass npm test
 ```
 
 `lib/db/index.ts` points the driver at the proxy whenever the database URL is

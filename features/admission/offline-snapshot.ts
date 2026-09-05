@@ -27,6 +27,7 @@ export type OfflineEventSnapshot = {
   verificationKeys: Record<string, JsonWebKey>;
   tickets: Array<{
     ticketId: string;
+    ticketCode: string;
     displayName: string;
     validityState: OfflineTicketValidityState;
     existingCheckInState: "checked_in" | "not_checked_in";

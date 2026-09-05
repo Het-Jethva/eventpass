@@ -19,6 +19,10 @@ export async function confirmRegistrationVerificationAction(
     );
   }
 
+  if (result.outcome === "offered") {
+    redirect(`/offers/${encodeURIComponent(result.offerToken)}`);
+  }
+
   redirect(
     `/e/${encodeURIComponent(slug)}/verification-result?outcome=${result.outcome}`,
   );

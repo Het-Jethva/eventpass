@@ -124,6 +124,7 @@ describeWithDatabase("Scanner preparation application service", () => {
         expect(result.snapshot.tickets).toEqual([
           {
             ticketId,
+            ticketCode: "0123456789",
             displayName: "Ada Lovelace",
             validityState: "active",
             existingCheckInState: "not_checked_in",

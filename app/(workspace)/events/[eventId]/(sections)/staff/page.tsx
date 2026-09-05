@@ -58,10 +58,16 @@ const INVITE_ROLE_ITEMS = [
   { value: "check_in_volunteer", label: ROLE_LABELS.check_in_volunteer },
 ];
 
-function formatDeadline(value: Date) {
+function formatDeadline(value: Date, timeZone: string) {
   return new Intl.DateTimeFormat("en", {
-    dateStyle: "medium",
-    timeStyle: "short",
+    weekday: "short",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone,
+    timeZoneName: "short",
   }).format(value);
 }
 
@@ -234,7 +240,7 @@ export default async function EventStaffPage({
                   <div>
                     <p className="truncate text-sm font-medium">{invitation.normalizedEmail}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {ROLE_LABELS[invitation.role]} · expires {formatDeadline(invitation.expiresAt)}
+                      {ROLE_LABELS[invitation.role]} · expires {formatDeadline(invitation.expiresAt, staffing.eventTimeZone)}
                     </p>
                   </div>
                   {canManageRole(staffing.actorRole, invitation.role) ? (
@@ -261,7 +267,7 @@ export default async function EventStaffPage({
           {transfer ? (
             <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-support text-muted-foreground">
-                Proposed to <span className="font-medium text-foreground">{transferTarget?.name ?? "Organizer"}</span>; expires {formatDeadline(transfer.expiresAt)}.
+                Proposed to <span className="font-medium text-foreground">{transferTarget?.name ?? "Organizer"}</span>; expires {formatDeadline(transfer.expiresAt, staffing.eventTimeZone)}.
               </p>
               {transfer.proposedOwnerUserId === session.user.id ? (
                 <form action={acceptOwnershipTransferAction.bind(null, eventId, transfer.id)}>

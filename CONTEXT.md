@@ -57,7 +57,7 @@ The maximum combined count of confirmed Registrations, active Capacity Holds, an
 _Avoid_: Ticket limit, seat count
 
 **Registration Window**:
-The scheduled interval in which a Published Event accepts Registrations, defaulting from publication through Event start. Organizers may pause and resume it without unpublishing the Event.
+The scheduled interval in which a Published Event accepts Registrations, defaulting from publication through Event start. Organizers change the window by editing those times; that is a Material Event Change. There is no separate pause or resume control.
 _Avoid_: Signup period, Event availability
 
 **Waitlist Entry**:

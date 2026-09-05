@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { IconMailCheck } from "@tabler/icons-react";
 
@@ -7,6 +8,12 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getPublishedEvent } from "@/features/events/server/get-event";
 
 import { confirmRegistrationVerificationAction } from "./actions";
+
+export const metadata: Metadata = {
+  title: "Confirm your email",
+  referrer: "no-referrer",
+  robots: { index: false, follow: false },
+};
 
 export default async function ConfirmRegistrationVerificationPage({
   params,

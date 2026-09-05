@@ -1,4 +1,4 @@
-import { generateKeyPairSync, randomUUID } from "node:crypto";
+import { createHash, generateKeyPairSync, randomUUID } from "node:crypto";
 
 import { Pool } from "@neondatabase/serverless";
 import { eq } from "drizzle-orm";
@@ -266,6 +266,141 @@ describeWithDatabase("Admission application service", () => {
             .from(checkIn)
             .where(eq(checkIn.ticketId, ticketId)),
         ).toHaveLength(1);
+        throw rollback;
+      });
+    } catch (error) {
+      if (error !== rollback) throw error;
+    }
+  });
+
+  it("accepts an offline Ticket Code whose digest matches the presented Ticket", async () => {
+    const rollback = Symbol("rollback offline Ticket Code sync test");
+    try {
+      await database.transaction(async (transaction) => {
+        const service = createOfflineSynchronizationService({
+          database: transaction as unknown as typeof database,
+          now: () => new Date("2030-01-02T11:30:00.000Z"),
+          getVerificationKeys: () => ({ "integration-key": publicKey }),
+        });
+        const [staffUser] = await transaction
+          .insert(user)
+          .values({
+            name: "Code Gate Volunteer",
+            email: `code-volunteer-${randomUUID()}@example.com`,
+            emailVerified: true,
+          })
+          .returning({ id: user.id });
+        const [createdEvent] = await transaction
+          .insert(event)
+          .values({
+            name: "Offline Ticket Code synchronization test",
+            description: "Exercises code-path offline Check-in.",
+            slug: `offline-code-${randomUUID()}`,
+            status: "published",
+            eventTimeZone: "UTC",
+            startsAt: new Date("2030-01-02T12:00:00.000Z"),
+            endsAt: new Date("2030-01-02T14:00:00.000Z"),
+            venueName: "Test Venue",
+            venueAddress: "Test address",
+            capacity: 5,
+            registrationOpensAt: new Date("2029-12-01T00:00:00.000Z"),
+            registrationClosesAt: new Date("2030-01-02T12:00:00.000Z"),
+            checkInOpensAt: new Date("2030-01-02T11:00:00.000Z"),
+            checkInClosesAt: new Date("2030-01-02T14:00:00.000Z"),
+            publishedAt: new Date("2029-12-01T00:00:00.000Z"),
+          })
+          .returning({ id: event.id });
+        await transaction.insert(eventStaff).values({
+          eventId: createdEvent!.id,
+          userId: staffUser!.id,
+          role: "check_in_volunteer",
+        });
+        const attendeeEmail = `ada-code-${randomUUID()}@example.com`;
+        const [createdRegistration] = await transaction
+          .insert(registration)
+          .values({
+            eventId: createdEvent!.id,
+            attendeeName: "Ada Lovelace",
+            email: attendeeEmail,
+            normalizedEmail: attendeeEmail,
+            status: "confirmed",
+            capacityOutcome: "capacity_hold",
+            verifiedAt: new Date("2030-01-01T12:00:00.000Z"),
+          })
+          .returning({ id: registration.id });
+        const ticketId = randomUUID();
+        const ticketCode = "ABCDEFGHJK";
+        const signedPayload = signTicket(
+          { eventId: createdEvent!.id, ticketId },
+          { id: "integration-key", privateKey },
+        );
+        await transaction.insert(ticket).values({
+          id: ticketId,
+          eventId: createdEvent!.id,
+          registrationId: createdRegistration!.id,
+          code: ticketCode,
+          signedPayload,
+          signingKeyId: "integration-key",
+        });
+        const scannerDeviceId = randomUUID();
+        const issuedAt = "2030-01-02T10:30:00.000Z";
+        const authorization = signScannerAuthorization(
+          {
+            eventId: createdEvent!.id,
+            volunteerUserId: staffUser!.id,
+            scannerDeviceId,
+            issuedAt,
+            expiresAt: "2030-01-02T14:00:00.000Z",
+          },
+          { id: "integration-key", privateKey },
+        );
+        const attemptId = randomUUID();
+        const accepted = await service.synchronizeOfflineAttempts({
+          authorization,
+          attempts: [
+            {
+              id: attemptId,
+              eventId: createdEvent!.id,
+              ticketId,
+              inputDigest: createHash("sha256").update(ticketCode).digest("hex"),
+              inputMethod: "manual",
+              capturedOutcome: "provisional",
+              deviceRecordedAt: "2030-01-02T11:15:00.000Z",
+              serverTimeAnchor: issuedAt,
+              monotonicElapsedMs: 45 * 60 * 1000,
+              timestampConfidence: "high",
+              signedTicket: null,
+              scannerDeviceId,
+            },
+          ],
+        });
+        expect(accepted).toMatchObject({
+          outcome: "acknowledged",
+          results: [{ id: attemptId, outcome: "accepted" }],
+        });
+        const forged = await service.synchronizeOfflineAttempts({
+          authorization,
+          attempts: [
+            {
+              id: randomUUID(),
+              eventId: createdEvent!.id,
+              ticketId,
+              inputDigest: createHash("sha256").update("0123456789").digest("hex"),
+              inputMethod: "manual",
+              capturedOutcome: "provisional",
+              deviceRecordedAt: "2030-01-02T11:16:00.000Z",
+              serverTimeAnchor: issuedAt,
+              monotonicElapsedMs: 46 * 60 * 1000,
+              timestampConfidence: "high",
+              signedTicket: null,
+              scannerDeviceId,
+            },
+          ],
+        });
+        expect(forged).toMatchObject({
+          outcome: "acknowledged",
+          results: [{ outcome: "invalid" }],
+        });
         throw rollback;
       });
     } catch (error) {

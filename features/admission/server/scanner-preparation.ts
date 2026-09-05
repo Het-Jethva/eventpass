@@ -83,7 +83,6 @@ export function createScannerPreparationService({
         // drops. The snapshot carries no email addresses or answers, so an
         // Organizer gains nothing here they cannot already read.
         .where(and(eq(event.id, eventId), eq(eventStaff.userId, actorUserId)))
-        .for("update")
         .limit(1);
 
       if (!authorizedEvent) return { outcome: "unauthorized" };
@@ -100,6 +99,7 @@ export function createScannerPreparationService({
       const ticketRows = await transaction
         .select({
           ticketId: ticket.id,
+          ticketCode: ticket.code,
           displayName: registration.attendeeName,
           ticketStatus: ticket.status,
           registrationStatus: registration.status,
@@ -150,6 +150,7 @@ export function createScannerPreparationService({
           verificationKeys: getVerificationKeys(),
           tickets: ticketRows.map((row) => ({
             ticketId: row.ticketId,
+            ticketCode: row.ticketCode,
             displayName: row.displayName,
             validityState: resolveValidityState({
               eventStatus: authorizedEvent.status,

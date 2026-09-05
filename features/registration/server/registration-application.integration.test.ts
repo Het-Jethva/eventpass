@@ -118,14 +118,22 @@ describeWithDatabase("Registration application service", () => {
     ]);
 
     const created = outcomes.find(({ outcome }) => outcome === "capacity_hold");
-    const existing = outcomes.find(({ outcome }) => outcome === "existing_registration");
     expect(created?.outcome).toBe("capacity_hold");
-    expect(existing?.outcome).toBe("existing_registration");
     if (created?.outcome !== "capacity_hold") throw new Error("Missing Capacity Hold.");
-    if (existing?.outcome !== "existing_registration") {
-      throw new Error("Missing existing Registration outcome.");
-    }
-    expect(existing.registrationId).toBe(created.registrationId);
+    expect(
+      outcomes.every(
+        (outcome) =>
+          outcome.outcome === "capacity_hold" ||
+          outcome.outcome === "existing_registration",
+      ),
+    ).toBe(true);
+    expect(
+      new Set(
+        outcomes.flatMap((outcome) =>
+          "registrationId" in outcome ? [outcome.registrationId] : [],
+        ),
+      ).size,
+    ).toBe(1);
 
     const persisted = await service.findActiveRegistration(
       publishedEvent.id,
@@ -167,5 +175,57 @@ describeWithDatabase("Registration application service", () => {
       throw new Error("Expected two Capacity Holds.");
     }
     expect(second.registrationId).not.toBe(first.registrationId);
+  });
+
+  it("resends verification for an unconfirmed Registration without extending the Hold", async () => {
+    const tokens: string[] = [];
+    let failNext = true;
+    const retryService = createRegistrationApplicationService({
+      database,
+      now: () => new Date("2030-01-01T12:00:00.000Z"),
+      createToken: () => {
+        const token = `retry-${tokens.length}-${crypto.randomUUID()}`;
+        tokens.push(token);
+        return token;
+      },
+      sendVerificationEmail: async () => {
+        if (failNext) {
+          failNext = false;
+          throw new Error("delivery failed");
+        }
+      },
+    });
+    const publishedEvent = await createPublishedEvent(1);
+    const values = {
+      name: "Retry Attendee",
+      email: `retry-${crypto.randomUUID()}@example.com`,
+      answers: {},
+    };
+    const first = await retryService.submit(
+      publishedEvent.slug,
+      values,
+      new Headers(),
+    );
+    expect(first).toMatchObject({
+      outcome: "capacity_hold",
+      deliveryStatus: "failed",
+    });
+    if (first.outcome !== "capacity_hold") {
+      throw new Error("Expected a Capacity Hold.");
+    }
+    const second = await retryService.submit(
+      publishedEvent.slug,
+      values,
+      new Headers(),
+    );
+    expect(second).toMatchObject({
+      outcome: "capacity_hold",
+      deliveryStatus: "sent",
+      registrationId: first.registrationId,
+      verificationExpiresAt: first.verificationExpiresAt,
+      capacityHoldExpiresAt: first.capacityHoldExpiresAt,
+    });
+    expect(tokens).toHaveLength(2);
+    expect(tokens[0]).not.toBe(tokens[1]);
   });
 });

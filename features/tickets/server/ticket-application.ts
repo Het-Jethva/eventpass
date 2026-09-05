@@ -117,7 +117,8 @@ export type RegistrationVerificationResult =
       ticketId: string;
       deliveryStatus: "sent" | "failed";
     }
-  | { outcome: "waitlisted" | "offered" | "unavailable" }
+  | { outcome: "waitlisted" | "unavailable" }
+  | { outcome: "offered"; offerToken: string }
   | { outcome: "expired" | "consumed" | "invalid" | "mismatched" | "canceled" };
 
 export type AdmissionOfferClaimResult =
@@ -313,10 +314,10 @@ export function createTicketApplicationService({
           reconciledAt: verifiedAt,
           createOfferToken,
         });
-        const offered = offerMessages.some(
+        const matchingOffer = offerMessages.find(
           ({ email }) => email === capability.email,
         );
-        if (!offered) {
+        if (!matchingOffer) {
           waitlistMessage = {
             email: capability.email,
             attendeeName: capability.attendeeName,
@@ -324,8 +325,12 @@ export function createTicketApplicationService({
             eventName: lockedEvent.name,
             eventSlug: lockedEvent.slug,
           };
+          return { outcome: "waitlisted" } as const;
         }
-        return { outcome: offered ? "offered" : "waitlisted" } as const;
+        return {
+          outcome: "offered",
+          offerToken: matchingOffer.token,
+        } as const;
       }
 
       if (capability.capacityOutcome !== "capacity_hold") {
@@ -858,27 +863,47 @@ export function createTicketApplicationService({
   ): Promise<UpdateRegistrationResult> {
     if (!isWellFormedCapability(managementToken)) return { outcome: "invalid" };
     const updatedAt = now();
+    const previousManagementTokenDigest = digestBearerToken(managementToken);
     return database.transaction(async (transaction) => {
+      const [located] = await transaction
+        .select({ eventId: registration.eventId })
+        .from(registration)
+        .where(
+          eq(registration.managementTokenDigest, previousManagementTokenDigest),
+        )
+        .limit(1);
+      if (!located) return { outcome: "invalid" } as const;
+      const lockedEvent = await lockEventForMutation(
+        transaction,
+        located.eventId,
+      );
+      if (!lockedEvent) return { outcome: "invalid" } as const;
+
       const [managed] = await transaction
         .select({
           id: registration.id,
           eventId: registration.eventId,
           email: registration.email,
           status: registration.status,
+          eventStatus: event.status,
           registrationClosesAt: event.registrationClosesAt,
-          suspended: event.suspended,
         })
         .from(registration)
         .innerJoin(event, eq(event.id, registration.eventId))
         .where(
-          eq(registration.managementTokenDigest, digestBearerToken(managementToken)),
+          and(
+            eq(registration.eventId, located.eventId),
+            eq(
+              registration.managementTokenDigest,
+              previousManagementTokenDigest,
+            ),
+          ),
         )
         .for("update")
         .limit(1);
       if (!managed) return { outcome: "invalid" } as const;
-      assertEventNotSuspended(managed);
-      await lockEventForMutation(transaction, managed.eventId);
       if (
+        managed.eventStatus !== "published" ||
         managed.status !== "confirmed" ||
         managed.registrationClosesAt <= updatedAt
       ) {
@@ -1093,7 +1118,22 @@ export function createTicketApplicationService({
     const replacedAt = now();
     const signingKey = getSigningKey();
     let emailMessage: TicketEmail | null = null;
+    const previousManagementTokenDigest = digestBearerToken(managementToken);
     const result = await database.transaction(async (transaction) => {
+      const [located] = await transaction
+        .select({ eventId: registration.eventId })
+        .from(registration)
+        .where(
+          eq(registration.managementTokenDigest, previousManagementTokenDigest),
+        )
+        .limit(1);
+      if (!located) return { outcome: "invalid" } as const;
+      const lockedEvent = await lockEventForMutation(
+        transaction,
+        located.eventId,
+      );
+      if (!lockedEvent) return { outcome: "invalid" } as const;
+
       const [managed] = await transaction
         .select({
           registrationId: registration.id,
@@ -1108,18 +1148,21 @@ export function createTicketApplicationService({
           venueName: event.venueName,
           venueAddress: event.venueAddress,
           checkInOpensAt: event.checkInOpensAt,
-          suspended: event.suspended,
         })
         .from(registration)
         .innerJoin(event, eq(event.id, registration.eventId))
         .where(
-          eq(registration.managementTokenDigest, digestBearerToken(managementToken)),
+          and(
+            eq(registration.eventId, located.eventId),
+            eq(
+              registration.managementTokenDigest,
+              previousManagementTokenDigest,
+            ),
+          ),
         )
         .for("update")
         .limit(1);
       if (!managed) return { outcome: "invalid" } as const;
-      assertEventNotSuspended(managed);
-      await lockEventForMutation(transaction, managed.eventId);
       if (managed.registrationStatus !== "confirmed") {
         return { outcome: "inactive" } as const;
       }
@@ -1209,25 +1252,43 @@ export function createTicketApplicationService({
     if (!isWellFormedCapability(managementToken)) return { outcome: "invalid" };
     const canceledAt = now();
     let offerMessages: AdmissionOfferMessage[] = [];
+    const previousManagementTokenDigest = digestBearerToken(managementToken);
     const result = await database.transaction(async (transaction) => {
+      const [located] = await transaction
+        .select({ eventId: registration.eventId })
+        .from(registration)
+        .where(
+          eq(registration.managementTokenDigest, previousManagementTokenDigest),
+        )
+        .limit(1);
+      if (!located) return { outcome: "invalid" } as const;
+      const lockedEvent = await lockEventForMutation(
+        transaction,
+        located.eventId,
+      );
+      if (!lockedEvent) return { outcome: "invalid" } as const;
+
       const [managed] = await transaction
         .select({
           registrationId: registration.id,
           registrationStatus: registration.status,
           eventId: event.id,
           checkInOpensAt: event.checkInOpensAt,
-          suspended: event.suspended,
         })
         .from(registration)
         .innerJoin(event, eq(event.id, registration.eventId))
         .where(
-          eq(registration.managementTokenDigest, digestBearerToken(managementToken)),
+          and(
+            eq(registration.eventId, located.eventId),
+            eq(
+              registration.managementTokenDigest,
+              previousManagementTokenDigest,
+            ),
+          ),
         )
         .for("update")
         .limit(1);
       if (!managed) return { outcome: "invalid" } as const;
-      assertEventNotSuspended(managed);
-      await lockEventForMutation(transaction, managed.eventId);
       if (managed.registrationStatus !== "confirmed") {
         return { outcome: "inactive" } as const;
       }

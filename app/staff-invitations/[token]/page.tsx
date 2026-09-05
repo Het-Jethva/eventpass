@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { IconAlertCircle, IconMailCheck, IconUsers } from "@tabler/icons-react";
 
 import { PublicAuthShell } from "@/components/public-auth-shell";
@@ -11,6 +12,12 @@ import { normalizeStaffEmail } from "@/features/staff-identity/normalize-staff-e
 import { getActiveStaffSession } from "@/lib/staff-session";
 
 import { acceptStaffInvitationAction } from "./actions";
+
+export const metadata: Metadata = {
+  title: "Staff invitation",
+  referrer: "no-referrer",
+  robots: { index: false, follow: false },
+};
 
 export default async function StaffInvitationPage({
   params,

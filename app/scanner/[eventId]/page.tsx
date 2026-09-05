@@ -5,6 +5,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { PendingLink } from "@/components/pending-link";
 import { ScannerWorkspace } from "@/features/admission/scanner-workspace";
 import { getScannerEvent } from "@/features/admission/server/scanner";
+import { scannerExitPath } from "@/features/staffing/staffing-policy";
 import { getActiveStaffSession } from "@/lib/staff-session";
 
 // `formatRange` collapses the parts both ends share, so a door that opens and
@@ -40,7 +41,7 @@ export default async function ScannerPage({
       <header className="border-b">
         <div className="mx-auto flex min-h-16 w-full max-w-3xl items-center gap-3 px-4 py-3 sm:px-6">
           <PendingLink
-            href={`/events/${scannerEvent.id}`}
+            href={scannerExitPath(scannerEvent.role, scannerEvent.id)}
             className={buttonVariants({ variant: "ghost", size: "icon-lg" })}
             aria-label={`Back to ${scannerEvent.name}`}
             pendingLabel=""

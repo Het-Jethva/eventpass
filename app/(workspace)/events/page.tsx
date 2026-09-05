@@ -20,6 +20,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { listStaffEvents } from "@/features/events/server/list-staff-events";
+import { staffEventHomePath } from "@/features/staffing/staffing-policy";
 import { getActiveStaffSession } from "@/lib/staff-session";
 
 export const metadata: Metadata = {
@@ -165,7 +166,7 @@ export default async function EventsPage() {
                   Capacity {eventItem.capacity.toLocaleString()}
                 </span>
                 <PendingLink
-                  href={`/events/${eventItem.id}`}
+                  href={staffEventHomePath(eventItem.role, eventItem.id)}
                   className={buttonVariants({ variant: "outline", size: "sm", className: "shrink-0" })}
                   pendingLabel="Opening"
                 >

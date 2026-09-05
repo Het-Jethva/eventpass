@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  AdminSelfActionError,
   InvalidAdminReasonError,
   isPlatformAdmin,
   isSupportAccessActive,
   validateAdminReason,
+  assertNotSelfAdminAction,
 } from "../admin-policy";
 
 describe("Admin Application Unit Tests", () => {
@@ -62,5 +64,14 @@ describe("Admin Application Unit Tests", () => {
         configuredAdminEmails: ["admin@example.com"],
       }),
     ).toBe(false);
+  });
+
+  it("refuses an administrator suspending their own account", () => {
+    expect(() =>
+      assertNotSelfAdminAction("same-user", "same-user"),
+    ).toThrow(AdminSelfActionError);
+    expect(() =>
+      assertNotSelfAdminAction("admin-user", "other-user"),
+    ).not.toThrow();
   });
 });

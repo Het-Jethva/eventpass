@@ -65,7 +65,7 @@ export async function getOrganizerEventMetrics(
       and(
         eq(event.id, eventId),
         eq(eventStaff.userId, actorUserId),
-        inArray(eventStaff.role, ["owner", "organizer", "check_in_volunteer"]),
+        inArray(eventStaff.role, ["owner", "organizer"]),
       ),
     )
     .limit(1);

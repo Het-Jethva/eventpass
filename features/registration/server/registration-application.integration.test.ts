@@ -133,4 +133,60 @@ describeWithDatabase("Registration application service", () => {
     );
     expect(persisted?.registrationId).toBe(created.registrationId);
   });
+
+  it("lets an Expired Registration register again after the hold lapses", async () => {
+    let current = new Date("2030-01-01T12:00:00.000Z");
+    const timedService = createRegistrationApplicationService({
+      database,
+      now: () => current,
+      createToken: () => `lapse-${crypto.randomUUID()}`,
+      sendVerificationEmail: async () => undefined,
+    });
+    const publishedEvent = await createPublishedEvent(1);
+    const values = {
+      name: "Alice Example",
+      email: `alice-${crypto.randomUUID()}@example.com`,
+      answers: {},
+    };
+
+    const first = await timedService.submit(
+      publishedEvent.slug,
+      values,
+      new Headers(),
+    );
+    expect(first.outcome).toBe("capacity_hold");
+
+    current = new Date("2030-01-01T12:16:00.000Z");
+    const second = await timedService.submit(
+      publishedEvent.slug,
+      values,
+      new Headers(),
+    );
+    expect(second.outcome).toBe("capacity_hold");
+    if (first.outcome !== "capacity_hold" || second.outcome !== "capacity_hold") {
+      throw new Error("Expected two Capacity Holds.");
+    }
+    expect(second.registrationId).not.toBe(first.registrationId);
+  });
+
+  it("resends verification for an unconfirmed Registration without creating another", async () => {
+    const publishedEvent = await createPublishedEvent(5);
+    const values = {
+      name: "Retry Attendee",
+      email: `retry-${crypto.randomUUID()}@example.com`,
+      answers: {},
+    };
+
+    const first = await service.submit(publishedEvent.slug, values, new Headers());
+    expect(first.outcome).toBe("capacity_hold");
+    const tokensAfterFirst = deliveredTokens.length;
+
+    const second = await service.submit(publishedEvent.slug, values, new Headers());
+    expect(second.outcome).toBe("existing_registration");
+    expect(deliveredTokens.length).toBe(tokensAfterFirst + 1);
+    if (first.outcome !== "capacity_hold" || second.outcome !== "existing_registration") {
+      throw new Error("Expected a resend of the existing Registration.");
+    }
+    expect(second.registrationId).toBe(first.registrationId);
+  });
 });

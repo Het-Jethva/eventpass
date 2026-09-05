@@ -31,7 +31,7 @@ export default async function AdminPage() {
 
   const isAdmin = isPlatformAdmin({
     userEmail: staffSession.user.email,
-    isPlatformAdminFlag: (staffSession.user as unknown as Record<string, unknown>).isPlatformAdmin as boolean | undefined,
+    isPlatformAdminFlag: staffSession.user.isPlatformAdmin,
   });
 
   if (!isAdmin) {

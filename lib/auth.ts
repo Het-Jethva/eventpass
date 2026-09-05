@@ -10,6 +10,7 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
+import { getConfiguredApplicationUrl } from "@/lib/application-url";
 import {
   sendStaffMagicLink,
   StaffMagicLinkDeliveryError,
@@ -24,6 +25,7 @@ function hashMagicLinkToken(token: string) {
 
 export const auth = betterAuth({
   appName: "EventPass",
+  baseURL: getConfiguredApplicationUrl(),
   database: drizzleAdapter(db, {
     provider: "pg",
     schema,
@@ -31,6 +33,12 @@ export const auth = betterAuth({
   user: {
     additionalFields: {
       suspended: {
+        type: "boolean",
+        required: true,
+        defaultValue: false,
+        input: false,
+      },
+      isPlatformAdmin: {
         type: "boolean",
         required: true,
         defaultValue: false,

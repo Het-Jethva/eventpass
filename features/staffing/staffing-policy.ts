@@ -20,3 +20,11 @@ export function canViewRegistrationExport(role: EventStaffRole) {
 export function canTransferOwnership(role: EventStaffRole) {
   return role === "owner";
 }
+
+export function staffEventHomePath(role: string, eventId: string) {
+  return role === "check_in_volunteer" ? `/scanner/${eventId}` : `/events/${eventId}`;
+}
+
+export function scannerExitPath(role: string, eventId: string) {
+  return role === "check_in_volunteer" ? "/events" : `/events/${eventId}`;
+}

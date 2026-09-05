@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { acceptStaffInvitation } from "@/features/staffing/server/staffing-application";
+import { staffEventHomePath } from "@/features/staffing/staffing-policy";
 import { getActiveStaffSession } from "@/lib/staff-session";
 
 export async function acceptStaffInvitationAction(token: string) {
@@ -19,5 +20,5 @@ export async function acceptStaffInvitationAction(token: string) {
   }
   revalidatePath("/events");
   revalidatePath(`/events/${result.eventId}/staff`);
-  redirect(`/events/${result.eventId}`);
+  redirect(staffEventHomePath(result.role, result.eventId));
 }

@@ -17,9 +17,11 @@ import { createDraftEventInputSchema } from "./create-draft-event";
 import { localDateTimeInTimeZoneToUtc } from "./event-schedule";
 import {
   reconcileWaitlistInTransaction,
+  clampActiveOffersToRegistrationWindow,
   type AdmissionOfferMessage,
 } from "../../registration/server/waitlist-reconciliation";
 import { deliverAdmissionOfferMessages } from "@/lib/email/deliver-admission-offers";
+import { runBoundedTasks } from "@/lib/run-bounded-tasks";
 import {
   assertPostCheckInChangeAllowed,
   PublishedEventChangeError,
@@ -155,7 +157,13 @@ async function dispatch(
   deliveryIds: string[],
   deliverNotification: (deliveryId: string) => Promise<void>,
 ) {
-  await Promise.allSettled(deliveryIds.map(deliverNotification));
+  await runBoundedTasks(deliveryIds, async (deliveryId) => {
+    try {
+      await deliverNotification(deliveryId);
+    } catch {
+      // Domain state is committed independently from delivery outcomes.
+    }
+  });
 }
 
 export function createPublishedEventApplicationService({
@@ -226,6 +234,12 @@ export function createPublishedEventApplicationService({
         assertPostCheckInChangeAllowed(current, next);
       }
 
+      await clampActiveOffersToRegistrationWindow({
+        transaction,
+        eventId,
+        registrationClosesAt: next.registrationClosesAt,
+      });
+
       const [usage] = await transaction
         .select({
           confirmed: sql<number>`(
@@ -267,15 +281,12 @@ export function createPublishedEventApplicationService({
         .set({ ...next, updatedAt: changedAt })
         .where(and(eq(event.id, eventId), eq(event.status, "published")));
 
-      const offerMessages =
-        next.capacity > current.capacity
-          ? await reconcileWaitlistInTransaction({
-              transaction,
-              eventId,
-              reconciledAt: changedAt,
-              createOfferToken,
-            })
-          : [];
+      const offerMessages = await reconcileWaitlistInTransaction({
+        transaction,
+        eventId,
+        reconciledAt: changedAt,
+        createOfferToken,
+      });
 
       if (changes.length === 0) {
         return { deliveryIds: [], changes, offerMessages };

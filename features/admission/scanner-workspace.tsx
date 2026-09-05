@@ -207,19 +207,15 @@ export function ScannerWorkspace({
     try {
       let nextResult: AdmissionResult;
       if (navigator.onLine) {
-        try {
-          nextResult = await scanTicketAction({
-            eventId,
-            clientAttemptId: crypto.randomUUID(),
-            input,
-            inputMethod,
-            overrideReason,
-          });
-        } catch {
-          if (overrideReason) throw new Error("Online access is required for an override.");
-          nextResult = await admitOffline({ eventId, input, inputMethod });
-        }
+        nextResult = await scanTicketAction({
+          eventId,
+          clientAttemptId: crypto.randomUUID(),
+          input,
+          inputMethod,
+          overrideReason,
+        });
       } else {
+        if (overrideReason) throw new Error("Online access is required for an override.");
         nextResult = await admitOffline({ eventId, input, inputMethod });
       }
       setResult(nextResult);

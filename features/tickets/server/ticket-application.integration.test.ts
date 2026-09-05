@@ -152,6 +152,41 @@ describeWithDatabase("Ticket application service", () => {
     expect(issued[0]?.code).toMatch(/^[0-9A-HJKMNP-TV-Z]{10}$/);
   });
 
+  it("inspects a verification token without consuming it", async () => {
+    const held = await createHeldRegistration(undefined, 1);
+
+    expect(
+      await service.inspectRegistrationVerification(
+        held.event.slug,
+        held.verificationToken,
+      ),
+    ).toEqual({
+      outcome: "pending",
+      eventName: "Ticket integration test",
+    });
+    expect(
+      await service.inspectRegistrationVerification(
+        held.event.slug,
+        held.verificationToken,
+      ),
+    ).toEqual({
+      outcome: "pending",
+      eventName: "Ticket integration test",
+    });
+
+    const verified = await service.verifyRegistration(
+      held.event.slug,
+      held.verificationToken,
+    );
+    expect(verified.outcome).toBe("confirmed");
+    expect(
+      await service.inspectRegistrationVerification(
+        held.event.slug,
+        held.verificationToken,
+      ),
+    ).toEqual({ outcome: "consumed" });
+  });
+
   it("expires an unclaimed Registration instead of issuing a Ticket", async () => {
     const held = await createHeldRegistration(new Date("2030-01-01T11:59:59.000Z"));
 
@@ -385,12 +420,16 @@ describeWithDatabase("Ticket application service", () => {
       .from(ticket)
       .where(and(eq(ticket.registrationId, held.registrationId), eq(ticket.status, "active")));
 
-    expect(await service.resendTicket(verified.managementToken)).toEqual({
+    const resent = await service.resendTicket(verified.managementToken);
+    expect(resent).toMatchObject({
       outcome: "sent",
       deliveryStatus: "sent",
     });
+    expect(resent.managementToken).toBeTruthy();
     expect(sentTicketCodes.at(-1)).toBe(original!.code);
-    expect(await service.replaceTicket(verified.managementToken)).toEqual({
+    expect(
+      await service.replaceTicket(resent.managementToken ?? verified.managementToken),
+    ).toEqual({
       outcome: "replaced",
       deliveryStatus: "sent",
     });

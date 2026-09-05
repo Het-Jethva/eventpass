@@ -10,6 +10,8 @@ vi.mock("server-only", () => ({}));
 // Request throttles digest emails and addresses with this secret. Any value
 // works for tests; it just has to exist.
 process.env.BETTER_AUTH_SECRET ??= "eventpass-test-secret";
+process.env.BETTER_AUTH_URL ??= "http://localhost:3000";
+process.env.NEXT_PUBLIC_APP_URL ??= "http://localhost:3000";
 
 // Integration tests build their own Pool from `@neondatabase/serverless` rather
 // than importing `lib/db`, so they need the local proxy configured here too.

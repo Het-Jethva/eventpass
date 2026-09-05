@@ -183,6 +183,11 @@ describeWithDatabase("Admission application service", () => {
             publishedAt: new Date("2029-12-01T00:00:00.000Z"),
           })
           .returning({ id: event.id });
+        await transaction.insert(eventStaff).values({
+          eventId: createdEvent!.id,
+          userId: staffUser!.id,
+          role: "check_in_volunteer",
+        });
         const [createdRegistration] = await transaction
           .insert(registration)
           .values({

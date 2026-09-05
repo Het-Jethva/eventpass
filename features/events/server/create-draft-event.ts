@@ -42,7 +42,7 @@ export const createDraftEventInputSchema = z
     venueName: z.string().trim().min(1, "Enter a Venue name.").max(160),
     venueAddress: z.string().trim().min(1, "Enter the Venue address.").max(500),
     venueMapUrl: z
-      .union([z.literal(""), z.url("Enter a valid map URL.")])
+      .union([z.literal(""), z.httpUrl("Enter a valid map URL.")])
       .transform((value) => value || null),
     capacity: z.coerce
       .number()

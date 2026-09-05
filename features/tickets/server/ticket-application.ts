@@ -120,6 +120,15 @@ export type RegistrationVerificationResult =
   | { outcome: "waitlisted" | "offered" | "unavailable" }
   | { outcome: "expired" | "consumed" | "invalid" | "mismatched" | "canceled" };
 
+export type RegistrationVerificationInspection =
+  | { outcome: "pending"; eventName: string }
+  | {
+      outcome: Exclude<
+        RegistrationVerificationResult["outcome"],
+        "confirmed" | "waitlisted" | "offered"
+      >;
+    };
+
 export type AdmissionOfferClaimResult =
   | {
       outcome: "confirmed";
@@ -221,6 +230,87 @@ export function createTicketApplicationService({
   createTicketId = randomUUID,
   createOfferToken,
 }: TicketApplicationDependencies) {
+  async function inspectRegistrationVerification(
+    eventSlug: string,
+    verificationToken: string,
+  ): Promise<RegistrationVerificationInspection> {
+    if (!isWellFormedCapability(verificationToken)) return { outcome: "invalid" };
+    const inspectedAt = now();
+
+    const [publishedEvent] = await database
+      .select({
+        id: event.id,
+        name: event.name,
+        status: event.status,
+        suspended: event.suspended,
+      })
+      .from(event)
+      .where(eq(event.slug, eventSlug))
+      .limit(1);
+    if (!publishedEvent) return { outcome: "mismatched" };
+    if (isEventSuspended(publishedEvent)) return { outcome: "unavailable" };
+    if (publishedEvent.status === "canceled") return { outcome: "canceled" };
+    if (publishedEvent.status !== "published") return { outcome: "mismatched" };
+
+    const [capability] = await database
+      .select({
+        verificationExpiresAt: registrationVerification.expiresAt,
+        consumedAt: registrationVerification.consumedAt,
+        registrationEventId: registration.eventId,
+        status: registration.status,
+        capacityOutcome: registration.capacityOutcome,
+        registrationId: registration.id,
+      })
+      .from(registrationVerification)
+      .innerJoin(
+        registration,
+        eq(registration.id, registrationVerification.registrationId),
+      )
+      .where(
+        eq(
+          registrationVerification.tokenDigest,
+          digestBearerToken(verificationToken),
+        ),
+      )
+      .limit(1);
+    if (!capability) return { outcome: "invalid" };
+    if (capability.registrationEventId !== publishedEvent.id) {
+      return { outcome: "mismatched" };
+    }
+    if (capability.consumedAt || capability.status === "confirmed") {
+      return { outcome: "consumed" };
+    }
+    if (capability.status !== "unconfirmed") return { outcome: "mismatched" };
+
+    if (capability.capacityOutcome === "waitlist") {
+      if (capability.verificationExpiresAt <= inspectedAt) {
+        return { outcome: "expired" };
+      }
+      return { outcome: "pending", eventName: publishedEvent.name };
+    }
+    if (capability.capacityOutcome !== "capacity_hold") {
+      return { outcome: "mismatched" };
+    }
+
+    const [hold] = await database
+      .select({
+        expiresAt: capacityHold.expiresAt,
+        claimedAt: capacityHold.claimedAt,
+      })
+      .from(capacityHold)
+      .where(eq(capacityHold.registrationId, capability.registrationId))
+      .limit(1);
+    if (!hold) return { outcome: "mismatched" };
+    if (
+      capability.verificationExpiresAt <= inspectedAt ||
+      hold.expiresAt <= inspectedAt
+    ) {
+      return { outcome: "expired" };
+    }
+    if (hold.claimedAt) return { outcome: "consumed" };
+    return { outcome: "pending", eventName: publishedEvent.name };
+  }
+
   async function verifyRegistration(
     eventSlug: string,
     verificationToken: string,
@@ -484,6 +574,7 @@ export function createTicketApplicationService({
           endsAt: event.endsAt,
           venueName: event.venueName,
           venueAddress: event.venueAddress,
+          registrationClosesAt: event.registrationClosesAt,
         })
         .from(admissionOffer)
         .innerJoin(registration, eq(registration.id, admissionOffer.registrationId))
@@ -504,7 +595,8 @@ export function createTicketApplicationService({
       if (
         offered.offerStatus !== "active" ||
         offered.registrationStatus !== "waitlisted" ||
-        offered.expiresAt <= claimedAt
+        offered.expiresAt <= claimedAt ||
+        offered.registrationClosesAt <= claimedAt
       ) {
         return { outcome: "expired" } as const;
       }
@@ -634,6 +726,7 @@ export function createTicketApplicationService({
           eventTimeZone: event.eventTimeZone,
           expiresAt: admissionOffer.expiresAt,
           suspended: event.suspended,
+          registrationClosesAt: event.registrationClosesAt,
         })
         .from(admissionOffer)
         .innerJoin(registration, eq(registration.id, admissionOffer.registrationId))
@@ -647,7 +740,16 @@ export function createTicketApplicationService({
           ),
         )
         .limit(1);
-      return activeOffer ?? null;
+      return activeOffer && activeOffer.registrationClosesAt > viewedAt
+        ? {
+            attendeeName: activeOffer.attendeeName,
+            eventName: activeOffer.eventName,
+            eventSlug: activeOffer.eventSlug,
+            eventTimeZone: activeOffer.eventTimeZone,
+            expiresAt: activeOffer.expiresAt,
+            suspended: activeOffer.suspended,
+          }
+        : null;
     });
     await deliverAdmissionOfferMessages(
       promotedMessages,
@@ -1265,6 +1367,7 @@ export function createTicketApplicationService({
   }
 
   return {
+    inspectRegistrationVerification,
     verifyRegistration,
     claimAdmissionOffer,
     getAdmissionOfferView,

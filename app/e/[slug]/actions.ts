@@ -82,5 +82,10 @@ export async function submitRegistrationAction(
     };
   }
 
-  redirect(`/e/${slug}/check-email?outcome=neutral`);
+  const delivery =
+    result.deliveryStatus === "failed" ? "&delivery=failed" : "";
+  if (result.outcome === "capacity_hold") {
+    redirect(`/e/${slug}/check-email?outcome=hold${delivery}`);
+  }
+  redirect(`/e/${slug}/check-email?outcome=waitlist${delivery}`);
 }

@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import { Pool } from "@neondatabase/serverless";
 import { eq, inArray, sql } from "drizzle-orm";
@@ -11,6 +11,7 @@ vi.mock("server-only", () => ({}));
 vi.mock("../../../lib/db", () => ({ db: {} }));
 
 import {
+  admissionOffer,
   auditEntry,
   emailDelivery,
   event,
@@ -55,6 +56,9 @@ describeWithDatabase("Published Event application service", () => {
         await database
           .delete(ticket)
           .where(inArray(ticket.registrationId, registrationIds));
+        await database
+          .delete(admissionOffer)
+          .where(inArray(admissionOffer.registrationId, registrationIds));
         await database
           .delete(registration)
           .where(inArray(registration.id, registrationIds));
@@ -182,5 +186,99 @@ describeWithDatabase("Published Event application service", () => {
         reason: "Try again.",
       }),
     ).rejects.toThrow("cannot be restored or canceled again");
+  });
+
+  it("expires active Admission Offers when the Registration Window is shortened past them", async () => {
+    const changedAt = new Date("2030-01-01T12:00:00.000Z");
+    const service = createPublishedEventApplicationService({
+      database,
+      now: () => changedAt,
+    });
+    const [owner] = await database
+      .insert(user)
+      .values({
+        name: "Window Owner",
+        email: `window-owner-${randomUUID()}@example.com`,
+        emailVerified: true,
+      })
+      .returning({ id: user.id });
+    userIds.push(owner!.id);
+    const [createdEvent] = await database
+      .insert(event)
+      .values({
+        name: "Window clamp test",
+        description: "Shortening registration must expire outstanding offers.",
+        slug: `window-clamp-${randomUUID()}`,
+        status: "published",
+        eventTimeZone: "UTC",
+        startsAt: new Date("2030-01-02T12:00:00.000Z"),
+        endsAt: new Date("2030-01-02T14:00:00.000Z"),
+        venueName: "Main hall",
+        venueAddress: "University Road",
+        capacity: 10,
+        registrationOpensAt: new Date("2029-12-01T00:00:00.000Z"),
+        registrationClosesAt: new Date("2030-01-02T12:00:00.000Z"),
+        checkInOpensAt: new Date("2030-01-02T11:00:00.000Z"),
+        checkInClosesAt: new Date("2030-01-02T14:00:00.000Z"),
+        publishedAt: new Date("2029-12-01T00:00:00.000Z"),
+      })
+      .returning({ id: event.id, slug: event.slug });
+    eventIds.push(createdEvent!.id);
+    await database.insert(eventStaff).values({
+      eventId: createdEvent!.id,
+      userId: owner!.id,
+      role: "owner",
+    });
+    const waitlistEmail = `waitlist-${randomUUID()}@example.com`;
+    const [waitlisted] = await database
+      .insert(registration)
+      .values({
+        eventId: createdEvent!.id,
+        attendeeName: "Waitlisted Attendee",
+        email: waitlistEmail,
+        normalizedEmail: waitlistEmail,
+        status: "waitlisted",
+        capacityOutcome: "waitlist",
+        verifiedAt: new Date("2029-12-15T12:00:00.000Z"),
+      })
+      .returning({ id: registration.id });
+    const [offer] = await database
+      .insert(admissionOffer)
+      .values({
+        registrationId: waitlisted!.id,
+        tokenDigest: createHash("sha256").update(`offer-${randomUUID()}`).digest("hex"),
+        status: "active",
+        expiresAt: new Date("2030-01-02T00:00:00.000Z"),
+      })
+      .returning({ id: admissionOffer.id });
+
+    await service.updatePublishedEvent(createdEvent!.id, owner!.id, {
+      name: "Window clamp test",
+      description: "Shortening registration must expire outstanding offers.",
+      slug: createdEvent!.slug,
+      eventTimeZone: "UTC",
+      startsAtLocal: "2030-01-02T12:00",
+      endsAtLocal: "2030-01-02T14:00",
+      venueName: "Main hall",
+      venueAddress: "University Road",
+      venueMapUrl: "",
+      capacity: 10,
+      registrationOpensAtLocal: "2029-12-01T00:00",
+      registrationClosesAtLocal: "2030-01-01T12:00",
+      checkInOpensAtLocal: "2030-01-02T11:00",
+      checkInClosesAtLocal: "2030-01-02T14:00",
+    });
+
+    const [expiredOffer] = await database
+      .select({ status: admissionOffer.status, expiresAt: admissionOffer.expiresAt })
+      .from(admissionOffer)
+      .where(eq(admissionOffer.id, offer!.id));
+    const [expiredRegistration] = await database
+      .select({ status: registration.status })
+      .from(registration)
+      .where(eq(registration.id, waitlisted!.id));
+    expect(expiredOffer?.status).toBe("expired");
+    expect(expiredOffer?.expiresAt).toEqual(changedAt);
+    expect(expiredRegistration?.status).toBe("expired");
   });
 });

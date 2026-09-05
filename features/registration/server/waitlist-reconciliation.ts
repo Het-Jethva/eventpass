@@ -41,6 +41,32 @@ export function getAdmissionOfferExpiry(issuedAt: Date, registrationClosesAt: Da
   );
 }
 
+export async function clampActiveOffersToRegistrationWindow({
+  transaction,
+  eventId,
+  registrationClosesAt,
+}: {
+  transaction: DatabaseTransaction;
+  eventId: string;
+  registrationClosesAt: Date;
+}) {
+  await transaction
+    .update(admissionOffer)
+    .set({
+      expiresAt: sql`least(${admissionOffer.expiresAt}, ${registrationClosesAt})`,
+    })
+    .where(
+      and(
+        eq(admissionOffer.status, "active"),
+        sql`exists (
+          select 1 from ${registration}
+          where ${registration.id} = ${admissionOffer.registrationId}
+            and ${registration.eventId} = ${eventId}
+        )`,
+      ),
+    );
+}
+
 export async function reconcileWaitlistInTransaction({
   transaction,
   eventId,

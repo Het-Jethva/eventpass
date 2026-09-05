@@ -44,6 +44,22 @@ export class UserSuspendedError extends PlatformAdminError {
   }
 }
 
+export class AdminSelfActionError extends PlatformAdminError {
+  constructor(message = "You cannot suspend your own account.") {
+    super(message);
+    this.name = "AdminSelfActionError";
+  }
+}
+
+export function assertNotSelfAdminAction(
+  actorUserId: string,
+  targetUserId: string,
+) {
+  if (actorUserId === targetUserId) {
+    throw new AdminSelfActionError();
+  }
+}
+
 export function parsePlatformAdminEmails(envValue?: string): string[] {
   if (!envValue) return [];
   return envValue

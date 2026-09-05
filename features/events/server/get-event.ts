@@ -54,7 +54,9 @@ export const getOrganizerEvent = cache(async function getOrganizerEvent(
   return result ?? null;
 });
 
-export async function getPublishedEvent(slug: string) {
+export const getPublishedEvent = cache(async function getPublishedEvent(
+  slug: string,
+) {
   const [result] = await db
     .select(eventSelection)
     .from(event)
@@ -67,4 +69,4 @@ export async function getPublishedEvent(slug: string) {
     .limit(1);
 
   return result ?? null;
-}
+});

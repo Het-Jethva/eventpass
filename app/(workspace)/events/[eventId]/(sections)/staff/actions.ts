@@ -13,6 +13,7 @@ import {
   StaffingConflictError,
 } from "@/features/staffing/server/staffing-application";
 import { sendStaffInvitationEmail } from "@/lib/email/send-staff-invitation";
+import { getConfiguredApplicationOrigin } from "@/lib/application-url";
 import { getActiveStaffSession } from "@/lib/staff-session";
 
 const uuidSchema = z.uuid();
@@ -28,11 +29,7 @@ function staffPath(eventId: string, search?: URLSearchParams) {
 // emailing a link whose host a client chose. The other email helpers under
 // lib/email already behave this way.
 function getApplicationOrigin() {
-  const configured = process.env.NEXT_PUBLIC_APP_URL ?? process.env.BETTER_AUTH_URL;
-  if (!configured) {
-    throw new Error("NEXT_PUBLIC_APP_URL is required to create Staff Invitation links.");
-  }
-  return new URL(configured).origin;
+  return getConfiguredApplicationOrigin();
 }
 
 export async function inviteStaffAction(eventId: string, formData: FormData) {

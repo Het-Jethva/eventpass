@@ -2,7 +2,7 @@ import "server-only";
 
 import { createHash, randomBytes } from "node:crypto";
 
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import {
   validateRegistrationSubmission,
@@ -214,8 +214,19 @@ export function createRegistrationApplicationService({
           return { outcome: "rate_limited" };
         }
 
+        offerMessages = await reconcileWaitlistInTransaction({
+          transaction,
+          eventId: publishedEvent.id,
+          reconciledAt: submittedAt,
+          createOfferToken,
+        });
+
         const [existing] = await transaction
-          .select({ registrationId: registration.id })
+          .select({
+            registrationId: registration.id,
+            status: registration.status,
+            email: registration.email,
+          })
           .from(registration)
           .where(
             and(
@@ -225,14 +236,53 @@ export function createRegistrationApplicationService({
             ),
           )
           .limit(1);
-        if (existing) return { outcome: "existing_registration", ...existing };
-
-        offerMessages = await reconcileWaitlistInTransaction({
-          transaction,
-          eventId: publishedEvent.id,
-          reconciledAt: submittedAt,
-          createOfferToken,
-        });
+        if (existing) {
+          if (existing.status === "unconfirmed") {
+            const [currentVerification] = await transaction
+              .select({
+                id: registrationVerification.id,
+                expiresAt: registrationVerification.expiresAt,
+              })
+              .from(registrationVerification)
+              .where(
+                and(
+                  eq(
+                    registrationVerification.registrationId,
+                    existing.registrationId,
+                  ),
+                  isNull(registrationVerification.consumedAt),
+                ),
+              )
+              .limit(1);
+            if (
+              currentVerification &&
+              currentVerification.expiresAt > submittedAt
+            ) {
+              const token = createToken();
+              await transaction
+                .update(registrationVerification)
+                .set({ consumedAt: submittedAt })
+                .where(eq(registrationVerification.id, currentVerification.id));
+              await transaction.insert(registrationVerification).values({
+                registrationId: existing.registrationId,
+                tokenDigest: digestToken(token),
+                expiresAt: currentVerification.expiresAt,
+              });
+              emailMessage = {
+                registrationId: existing.registrationId,
+                email: existing.email,
+                eventId: publishedEvent.id,
+                eventName: publishedEvent.name,
+                eventSlug,
+                token,
+              };
+            }
+          }
+          return {
+            outcome: "existing_registration",
+            registrationId: existing.registrationId,
+          };
+        }
 
         const [capacityUsage] = await transaction
           .select({
@@ -342,12 +392,15 @@ export function createRegistrationApplicationService({
     }
 
     await deliverAdmissionOfferMessages(offerMessages, sendAdmissionOfferEmail);
-    if (!emailMessage || !("deliveryStatus" in result)) return result;
+    if (!emailMessage) return result;
     try {
       await sendVerificationEmail(emailMessage);
       return result;
     } catch {
-      return { ...result, deliveryStatus: "failed" };
+      if ("deliveryStatus" in result) {
+        return { ...result, deliveryStatus: "failed" };
+      }
+      return result;
     }
   }
 

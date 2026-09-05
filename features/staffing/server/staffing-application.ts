@@ -272,7 +272,7 @@ export async function acceptStaffInvitation(
       },
     ]);
 
-    return { eventId: invitation.eventId };
+    return { eventId: invitation.eventId, role: invitation.role };
   });
 }
 

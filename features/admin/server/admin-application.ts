@@ -8,6 +8,7 @@ import {
   PlatformAdminRequiredError,
   SupportAccessRequiredError,
   validateAdminReason,
+  assertNotSelfAdminAction,
 } from "@/features/admin/admin-policy";
 import { db } from "@/lib/db";
 import {
@@ -129,6 +130,7 @@ export async function suspendStaffAccount({
   reason: string;
 }) {
   const validatedReason = validateAdminReason(reason);
+  assertNotSelfAdminAction(actorUserId, targetUserId);
 
   return db.transaction(async (tx) => {
     await assertPlatformAdmin(actorUserId, tx);

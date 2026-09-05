@@ -1,15 +1,10 @@
 import "server-only";
 
-import { createHash, randomBytes } from "node:crypto";
-
 import { Resend } from "resend";
-import { and, eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import {
-  emailDelivery,
-  registrationVerification,
-} from "@/lib/db/schema";
+import { emailDelivery } from "@/lib/db/schema";
 import { EMAIL_BODY_STYLE } from "./shell";
 
 const TEMPLATE = "registration-verification-v1";
@@ -29,7 +24,6 @@ function escapeHtml(value: string) {
 }
 
 export async function sendRegistrationVerification({
-  registrationId,
   email,
   eventId,
   eventName,
@@ -75,8 +69,8 @@ export async function sendRegistrationVerification({
             "EventPass <registration@mail.hetjethva.tech>",
           to: email,
           subject: `Confirm your place at ${eventName}`,
-          html: `<div style="${EMAIL_BODY_STYLE}"><p>Confirm your email address to finish registering for <strong>${escapeHtml(eventName)}</strong>.</p><p><a href="${escapeHtml(verificationUrl.toString())}">Confirm my email</a></p><p>This link works once and expires in 15 minutes. If you did not register, you can ignore this email.</p></div>`,
-          text: `Confirm your place at ${eventName}: ${verificationUrl.toString()}\n\nThis link works once and expires in 15 minutes.`,
+          html: `<div style="${EMAIL_BODY_STYLE}"><p>Confirm your email address to finish registering for <strong>${escapeHtml(eventName)}</strong>.</p><p><a href="${escapeHtml(verificationUrl.toString())}">Confirm my email</a></p><p>Open the link and confirm. This expires in 15 minutes. If you did not register, you can ignore this email.</p></div>`,
+          text: `Confirm your place at ${eventName}: ${verificationUrl.toString()}\n\nOpen the link and confirm. This expires in 15 minutes.`,
         },
         { idempotencyKey: `email-delivery/${delivery.id}/attempt/${attempt}` },
       );
@@ -124,35 +118,7 @@ export async function sendRegistrationVerification({
     throw new Error("The verification email could not be sent.");
   }
 
-  const rotatedToken = randomBytes(32).toString("base64url");
-  const rotated = await db.transaction(async (transaction) => {
-    const [current] = await transaction
-      .update(registrationVerification)
-      .set({ consumedAt: new Date() })
-      .where(
-        and(
-          eq(registrationVerification.registrationId, registrationId),
-          eq(
-            registrationVerification.tokenDigest,
-            createHash("sha256").update(token).digest("hex"),
-          ),
-          isNull(registrationVerification.consumedAt),
-        ),
-      )
-      .returning({ expiresAt: registrationVerification.expiresAt });
-    if (!current) return false;
-    await transaction.insert(registrationVerification).values({
-      registrationId,
-      tokenDigest: createHash("sha256").update(rotatedToken).digest("hex"),
-      expiresAt: current.expiresAt,
-    });
-    return true;
-  });
-  if (!rotated) {
-    throw new Error("The verification email could not be retried safely.");
-  }
-
-  const retry = await sendAttempt(rotatedToken, 2);
+  const retry = await sendAttempt(token, 2);
   if (retry.kind === "submitted") {
     await db
       .update(emailDelivery)

@@ -12,6 +12,9 @@ const materialChangeSchema = z.object({
   kind: z.literal("material_change"),
   eventId: z.string(),
   eventName: z.string(),
+  // Optional only because pending deliveries written before the zone was
+  // recorded still have to send; those fall back to UTC.
+  eventTimeZone: z.string().optional(),
   changes: z.array(
     z.object({
       field: z.string(),
@@ -57,7 +60,16 @@ function escapeHtml(value: string) {
   );
 }
 
-function display(value: string | number | null) {
+/**
+ * Renders one side of a Material Event Change. Instants are shown in the
+ * Event Time Zone so "Event start: 9:00 AM -> 10:00 AM" reads the way the
+ * Attendee will experience it; the zone abbreviation is included because the
+ * zone itself can be one of the changed fields.
+ */
+export function displayMaterialChangeValue(
+  value: string | number | null,
+  eventTimeZone: string,
+) {
   if (value === null || value === "") return "Not set";
   if (typeof value === "number") return value.toLocaleString("en");
   const date = /^\d{4}-\d{2}-\d{2}T/.test(value) ? new Date(value) : null;
@@ -65,7 +77,7 @@ function display(value: string | number | null) {
     ? new Intl.DateTimeFormat("en", {
         dateStyle: "full",
         timeStyle: "short",
-        timeZone: "UTC",
+        timeZone: eventTimeZone,
         timeZoneName: "short",
       }).format(date)
     : value;
@@ -80,11 +92,14 @@ function content(metadata: z.infer<typeof notificationSchema>) {
     };
   }
 
+  const eventTimeZone = metadata.eventTimeZone ?? "UTC";
   const rows = metadata.changes.map((change) => {
     const label = FIELD_LABELS[change.field] ?? change.field;
+    const before = displayMaterialChangeValue(change.before, eventTimeZone);
+    const after = displayMaterialChangeValue(change.after, eventTimeZone);
     return {
-      html: `<li><strong>${escapeHtml(label)}:</strong> ${escapeHtml(display(change.before))} → ${escapeHtml(display(change.after))}</li>`,
-      text: `${label}: ${display(change.before)} -> ${display(change.after)}`,
+      html: `<li><strong>${escapeHtml(label)}:</strong> ${escapeHtml(before)} → ${escapeHtml(after)}</li>`,
+      text: `${label}: ${before} -> ${after}`,
     };
   });
   return {

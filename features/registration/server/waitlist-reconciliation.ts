@@ -21,6 +21,7 @@ export type AdmissionOfferMessage = {
   eventId: string;
   eventName: string;
   eventSlug: string;
+  eventTimeZone: string;
   expiresAt: Date;
   token: string;
 };
@@ -54,6 +55,7 @@ export async function reconcileWaitlistInTransaction({
       id: event.id,
       name: event.name,
       slug: event.slug,
+      eventTimeZone: event.eventTimeZone,
       status: event.status,
       capacity: event.capacity,
       registrationClosesAt: event.registrationClosesAt,
@@ -193,6 +195,7 @@ export async function reconcileWaitlistInTransaction({
         eventId: lockedEvent.id,
         eventName: lockedEvent.name,
         eventSlug: lockedEvent.slug,
+        eventTimeZone: lockedEvent.eventTimeZone,
         expiresAt,
         token,
       },

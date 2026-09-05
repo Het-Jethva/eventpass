@@ -313,6 +313,9 @@ export function createPublishedEventApplicationService({
               kind: "material_change",
               eventId,
               eventName: current.name,
+              // The zone the Event is in after this change, so a changed
+              // schedule is read against the clock Attendees will actually use.
+              eventTimeZone: next.eventTimeZone,
               changes,
             },
           })),

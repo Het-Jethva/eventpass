@@ -17,11 +17,25 @@ function escapeHtml(value: string) {
   );
 }
 
+/**
+ * Deadlines are communicated in the Event Time Zone, never the server's or
+ * UTC: an Attendee reads "claim by 6:00 PM" against the clock on their wall.
+ */
+export function formatAdmissionOfferDeadline(expiresAt: Date, eventTimeZone: string) {
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "full",
+    timeStyle: "short",
+    timeZone: eventTimeZone,
+    timeZoneName: "short",
+  }).format(expiresAt);
+}
+
 export async function sendAdmissionOffer({
   email,
   attendeeName,
   eventId,
   eventName,
+  eventTimeZone,
   expiresAt,
   token,
 }: {
@@ -30,6 +44,7 @@ export async function sendAdmissionOffer({
   eventId: string;
   eventName: string;
   eventSlug: string;
+  eventTimeZone: string;
   expiresAt: Date;
   token: string;
 }) {
@@ -38,12 +53,7 @@ export async function sendAdmissionOffer({
   if (!apiKey) throw new Error("RESEND_API_KEY is required to send Admission Offers.");
   if (!applicationUrl) throw new Error("NEXT_PUBLIC_APP_URL is required to create offer links.");
   const claimUrl = new URL(`/offers/${encodeURIComponent(token)}`, applicationUrl);
-  const deadline = new Intl.DateTimeFormat("en", {
-    dateStyle: "full",
-    timeStyle: "short",
-    timeZone: "UTC",
-    timeZoneName: "short",
-  }).format(expiresAt);
+  const deadline = formatAdmissionOfferDeadline(expiresAt, eventTimeZone);
   const [delivery] = await db
     .insert(emailDelivery)
     .values({

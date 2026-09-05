@@ -46,3 +46,6 @@ next-env.d.ts
 # plans
 /plans
 
+# design-skill session state
+/.impeccable
+

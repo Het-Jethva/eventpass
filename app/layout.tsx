@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { WebVitals } from "@/app/_components/web-vitals";
 import "./globals.css";
 
 // The whole product speaks in one face. Geist Sans is variable, so a headline
@@ -138,7 +137,6 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       <body className="flex min-h-full flex-col">
-        <WebVitals />
         {/* The design contract, emitted as a real HTML comment. A JSX comment
             is a JavaScript comment: the compiler drops it, so it would document
             the source and leave the shipped page unauditable. */}

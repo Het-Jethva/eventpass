@@ -676,52 +676,6 @@ export function createTicketApplicationService({
     return { promoted: messages.length };
   }
 
-  async function getTicketView(managementToken: string): Promise<TicketView | null> {
-    if (!isWellFormedCapability(managementToken)) return null;
-    const [view] = await database
-      .select({
-        attendeeName: registration.attendeeName,
-        eventName: event.name,
-        eventSlug: event.slug,
-        eventTimeZone: event.eventTimeZone,
-        startsAt: event.startsAt,
-        endsAt: event.endsAt,
-        venueName: event.venueName,
-        venueAddress: event.venueAddress,
-        ticketCode: ticket.code,
-        ticketJws: ticket.signedPayload,
-      })
-      .from(registration)
-      .innerJoin(event, eq(event.id, registration.eventId))
-      .innerJoin(
-        ticket,
-        and(eq(ticket.registrationId, registration.id), eq(ticket.status, "active")),
-      )
-      .where(
-        and(
-          eq(registration.managementTokenDigest, digestBearerToken(managementToken)),
-          eq(registration.status, "confirmed"),
-        ),
-      )
-      .limit(1);
-    return view
-      ? {
-          attendeeName: view.attendeeName,
-          event: {
-            name: view.eventName,
-            slug: view.eventSlug,
-            eventTimeZone: view.eventTimeZone,
-            startsAt: view.startsAt,
-            endsAt: view.endsAt,
-            venueName: view.venueName,
-            venueAddress: view.venueAddress,
-          },
-          ticketCode: view.ticketCode,
-          ticketJws: view.ticketJws,
-        }
-      : null;
-  }
-
   async function getManagementView(
     managementToken: string,
   ): Promise<RegistrationManagementView | null> {
@@ -1342,7 +1296,6 @@ export function createTicketApplicationService({
     claimAdmissionOffer,
     getAdmissionOfferView,
     reconcileEventWaitlist,
-    getTicketView,
     getManagementView,
     updateRegistration,
     resendTicket,

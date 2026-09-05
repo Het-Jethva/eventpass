@@ -16,7 +16,6 @@ const ticketApplication = createTicketApplicationService({
 });
 
 export const verifyRegistration = ticketApplication.verifyRegistration;
-export const getTicketView = ticketApplication.getTicketView;
 export const getManagementView = ticketApplication.getManagementView;
 export const updateRegistration = ticketApplication.updateRegistration;
 export const resendTicket = ticketApplication.resendTicket;

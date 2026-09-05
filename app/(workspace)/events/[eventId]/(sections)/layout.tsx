@@ -18,9 +18,6 @@ import { EventSidebar } from "./event-sidebar";
 // under the global header, for four bands of chrome before any content. The
 // rail carries all of that and hands the content column its width back, which
 // the registrations and Audit tables needed most.
-//
-// `preview` deliberately sits outside this route group: it exists to show the
-// Organizer the attendee-facing page, so workspace chrome would defeat it.
 export default async function EventWorkspaceSectionsLayout({
   children,
   params,

@@ -3,6 +3,7 @@
 import Dexie, { type EntityTable } from "dexie";
 
 import type { OfflineEventSnapshot } from "./offline-snapshot";
+import { shouldPurgeCachedEvent } from "./pwa-update-policy";
 
 type ScannerProfileRecord = {
   key: "current";
@@ -378,7 +379,12 @@ export function createOfflineScannerStore(
     return enqueueSnapshotMutation(async () => {
       const isClosed = now.getTime() >= new Date(checkInClosesAt).getTime();
       const pendingCount = await countPendingScanAttempts(eventId);
-      if (isClosed && pendingCount === 0) {
+      if (
+        shouldPurgeCachedEvent({
+          checkInClosed: isClosed,
+          pendingAttemptCount: pendingCount,
+        })
+      ) {
         const cached = await database.snapshots.get(eventId);
         if (cached) {
           await database.snapshots.delete(eventId);

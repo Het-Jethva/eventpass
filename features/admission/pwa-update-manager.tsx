@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { IconDownload, IconInfoCircle, IconRefresh } from "@tabler/icons-react";
+import { IconDownload, IconRefresh } from "@tabler/icons-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { offlineScannerStore } from "./offline-snapshot-store";
+import { shouldDeferUpdate } from "./pwa-update-policy";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -15,7 +16,6 @@ export function PwaUpdateManager() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [updateWaiting, setUpdateWaiting] = useState<ServiceWorker | null>(null);
   const [pendingAttempts, setPendingAttempts] = useState(0);
-  const [showIOSPrompt, setShowIOSPrompt] = useState(false);
 
   const [isStandalone] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
@@ -23,11 +23,6 @@ export function PwaUpdateManager() {
       window.matchMedia("(display-mode: standalone)").matches ||
       (navigator as unknown as { standalone?: boolean }).standalone === true
     );
-  });
-
-  const [isIOS] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
   });
 
   useEffect(() => {
@@ -100,12 +95,14 @@ export function PwaUpdateManager() {
     };
   }, []);
 
+  const updateBlocked = shouldDeferUpdate({ pendingAttemptCount: pendingAttempts });
+
   // Apply deferred update if 0 pending attempts remain
   useEffect(() => {
-    if (updateWaiting && pendingAttempts === 0) {
+    if (updateWaiting && !updateBlocked) {
       updateWaiting.postMessage({ type: "SKIP_WAITING" });
     }
-  }, [updateWaiting, pendingAttempts]);
+  }, [updateWaiting, updateBlocked]);
 
   async function handleInstallClick() {
     if (!deferredPrompt) return;
@@ -117,7 +114,7 @@ export function PwaUpdateManager() {
   }
 
   function handleApplyUpdateNow() {
-    if (updateWaiting && pendingAttempts === 0) {
+    if (updateWaiting && !updateBlocked) {
       updateWaiting.postMessage({ type: "SKIP_WAITING" });
     }
   }
@@ -125,20 +122,20 @@ export function PwaUpdateManager() {
   return (
     <div className="flex flex-col gap-3">
       {updateWaiting ? (
-        <Alert variant={pendingAttempts > 0 ? "default" : "default"}>
+        <Alert>
           <IconRefresh className="size-5 animate-spin text-foreground" />
           <AlertTitle>
-            {pendingAttempts > 0
+            {updateBlocked
               ? "Application update deferred"
               : "New version available"}
           </AlertTitle>
           <AlertDescription className="mt-1 text-sm flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <span>
-              {pendingAttempts > 0
+              {updateBlocked
                 ? `${pendingAttempts} scan${pendingAttempts === 1 ? "" : "s"} on this device have not synced yet. The update applies once they do.`
                 : "An update is ready for installation."}
             </span>
-            {pendingAttempts === 0 ? (
+            {!updateBlocked ? (
               <Button
                 type="button"
                 size="sm"
@@ -165,27 +162,6 @@ export function PwaUpdateManager() {
               onClick={() => void handleInstallClick()}
             >
               Install App
-            </Button>
-          </AlertDescription>
-        </Alert>
-      ) : null}
-
-      {!isStandalone && !deferredPrompt && isIOS && showIOSPrompt ? (
-        <Alert>
-          <IconInfoCircle className="size-5 text-foreground" />
-          <AlertTitle>Install on iOS</AlertTitle>
-          <AlertDescription className="mt-1 text-sm flex flex-col gap-2">
-            <span>
-              To install EventPass on iPhone: Tap the Share button in Safari, then select <strong>Add to Home Screen</strong>.
-            </span>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="self-start text-xs text-muted-foreground"
-              onClick={() => setShowIOSPrompt(false)}
-            >
-              Dismiss
             </Button>
           </AlertDescription>
         </Alert>

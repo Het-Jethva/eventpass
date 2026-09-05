@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { KeyObject } from "node:crypto";
 
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";

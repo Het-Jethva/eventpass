@@ -1,3 +1,5 @@
+import "server-only";
+
 import { randomBytes } from "node:crypto";
 
 import { CROCKFORD_BASE32, TICKET_CODE_LENGTH } from "../ticket-code";

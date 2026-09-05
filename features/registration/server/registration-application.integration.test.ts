@@ -168,25 +168,4 @@ describeWithDatabase("Registration application service", () => {
     }
     expect(second.registrationId).not.toBe(first.registrationId);
   });
-
-  it("resends verification for an unconfirmed Registration without creating another", async () => {
-    const publishedEvent = await createPublishedEvent(5);
-    const values = {
-      name: "Retry Attendee",
-      email: `retry-${crypto.randomUUID()}@example.com`,
-      answers: {},
-    };
-
-    const first = await service.submit(publishedEvent.slug, values, new Headers());
-    expect(first.outcome).toBe("capacity_hold");
-    const tokensAfterFirst = deliveredTokens.length;
-
-    const second = await service.submit(publishedEvent.slug, values, new Headers());
-    expect(second.outcome).toBe("existing_registration");
-    expect(deliveredTokens.length).toBe(tokensAfterFirst + 1);
-    if (first.outcome !== "capacity_hold" || second.outcome !== "existing_registration") {
-      throw new Error("Expected a resend of the existing Registration.");
-    }
-    expect(second.registrationId).toBe(first.registrationId);
-  });
 });

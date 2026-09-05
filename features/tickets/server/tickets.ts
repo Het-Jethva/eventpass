@@ -15,8 +15,6 @@ const ticketApplication = createTicketApplicationService({
   sendWaitlistEmail: sendWaitlistConfirmation,
 });
 
-export const inspectRegistrationVerification =
-  ticketApplication.inspectRegistrationVerification;
 export const verifyRegistration = ticketApplication.verifyRegistration;
 export const getTicketView = ticketApplication.getTicketView;
 export const getManagementView = ticketApplication.getManagementView;

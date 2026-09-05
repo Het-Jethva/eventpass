@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { emailDelivery } from "@/lib/db/schema";
+import { getConfiguredApplicationUrl } from "@/lib/application-url";
 import { EMAIL_BODY_STYLE } from "./shell";
 
 const TEMPLATE = "registration-verification-v1";
@@ -30,7 +31,6 @@ export async function sendRegistrationVerification({
   eventSlug,
   token,
 }: {
-  registrationId: string;
   email: string;
   eventId: string;
   eventName: string;
@@ -38,9 +38,8 @@ export async function sendRegistrationVerification({
   token: string;
 }) {
   const apiKey = process.env.RESEND_API_KEY;
-  const applicationUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.BETTER_AUTH_URL;
+  const applicationUrl = getConfiguredApplicationUrl();
   if (!apiKey) throw new Error("RESEND_API_KEY is required to send verification emails.");
-  if (!applicationUrl) throw new Error("NEXT_PUBLIC_APP_URL is required to create verification links.");
 
   const resend = new Resend(apiKey);
   const [delivery] = await db

@@ -152,41 +152,6 @@ describeWithDatabase("Ticket application service", () => {
     expect(issued[0]?.code).toMatch(/^[0-9A-HJKMNP-TV-Z]{10}$/);
   });
 
-  it("inspects a verification token without consuming it", async () => {
-    const held = await createHeldRegistration(undefined, 1);
-
-    expect(
-      await service.inspectRegistrationVerification(
-        held.event.slug,
-        held.verificationToken,
-      ),
-    ).toEqual({
-      outcome: "pending",
-      eventName: "Ticket integration test",
-    });
-    expect(
-      await service.inspectRegistrationVerification(
-        held.event.slug,
-        held.verificationToken,
-      ),
-    ).toEqual({
-      outcome: "pending",
-      eventName: "Ticket integration test",
-    });
-
-    const verified = await service.verifyRegistration(
-      held.event.slug,
-      held.verificationToken,
-    );
-    expect(verified.outcome).toBe("confirmed");
-    expect(
-      await service.inspectRegistrationVerification(
-        held.event.slug,
-        held.verificationToken,
-      ),
-    ).toEqual({ outcome: "consumed" });
-  });
-
   it("expires an unclaimed Registration instead of issuing a Ticket", async () => {
     const held = await createHeldRegistration(new Date("2030-01-01T11:59:59.000Z"));
 

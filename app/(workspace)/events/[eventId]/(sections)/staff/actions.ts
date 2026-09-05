@@ -23,15 +23,6 @@ function staffPath(eventId: string, search?: URLSearchParams) {
   return `/events/${eventId}/staff${suffix}`;
 }
 
-// Outbound links come only from configuration, never from the request's Host
-// or X-Forwarded-* headers. A misconfigured deployment fails closed here (the
-// invitation is saved and the notice says delivery failed) instead of
-// emailing a link whose host a client chose. The other email helpers under
-// lib/email already behave this way.
-function getApplicationOrigin() {
-  return getConfiguredApplicationOrigin();
-}
-
 export async function inviteStaffAction(eventId: string, formData: FormData) {
   const session = await getActiveStaffSession();
   if (!session) redirect("/sign-in");
@@ -63,7 +54,7 @@ export async function inviteStaffAction(eventId: string, formData: FormData) {
 
   let notice = "Staff Invitation sent.";
   try {
-    const origin = getApplicationOrigin();
+    const origin = getConfiguredApplicationOrigin();
     await sendStaffInvitationEmail({
       email: invitation.email,
       eventId: validEventId,

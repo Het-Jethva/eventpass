@@ -2,7 +2,7 @@ import "server-only";
 
 import { createHash, randomBytes } from "node:crypto";
 
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 
 import {
   validateRegistrationSubmission,
@@ -30,7 +30,6 @@ import { isRegistrationAttemptLimited } from "@/lib/registration-attempt-throttl
 type RegistrationDatabase = typeof import("../../../lib/db").db;
 
 type VerificationEmail = {
-  registrationId: string;
   email: string;
   eventId: string;
   eventName: string;
@@ -222,11 +221,7 @@ export function createRegistrationApplicationService({
         });
 
         const [existing] = await transaction
-          .select({
-            registrationId: registration.id,
-            status: registration.status,
-            email: registration.email,
-          })
+          .select({ registrationId: registration.id })
           .from(registration)
           .where(
             and(
@@ -236,53 +231,7 @@ export function createRegistrationApplicationService({
             ),
           )
           .limit(1);
-        if (existing) {
-          if (existing.status === "unconfirmed") {
-            const [currentVerification] = await transaction
-              .select({
-                id: registrationVerification.id,
-                expiresAt: registrationVerification.expiresAt,
-              })
-              .from(registrationVerification)
-              .where(
-                and(
-                  eq(
-                    registrationVerification.registrationId,
-                    existing.registrationId,
-                  ),
-                  isNull(registrationVerification.consumedAt),
-                ),
-              )
-              .limit(1);
-            if (
-              currentVerification &&
-              currentVerification.expiresAt > submittedAt
-            ) {
-              const token = createToken();
-              await transaction
-                .update(registrationVerification)
-                .set({ consumedAt: submittedAt })
-                .where(eq(registrationVerification.id, currentVerification.id));
-              await transaction.insert(registrationVerification).values({
-                registrationId: existing.registrationId,
-                tokenDigest: digestToken(token),
-                expiresAt: currentVerification.expiresAt,
-              });
-              emailMessage = {
-                registrationId: existing.registrationId,
-                email: existing.email,
-                eventId: publishedEvent.id,
-                eventName: publishedEvent.name,
-                eventSlug,
-                token,
-              };
-            }
-          }
-          return {
-            outcome: "existing_registration",
-            registrationId: existing.registrationId,
-          };
-        }
+        if (existing) return { outcome: "existing_registration", ...existing };
 
         const [capacityUsage] = await transaction
           .select({
@@ -361,7 +310,6 @@ export function createRegistrationApplicationService({
         }
 
         emailMessage = {
-          registrationId: created.id,
           email: validation.data.email,
           eventId: publishedEvent.id,
           eventName: publishedEvent.name,
@@ -392,15 +340,12 @@ export function createRegistrationApplicationService({
     }
 
     await deliverAdmissionOfferMessages(offerMessages, sendAdmissionOfferEmail);
-    if (!emailMessage) return result;
+    if (!emailMessage || !("deliveryStatus" in result)) return result;
     try {
       await sendVerificationEmail(emailMessage);
       return result;
     } catch {
-      if ("deliveryStatus" in result) {
-        return { ...result, deliveryStatus: "failed" };
-      }
-      return result;
+      return { ...result, deliveryStatus: "failed" };
     }
   }
 

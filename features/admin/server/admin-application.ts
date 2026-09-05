@@ -5,10 +5,10 @@ import { and, desc, eq, gt, ilike, isNull, or } from "drizzle-orm";
 import {
   isPlatformAdmin,
   isSupportAccessActive,
+  PlatformAdminError,
   PlatformAdminRequiredError,
   SupportAccessRequiredError,
   validateAdminReason,
-  assertNotSelfAdminAction,
 } from "@/features/admin/admin-policy";
 import { db } from "@/lib/db";
 import {
@@ -130,7 +130,9 @@ export async function suspendStaffAccount({
   reason: string;
 }) {
   const validatedReason = validateAdminReason(reason);
-  assertNotSelfAdminAction(actorUserId, targetUserId);
+  if (actorUserId === targetUserId) {
+    throw new PlatformAdminError("You cannot suspend your own account.");
+  }
 
   return db.transaction(async (tx) => {
     await assertPlatformAdmin(actorUserId, tx);

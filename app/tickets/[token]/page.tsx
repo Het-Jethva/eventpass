@@ -15,6 +15,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import { PendingLink } from "@/components/pending-link";
 import { formatTicketCode } from "@/features/tickets/ticket-code";
+import { formatEventRange } from "@/lib/format-event-range";
 import { PrintTicketButton } from "@/features/tickets/print-ticket-button";
 import { RegistrationManagementControls } from "@/features/tickets/registration-management-controls";
 import { TicketStub } from "@/features/tickets/ticket-stub";
@@ -26,21 +27,6 @@ export const metadata: Metadata = {
   referrer: "no-referrer",
   robots: { index: false, follow: false },
 };
-
-function formatEventRange(startsAt: Date, endsAt: Date, timeZone: string) {
-  // Components spelled out because `dateStyle`/`timeStyle` cannot be combined
-  // with `timeZoneName`; the mix throws "Invalid option : option".
-  return new Intl.DateTimeFormat("en", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone,
-    timeZoneName: "short",
-  }).formatRange(startsAt, endsAt);
-}
 
 function formatCompactRange(startsAt: Date, endsAt: Date, timeZone: string) {
   return new Intl.DateTimeFormat("en", {

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createHash, type KeyObject } from "node:crypto";
+import type { KeyObject } from "node:crypto";
 
 import { and, eq, isNull } from "drizzle-orm";
 
@@ -14,6 +14,7 @@ import {
   ticket,
 } from "../../../lib/db/schema";
 import { normalizeTicketCode } from "../../tickets/ticket-code";
+import { digestScanInput as digestInput } from "@/lib/scan-input-digest";
 import { verifyTicket } from "../../tickets/ticket-crypto";
 import { isEventSuspended } from "../../events/server/event-suspension";
 
@@ -55,10 +56,6 @@ export type AdmissionInput = {
   inputMethod: "camera" | "manual";
   overrideReason?: string;
 };
-
-function digestInput(input: string) {
-  return createHash("sha256").update(input).digest("hex");
-}
 
 export function createAdmissionApplicationService({
   database,

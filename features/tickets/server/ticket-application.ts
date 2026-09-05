@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 
 import { and, asc, count, desc, eq, gte, inArray } from "drizzle-orm";
 
@@ -32,6 +32,7 @@ import {
   lockEventForMutation,
 } from "../../events/server/event-suspension";
 import { deliverAdmissionOfferMessages } from "@/lib/email/deliver-admission-offers";
+import { digestBearerToken } from "@/lib/bearer-token-digest";
 import { TICKET_ISSUED_TEMPLATE } from "../../messaging/email-delivery-state";
 import { createTicketCode as createRandomTicketCode } from "./create-ticket-code";
 import { signTicket } from "../ticket-crypto";
@@ -202,9 +203,7 @@ export type TicketManagementResult = {
   managementToken?: string;
 };
 
-export function digestBearerToken(token: string) {
-  return createHash("sha256").update(token).digest("hex");
-}
+export { digestBearerToken };
 
 function isWellFormedCapability(token: string) {
   return /^[A-Za-z0-9_-]{32,128}$/.test(token);

@@ -6,16 +6,7 @@ import { Resend } from "resend";
 import { db } from "@/lib/db";
 import { emailDelivery } from "@/lib/db/schema";
 import { EMAIL_BODY_STYLE } from "./shell";
-
-function escapeHtml(value: string) {
-  return value.replace(
-    /[&<>'"]/g,
-    (character) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[
-        character
-      ] ?? character,
-  );
-}
+import { escapeHtml } from "./escape-html";
 
 /**
  * Deadlines are communicated in the Event Time Zone, never the server's or

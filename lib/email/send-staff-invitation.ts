@@ -7,22 +7,9 @@ import type { InviteableStaffRole } from "@/features/staffing/staffing-policy";
 import { db } from "@/lib/db";
 import { emailDelivery } from "@/lib/db/schema";
 import { EMAIL_BODY_STYLE } from "./shell";
+import { escapeHtml } from "./escape-html";
 
 const TEMPLATE = "staff-invitation-v1";
-
-function escapeHtml(value: string) {
-  return value.replace(
-    /[&<>'"]/g,
-    (character) =>
-      ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        "'": "&#39;",
-        '"': "&quot;",
-      })[character] ?? character,
-  );
-}
 
 export async function sendStaffInvitationEmail(input: {
   email: string;

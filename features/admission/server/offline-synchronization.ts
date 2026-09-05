@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createHash, type KeyObject } from "node:crypto";
+import type { KeyObject } from "node:crypto";
 
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
@@ -16,6 +16,7 @@ import {
   user,
 } from "../../../lib/db/schema";
 import { verifyTicket } from "../../tickets/ticket-crypto";
+import { digestScanInput as digestInput } from "@/lib/scan-input-digest";
 import { verifyScannerAuthorization } from "../scanner-authorization";
 import { lockEventForMutation } from "../../events/server/event-suspension";
 
@@ -143,10 +144,6 @@ const UUID_PATTERN =
 
 function normalizeId(value: string) {
   return value.toLowerCase();
-}
-
-function digestInput(input: string) {
-  return createHash("sha256").update(input).digest("hex");
 }
 
 function attemptMatchesPresentedTicket(

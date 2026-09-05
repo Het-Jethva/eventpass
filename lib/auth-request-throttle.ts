@@ -1,32 +1,14 @@
 import "server-only";
 
-import { createHmac } from "node:crypto";
 import { and, count, eq, gte, lt, sql } from "drizzle-orm";
 
 import { normalizeStaffEmail } from "@/features/staff-identity/normalize-staff-email";
 import { db } from "@/lib/db";
 import { authenticationAttempt } from "@/lib/db/schema";
+import { requestIp, throttleDigest as digest } from "@/lib/request-throttle-helpers";
 
 const WINDOW_MILLISECONDS = 60_000;
 const MAX_ATTEMPTS = 3;
-
-function digest(value: string) {
-  const secret = process.env.BETTER_AUTH_SECRET;
-
-  if (!secret) {
-    throw new Error("BETTER_AUTH_SECRET is required for request throttling.");
-  }
-
-  return createHmac("sha256", secret).update(value).digest("hex");
-}
-
-function requestIp(headers: Headers) {
-  return (
-    headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    headers.get("x-real-ip")?.trim() ||
-    "unknown"
-  );
-}
 
 async function isAuthenticationAttemptLimited(scopeKey: string, headers: Headers) {
   const now = new Date();

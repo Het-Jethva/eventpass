@@ -7,6 +7,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { emailDelivery } from "@/lib/db/schema";
 import { EMAIL_BODY_STYLE } from "./shell";
+import { escapeHtml } from "./escape-html";
 
 const materialChangeSchema = z.object({
   kind: z.literal("material_change"),
@@ -49,16 +50,6 @@ const FIELD_LABELS: Record<string, string> = {
   checkInOpensAt: "Check-in opens",
   checkInClosesAt: "Check-in closes",
 };
-
-function escapeHtml(value: string) {
-  return value.replace(
-    /[&<>'"]/g,
-    (character) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[
-        character
-      ] ?? character,
-  );
-}
 
 /**
  * Renders one side of a Material Event Change. Instants are shown in the

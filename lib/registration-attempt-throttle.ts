@@ -1,9 +1,9 @@
 import "server-only";
 
-import { createHmac } from "node:crypto";
 import { and, count, eq, gte, lt, sql } from "drizzle-orm";
 
 import { registrationAttempt } from "@/lib/db/schema";
+import { requestIp, throttleDigest as digest } from "@/lib/request-throttle-helpers";
 
 type Database = typeof import("@/lib/db").db;
 type RegistrationTransaction = Parameters<
@@ -15,24 +15,6 @@ const IP_WINDOW_MILLISECONDS = 10 * 60_000;
 const RETENTION_MILLISECONDS = 2 * 24 * 60 * 60_000;
 const MAX_EMAIL_ATTEMPTS = 3;
 const MAX_IP_ATTEMPTS = 50;
-
-function digest(value: string) {
-  const secret = process.env.BETTER_AUTH_SECRET;
-
-  if (!secret) {
-    throw new Error("BETTER_AUTH_SECRET is required for request throttling.");
-  }
-
-  return createHmac("sha256", secret).update(value).digest("hex");
-}
-
-function requestIp(headers: Headers) {
-  return (
-    headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    headers.get("x-real-ip")?.trim() ||
-    "unknown"
-  );
-}
 
 export async function isRegistrationAttemptLimited({
   transaction,

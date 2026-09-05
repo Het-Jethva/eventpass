@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 
@@ -26,6 +26,7 @@ import {
 import { isEventSuspended } from "@/features/events/server/event-suspension";
 import { deliverAdmissionOfferMessages } from "@/lib/email/deliver-admission-offers";
 import { isRegistrationAttemptLimited } from "@/lib/registration-attempt-throttle";
+import { digestBearerToken as digestToken } from "@/lib/bearer-token-digest";
 
 type RegistrationDatabase = typeof import("../../../lib/db").db;
 
@@ -66,10 +67,6 @@ export type RegistrationSubmissionResult =
       fieldErrors: Record<string, string[]>;
       values: RegistrationSubmissionValues;
     };
-
-function digestToken(token: string) {
-  return createHash("sha256").update(token).digest("hex");
-}
 
 function isUniqueViolation(error: unknown) {
   return (

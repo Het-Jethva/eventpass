@@ -9,33 +9,12 @@ import { formatTicketCode } from "@/features/tickets/ticket-code";
 import { db } from "@/lib/db";
 import { emailDelivery } from "@/lib/db/schema";
 import { EMAIL_BODY_STYLE, EMAIL_CODE_STYLE } from "./shell";
+import { escapeHtml } from "./escape-html";
+import { formatEventRange } from "@/lib/format-event-range";
+
+export { formatEventRange };
 
 const TEMPLATE = TICKET_ISSUED_TEMPLATE;
-
-function escapeHtml(value: string) {
-  return value.replace(
-    /[&<>'"]/g,
-    (character) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[
-        character
-      ] ?? character,
-  );
-}
-
-export function formatEventRange(startsAt: Date, endsAt: Date, timeZone: string) {
-  // Components spelled out because `dateStyle`/`timeStyle` cannot be combined
-  // with `timeZoneName`; the mix throws "Invalid option : option".
-  return new Intl.DateTimeFormat("en", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone,
-    timeZoneName: "short",
-  }).formatRange(startsAt, endsAt);
-}
 
 export async function sendTicket({
   email,

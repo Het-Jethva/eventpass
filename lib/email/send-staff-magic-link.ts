@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { emailDelivery } from "@/lib/db/schema";
 import { EMAIL_BODY_STYLE } from "./shell";
+import { escapeHtml } from "./escape-html";
 
 const TEMPLATE = "staff-magic-link-v1";
 
@@ -14,20 +15,6 @@ export class StaffMagicLinkDeliveryError extends Error {
     super("Resend could not accept the staff magic-link delivery.");
     this.name = "StaffMagicLinkDeliveryError";
   }
-}
-
-function escapeHtml(value: string) {
-  return value.replace(
-    /[&<>'"]/g,
-    (character) =>
-      ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        "'": "&#39;",
-        '"': "&quot;",
-      })[character] ?? character,
-  );
 }
 
 export async function sendStaffMagicLink(email: string, url: string) {

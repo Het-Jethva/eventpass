@@ -7,22 +7,9 @@ import { db } from "@/lib/db";
 import { emailDelivery } from "@/lib/db/schema";
 import { getConfiguredApplicationUrl } from "@/lib/application-url";
 import { EMAIL_BODY_STYLE } from "./shell";
+import { escapeHtml } from "./escape-html";
 
 const TEMPLATE = "registration-verification-v1";
-
-function escapeHtml(value: string) {
-  return value.replace(
-    /[&<>'"]/g,
-    (character) =>
-      ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        "'": "&#39;",
-        '"': "&quot;",
-      })[character] ?? character,
-  );
-}
 
 export async function sendRegistrationVerification({
   email,

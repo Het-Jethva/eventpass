@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 
@@ -11,6 +11,7 @@ import {
   registration,
   registrationVerification,
 } from "../../../lib/db/schema";
+import { digestBearerToken } from "@/lib/bearer-token-digest";
 
 type Database = typeof import("../../../lib/db").db;
 export type DatabaseTransaction = Parameters<
@@ -27,10 +28,6 @@ export type AdmissionOfferMessage = {
   expiresAt: Date;
   token: string;
 };
-
-function digestBearerToken(token: string) {
-  return createHash("sha256").update(token).digest("hex");
-}
 
 export function getAdmissionOfferExpiry(issuedAt: Date, registrationClosesAt: Date) {
   return new Date(

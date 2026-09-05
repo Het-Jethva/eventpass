@@ -9,11 +9,12 @@ export const TICKET_CODE_LENGTH = 10;
 
 export function normalizeTicketCode(input: string) {
   const normalized = input.toUpperCase().replace(/[\s-]/g, "");
-  return new RegExp(`^[${CROCKFORD_BASE32}]{${TICKET_CODE_LENGTH}}$`).test(
-    normalized,
-  )
-    ? normalized
-    : null;
+  return isTicketCode(normalized) ? normalized : null;
+}
+
+/** Strict check for the canonical stored form: 10 unbroken Crockford Base32 characters. */
+export function isTicketCode(value: string) {
+  return new RegExp(`^[${CROCKFORD_BASE32}]{${TICKET_CODE_LENGTH}}$`).test(value);
 }
 
 /** Grouped for reading aloud and comparing character by character. */

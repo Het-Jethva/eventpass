@@ -27,14 +27,12 @@ import {
   AUDIT_PAGE_SIZE,
   type EventAuditLog,
 } from "@/features/audit/server/get-audit-log";
-import { formatTicketCode } from "@/features/tickets/ticket-code";
+import { formatTicketCode, isTicketCode } from "@/features/tickets/ticket-code";
 
 // The whole product writes a Ticket Code grouped, because that is how a person
 // reads one aloud. The audit log printed it as ten unbroken characters.
-const TICKET_CODE = /^[0-9A-HJKMNP-TV-Z]{10}$/;
-
 function formatAuditTarget(value: string) {
-  return TICKET_CODE.test(value) ? formatTicketCode(value) : value;
+  return isTicketCode(value) ? formatTicketCode(value) : value;
 }
 
 // One clock format across the product: 24-hour, seconds, no lowercase meridiem.

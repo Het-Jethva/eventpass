@@ -1,3 +1,10 @@
+/**
+ * The template recorded on every Ticket email, whether issued at confirmation,
+ * resent, or reissued after a replacement. Shared so the ticket service can
+ * count recent sends without knowing how the email is rendered.
+ */
+export const TICKET_ISSUED_TEMPLATE = "ticket-issued-v1";
+
 export type EmailDeliveryOutcome =
   | "pending"
   | "submitted"

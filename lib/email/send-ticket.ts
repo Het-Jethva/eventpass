@@ -4,12 +4,13 @@ import { eq } from "drizzle-orm";
 import QRCode from "qrcode";
 import { Resend } from "resend";
 
+import { TICKET_ISSUED_TEMPLATE } from "@/features/messaging/email-delivery-state";
 import { formatTicketCode } from "@/features/tickets/ticket-code";
 import { db } from "@/lib/db";
 import { emailDelivery } from "@/lib/db/schema";
 import { EMAIL_BODY_STYLE, EMAIL_CODE_STYLE } from "./shell";
 
-const TEMPLATE = "ticket-issued-v1";
+const TEMPLATE = TICKET_ISSUED_TEMPLATE;
 
 function escapeHtml(value: string) {
   return value.replace(

@@ -2,11 +2,12 @@ import "server-only";
 
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray } from "drizzle-orm";
 
 import {
   admissionOffer,
   capacityHold,
+  emailDelivery,
   event,
   registration,
   registrationAnswer,
@@ -31,10 +32,45 @@ import {
   lockEventForMutation,
 } from "../../events/server/event-suspension";
 import { deliverAdmissionOfferMessages } from "@/lib/email/deliver-admission-offers";
+import { TICKET_ISSUED_TEMPLATE } from "../../messaging/email-delivery-state";
 import { createTicketCode as createRandomTicketCode } from "./create-ticket-code";
 import { signTicket } from "../ticket-crypto";
 
 type TicketDatabase = typeof import("../../../lib/db").db;
+type TicketTransaction = Parameters<
+  Parameters<TicketDatabase["transaction"]>[0]
+>[0];
+
+/**
+ * Ticket emails per Registration per hour, counting the one sent at
+ * confirmation. Resending rotates the Registration Management Link and hands
+ * the new link back to whoever asked, so without a ceiling a single link
+ * holder could keep the Attendee's inbox — and the sending quota — busy for as
+ * long as they liked. Three an hour covers "it did not arrive, try again".
+ */
+export const TICKET_EMAIL_WINDOW_MILLISECONDS = 60 * 60_000;
+export const MAX_TICKET_EMAILS_PER_WINDOW = 3;
+
+async function isTicketEmailLimited(
+  transaction: TicketTransaction,
+  values: { eventId: string; email: string; at: Date },
+) {
+  const [recent] = await transaction
+    .select({ value: count() })
+    .from(emailDelivery)
+    .where(
+      and(
+        eq(emailDelivery.template, TICKET_ISSUED_TEMPLATE),
+        eq(emailDelivery.eventId, values.eventId),
+        eq(emailDelivery.recipient, values.email),
+        gte(
+          emailDelivery.createdAt,
+          new Date(values.at.getTime() - TICKET_EMAIL_WINDOW_MILLISECONDS),
+        ),
+      ),
+    );
+  return (recent?.value ?? 0) >= MAX_TICKET_EMAILS_PER_WINDOW;
+}
 
 type SigningKey = Parameters<typeof signTicket>[1];
 
@@ -158,6 +194,7 @@ export type TicketManagementResult = {
     | "invalid"
     | "closed"
     | "inactive"
+    | "throttled"
     | "unavailable";
   deliveryStatus?: "sent" | "failed";
   managementToken?: string;
@@ -983,8 +1020,18 @@ export function createTicketApplicationService({
           .limit(1);
         if (!activeTicket) return { outcome: "inactive" } as const;
 
-        const newManagementToken = createManagementToken();
         const rotatedAt = now();
+        if (
+          await isTicketEmailLimited(transaction, {
+            eventId: managed.eventId,
+            email: managed.email,
+            at: rotatedAt,
+          })
+        ) {
+          return { outcome: "throttled" } as const;
+        }
+
+        const newManagementToken = createManagementToken();
         const [rotated] = await transaction
           .update(registration)
           .set({
@@ -1087,6 +1134,17 @@ export function createTicketApplicationService({
         .for("update")
         .limit(1);
       if (!activeTicket) return { outcome: "inactive" } as const;
+      // A replacement also emails a Ticket, so it shares the resend ceiling;
+      // otherwise the limit on one button just moves the loop to the other.
+      if (
+        await isTicketEmailLimited(transaction, {
+          eventId: managed.eventId,
+          email: managed.email,
+          at: replacedAt,
+        })
+      ) {
+        return { outcome: "throttled" } as const;
+      }
 
       let ticketCode: string | null = null;
       for (let attempt = 0; attempt < 10; attempt += 1) {

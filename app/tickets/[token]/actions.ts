@@ -14,6 +14,9 @@ import type { ManagementActionState } from "./form-state";
 
 export type { ManagementActionState };
 
+const TICKET_EMAIL_LIMIT_MESSAGE =
+  "Ticket emails are limited to three an hour. Check your inbox and spam folder, then try again later.";
+
 function stringValue(formData: FormData, name: string) {
   const value = formData.get(name);
   return typeof value === "string" ? value : "";
@@ -91,6 +94,9 @@ export async function resendTicketAction(
     redirect(`/tickets/${encodeURIComponent(result.managementToken)}${suffix}`);
   }
 
+  if (result.outcome === "throttled") {
+    return { status: "error", message: TICKET_EMAIL_LIMIT_MESSAGE };
+  }
   return { status: "error", message: "This Ticket can no longer be resent." };
 }
 
@@ -116,7 +122,9 @@ export async function replaceTicketAction(
       message:
         result.outcome === "closed"
           ? "Tickets cannot be replaced after check-in opens."
-          : "This Ticket can no longer be replaced.",
+          : result.outcome === "throttled"
+            ? TICKET_EMAIL_LIMIT_MESSAGE
+            : "This Ticket can no longer be replaced.",
     };
   } catch {
     return { status: "error", message: "The Ticket could not be replaced. Try again." };

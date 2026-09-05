@@ -48,8 +48,8 @@ type TicketTransaction = Parameters<
  * holder could keep the Attendee's inbox — and the sending quota — busy for as
  * long as they liked. Three an hour covers "it did not arrive, try again".
  */
-export const TICKET_EMAIL_WINDOW_MILLISECONDS = 60 * 60_000;
-export const MAX_TICKET_EMAILS_PER_WINDOW = 3;
+const TICKET_EMAIL_WINDOW_MILLISECONDS = 60 * 60_000;
+const MAX_TICKET_EMAILS_PER_WINDOW = 3;
 
 async function isTicketEmailLimited(
   transaction: TicketTransaction,

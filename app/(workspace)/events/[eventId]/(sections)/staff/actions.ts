@@ -1,6 +1,5 @@
 "use server";
 
-import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -23,14 +22,17 @@ function staffPath(eventId: string, search?: URLSearchParams) {
   return `/events/${eventId}/staff${suffix}`;
 }
 
-async function getApplicationOrigin() {
-  const configured = process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL;
-  if (configured) return new URL(configured).origin;
-  const requestHeaders = await headers();
-  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
-  const protocol = requestHeaders.get("x-forwarded-proto") ?? "https";
-  if (!host) throw new Error("The application origin is not configured.");
-  return `${protocol}://${host}`;
+// Outbound links come only from configuration, never from the request's Host
+// or X-Forwarded-* headers. A misconfigured deployment fails closed here (the
+// invitation is saved and the notice says delivery failed) instead of
+// emailing a link whose host a client chose. The other email helpers under
+// lib/email already behave this way.
+function getApplicationOrigin() {
+  const configured = process.env.NEXT_PUBLIC_APP_URL ?? process.env.BETTER_AUTH_URL;
+  if (!configured) {
+    throw new Error("NEXT_PUBLIC_APP_URL is required to create Staff Invitation links.");
+  }
+  return new URL(configured).origin;
 }
 
 export async function inviteStaffAction(eventId: string, formData: FormData) {
@@ -64,7 +66,7 @@ export async function inviteStaffAction(eventId: string, formData: FormData) {
 
   let notice = "Staff Invitation sent.";
   try {
-    const origin = await getApplicationOrigin();
+    const origin = getApplicationOrigin();
     await sendStaffInvitationEmail({
       email: invitation.email,
       eventId: validEventId,

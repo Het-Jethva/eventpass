@@ -1,0 +1,73 @@
+# Every push and pull request runs the same four checks a contributor runs
+# locally: typecheck, lint, tests, build. The integration suites need a
+# Postgres reached through Neon's wsproxy, mirroring compose.yaml, so the
+# production driver is the one under test rather than a substitute.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: eventpass
+        ports:
+          - 54432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d eventpass"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
+      neon-proxy:
+        image: ghcr.io/neondatabase/wsproxy:latest
+        env:
+          APPEND_PORT: "postgres:5432"
+          ALLOW_ADDR_REGEX: ".*"
+          LOG_TRAFFIC: "false"
+        ports:
+          - 54444:80
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:54432/eventpass
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:54432/eventpass
+      NEON_WS_PROXY: localhost:54444
+      # Placeholders so modules that read configuration at import time load.
+      # Nothing in CI sends email or signs a real Ticket.
+      BETTER_AUTH_SECRET: ci-only-secret-that-is-at-least-32-characters-long
+      BETTER_AUTH_URL: http://localhost:3000
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm run lint
+
+      - name: Apply migrations to the test database
+        run: npm run db:migrate
+
+      - run: npm test
+
+      - run: npm run build

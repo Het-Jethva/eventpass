@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";
@@ -11,6 +11,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { getConfiguredApplicationUrl } from "@/lib/application-url";
+import { digestTokenBase64Url } from "@/lib/bearer-token-digest";
 import {
   sendStaffMagicLink,
   StaffMagicLinkDeliveryError,
@@ -18,10 +19,6 @@ import {
 
 const MAGIC_LINK_SECONDS = 60 * 15;
 const MAX_MAGIC_LINK_DELIVERIES = 3;
-
-function hashMagicLinkToken(token: string) {
-  return createHash("sha256").update(token).digest("base64url");
-}
 
 export const auth = betterAuth({
   appName: "EventPass",
@@ -102,7 +99,7 @@ export const auth = betterAuth({
               throw error;
             }
 
-            const identifier = hashMagicLinkToken(currentToken);
+            const identifier = digestTokenBase64Url(currentToken);
             const verification =
               await context.context.internalAdapter.findVerificationValue(identifier);
 
@@ -114,7 +111,7 @@ export const auth = betterAuth({
             currentToken = randomBytes(32).toString("base64url");
             await context.context.internalAdapter.createVerificationValue({
               expiresAt: new Date(Date.now() + MAGIC_LINK_SECONDS * 1_000),
-              identifier: hashMagicLinkToken(currentToken),
+              identifier: digestTokenBase64Url(currentToken),
               value: verification.value,
             });
             const nextUrl = new URL(currentUrl);

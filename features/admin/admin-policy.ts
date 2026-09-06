@@ -23,24 +23,10 @@ export class SupportAccessRequiredError extends PlatformAdminError {
   }
 }
 
-export class SupportAccessExpiredError extends PlatformAdminError {
-  constructor(message = "Support Access has expired.") {
-    super(message);
-    this.name = "SupportAccessExpiredError";
-  }
-}
-
 export class EventSuspendedError extends PlatformAdminError {
   constructor(message = "This Event is currently unavailable.") {
     super(message);
     this.name = "EventSuspendedError";
-  }
-}
-
-export class UserSuspendedError extends PlatformAdminError {
-  constructor(message = "This staff account is suspended.") {
-    super(message);
-    this.name = "UserSuspendedError";
   }
 }
 

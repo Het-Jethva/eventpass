@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import {
   and,
   asc,
@@ -12,6 +12,8 @@ import {
   sql,
 } from "drizzle-orm";
 import { z } from "zod";
+
+import { digestTokenBase64Url } from "@/lib/bearer-token-digest";
 
 import { normalizeStaffEmail } from "@/features/staff-identity/normalize-staff-email";
 import { evaluateStaffInvitationAcceptance } from "@/features/staffing/staff-invitation-policy";
@@ -31,7 +33,8 @@ import {
 } from "@/lib/db/schema";
 import { lockEventForMutation } from "@/features/events/server/event-suspension";
 
-const DAY_IN_MS = 24 * 60 * 60 * 1_000;
+const STAFF_INVITATION_TTL_MS = 24 * 60 * 60 * 1_000;
+const OWNERSHIP_TRANSFER_TTL_MS = 24 * 60 * 60 * 1_000;
 
 export const inviteStaffInputSchema = z.object({
   email: z.email("Enter a valid email address.").transform(normalizeStaffEmail),
@@ -46,19 +49,8 @@ export class StaffInvitationUnavailableError extends Error {}
 export class StaffInvitationEmailMismatchError extends Error {}
 export class OwnershipTransferUnavailableError extends Error {}
 
-export function digestStaffInvitationToken(token: string) {
-  return createHash("sha256").update(token).digest("base64url");
-}
-
 function createStaffInvitationToken() {
   return randomBytes(32).toString("base64url");
-}
-
-async function lockEvent(
-  transaction: Parameters<Parameters<typeof db.transaction>[0]>[0],
-  eventId: string,
-) {
-  await lockEventForMutation(transaction, eventId);
 }
 
 async function findActorRole(
@@ -98,11 +90,11 @@ export async function createStaffInvitation(
 ) {
   const input = inviteStaffInputSchema.parse(rawInput);
   const token = createStaffInvitationToken();
-  const tokenDigest = digestStaffInvitationToken(token);
-  const expiresAt = new Date(now.getTime() + DAY_IN_MS);
+  const tokenDigest = digestTokenBase64Url(token);
+  const expiresAt = new Date(now.getTime() + STAFF_INVITATION_TTL_MS);
 
   const result = await db.transaction(async (transaction) => {
-    await lockEvent(transaction, eventId);
+    await lockEventForMutation(transaction, eventId);
     const actorRole = await findActorRole(transaction, eventId, actorUserId);
     assertCanManageRole(actorRole, input.role);
 
@@ -149,6 +141,9 @@ export async function createStaffInvitation(
           eq(staffInvitation.normalizedEmail, input.email),
           isNull(staffInvitation.consumedAt),
           isNull(staffInvitation.revokedAt),
+          // The expiry janitor above usually revokes lapsed rows first, but
+          // correctness here must not depend on that ordering.
+          gt(staffInvitation.expiresAt, now),
         ),
       )
       .limit(1);
@@ -190,7 +185,7 @@ export async function acceptStaffInvitation(
   actorUserId: string,
   now = new Date(),
 ) {
-  const tokenDigest = digestStaffInvitationToken(token);
+  const tokenDigest = digestTokenBase64Url(token);
 
   return db.transaction(async (transaction) => {
     const [invitation] = await transaction
@@ -205,7 +200,7 @@ export async function acceptStaffInvitation(
         "This Staff Invitation is expired, revoked, or already used.",
       );
     }
-    await lockEvent(transaction, invitation.eventId);
+    await lockEventForMutation(transaction, invitation.eventId);
 
     const [actor] = await transaction
       .select({ email: user.email, suspended: user.suspended })
@@ -291,7 +286,7 @@ export async function revokeStaffInvitation(
     if (!invitation || invitation.consumedAt || invitation.revokedAt) {
       throw new StaffInvitationUnavailableError("That Staff Invitation is no longer pending.");
     }
-    await lockEvent(transaction, invitation.eventId);
+    await lockEventForMutation(transaction, invitation.eventId);
 
     const actorRole = await findActorRole(
       transaction,
@@ -329,7 +324,7 @@ export async function removeEventStaff(
     if (!assignment || assignment.role === "owner") {
       throw new StaffingAuthorizationError("The Event Owner cannot be removed.");
     }
-    await lockEvent(transaction, assignment.eventId);
+    await lockEventForMutation(transaction, assignment.eventId);
     const actorRole = await findActorRole(transaction, assignment.eventId, actorUserId);
     assertCanManageRole(actorRole, assignment.role as InviteableStaffRole);
     await transaction.delete(eventStaff).where(eq(eventStaff.id, assignment.id));
@@ -352,7 +347,7 @@ export async function proposeOwnershipTransfer(
   now = new Date(),
 ) {
   return db.transaction(async (transaction) => {
-    await lockEvent(transaction, eventId);
+    await lockEventForMutation(transaction, eventId);
     const actorRole = await findActorRole(transaction, eventId, actorUserId);
     if (actorRole !== "owner") {
       throw new StaffingAuthorizationError(
@@ -409,7 +404,7 @@ export async function proposeOwnershipTransfer(
         eventId,
         proposedByUserId: actorUserId,
         proposedOwnerUserId,
-        expiresAt: new Date(now.getTime() + DAY_IN_MS),
+        expiresAt: new Date(now.getTime() + OWNERSHIP_TRANSFER_TTL_MS),
       })
       .returning({ id: ownershipTransfer.id, expiresAt: ownershipTransfer.expiresAt });
     await transaction.insert(auditEntry).values({
@@ -448,7 +443,7 @@ export async function acceptOwnershipTransfer(
       );
     }
 
-    await lockEvent(transaction, transfer.eventId);
+    await lockEventForMutation(transaction, transfer.eventId);
     const assignments = await transaction
       .select({ id: eventStaff.id, userId: eventStaff.userId, role: eventStaff.role })
       .from(eventStaff)
@@ -494,6 +489,55 @@ export async function acceptOwnershipTransfer(
         previousOwnerUserId: transfer.proposedByUserId,
         newOwnerUserId: actorUserId,
       },
+    });
+    return { eventId: transfer.eventId };
+  });
+}
+
+export async function withdrawOwnershipTransfer(
+  transferId: string,
+  actorUserId: string,
+  now = new Date(),
+) {
+  return db.transaction(async (transaction) => {
+    const [transfer] = await transaction
+      .select()
+      .from(ownershipTransfer)
+      .where(eq(ownershipTransfer.id, transferId))
+      .for("update")
+      .limit(1);
+    if (
+      !transfer ||
+      transfer.acceptedAt ||
+      transfer.revokedAt ||
+      transfer.expiresAt <= now
+    ) {
+      throw new OwnershipTransferUnavailableError(
+        "This Ownership Transfer is already closed.",
+      );
+    }
+    await lockEventForMutation(transaction, transfer.eventId);
+    const actorRole = await findActorRole(
+      transaction,
+      transfer.eventId,
+      actorUserId,
+    );
+    if (actorRole !== "owner" || transfer.proposedByUserId !== actorUserId) {
+      throw new StaffingAuthorizationError(
+        "Only the Event Owner who proposed this transfer can withdraw it.",
+      );
+    }
+    await transaction
+      .update(ownershipTransfer)
+      .set({ revokedAt: now })
+      .where(eq(ownershipTransfer.id, transfer.id));
+    await transaction.insert(auditEntry).values({
+      eventId: transfer.eventId,
+      actorUserId,
+      action: "ownership_transfer.withdrawn",
+      targetType: "ownership_transfer",
+      targetId: transfer.id,
+      metadata: { proposedOwnerUserId: transfer.proposedOwnerUserId },
     });
     return { eventId: transfer.eventId };
   });
@@ -556,6 +600,7 @@ export async function getEventStaffing(
     db
       .select({
         id: ownershipTransfer.id,
+        proposedByUserId: ownershipTransfer.proposedByUserId,
         proposedOwnerUserId: ownershipTransfer.proposedOwnerUserId,
         expiresAt: ownershipTransfer.expiresAt,
       })
@@ -602,7 +647,7 @@ export async function inspectStaffInvitation(token: string, now = new Date()) {
     })
     .from(staffInvitation)
     .innerJoin(event, eq(event.id, staffInvitation.eventId))
-    .where(eq(staffInvitation.tokenDigest, digestStaffInvitationToken(token)))
+    .where(eq(staffInvitation.tokenDigest, digestTokenBase64Url(token)))
     .limit(1);
 
   if (

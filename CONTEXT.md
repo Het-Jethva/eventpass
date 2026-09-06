@@ -169,7 +169,7 @@ The single Organizer ultimately accountable for an Event. A verified staff user 
 _Avoid_: Primary admin, creator
 
 **Ownership Transfer**:
-A 24-hour proposal from the current Event Owner to an existing Organizer. Ownership changes atomically only when the proposed Owner accepts.
+A 24-hour proposal from the current Event Owner to an existing Organizer. Ownership changes atomically only when the proposed Owner accepts. The proposing Owner may withdraw the proposal before it is accepted.
 _Avoid_: Role change, owner assignment
 
 **Staff Invitation**:
@@ -185,9 +185,9 @@ A trusted operator permitted to manage platform metadata, accounts, Event status
 _Avoid_: Admin, super organizer
 
 **Support Access**:
-A reasoned, time-limited, audited elevation allowing a Platform Administrator to inspect one Event's attendee data.
+A reasoned, time-limited, revocable, audited elevation allowing a Platform Administrator to inspect one Event's attendee data. It ends at expiry or when revoked, whichever comes first.
 _Avoid_: Impersonation, admin override
 
 **Suspension**:
-A reversible Platform Administrator action that blocks a staff account or Event from further online activity without editing or deleting its domain data.
+A reversible Platform Administrator action that blocks a staff account or Event from further online activity without editing or deleting its domain data. Suspending an account also ends its sessions, so enforcement does not wait for them to expire.
 _Avoid_: Cancellation, ban, deletion

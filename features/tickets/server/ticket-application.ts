@@ -25,7 +25,6 @@ import {
   type AdmissionOfferMessage,
 } from "../../registration/server/waitlist-reconciliation";
 import {
-  assertEventNotSuspended,
   EventSuspendedError,
   isEventSuspended,
   lockEvent,
@@ -461,9 +460,8 @@ export function createTicketApplicationService({
         .limit(1);
       if (!located) return { outcome: "invalid" } as const;
 
-      const lockedEvent = await lockEvent(transaction, located.eventId);
+      const lockedEvent = await lockEventForMutation(transaction, located.eventId);
       if (!lockedEvent) return { outcome: "invalid" } as const;
-      assertEventNotSuspended(lockedEvent);
 
       promotedMessages = await reconcileWaitlistInTransaction({
         transaction,

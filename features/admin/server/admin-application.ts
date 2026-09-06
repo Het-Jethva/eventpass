@@ -15,6 +15,7 @@ import {
   auditEntry,
   event,
   registration,
+  session,
   supportAccess,
   ticket,
   user,
@@ -142,6 +143,12 @@ export async function suspendStaffAccount({
       .set({ suspended: true, updatedAt: new Date() })
       .where(eq(user.id, targetUserId));
 
+    // Flagging the account is not enough on its own: Better Auth database
+    // sessions stay valid until they expire, so a suspended staff member
+    // keeps acting on every path that reads the session directly. Drop
+    // their sessions here so suspension takes effect immediately.
+    await tx.delete(session).where(eq(session.userId, targetUserId));
+
     await tx.insert(auditEntry).values({
       actorUserId,
       action: "admin.account_suspended",
@@ -257,11 +264,14 @@ export async function reactivateEvent({
   });
 }
 
+export const DEFAULT_SUPPORT_ACCESS_DURATION_MINUTES = 60;
+export const MAX_SUPPORT_ACCESS_DURATION_MINUTES = 480;
+
 export async function grantSupportAccess({
   actorUserId,
   eventId,
   reason,
-  durationMinutes = 60,
+  durationMinutes = DEFAULT_SUPPORT_ACCESS_DURATION_MINUTES,
   now = new Date(),
 }: {
   actorUserId: string;
@@ -271,10 +281,28 @@ export async function grantSupportAccess({
   now?: Date;
 }) {
   const validatedReason = validateAdminReason(reason);
+  if (
+    !Number.isInteger(durationMinutes) ||
+    durationMinutes < 1 ||
+    durationMinutes > MAX_SUPPORT_ACCESS_DURATION_MINUTES
+  ) {
+    throw new PlatformAdminError(
+      `Support Access lasts between 1 and ${MAX_SUPPORT_ACCESS_DURATION_MINUTES} minutes.`,
+    );
+  }
   const expiresAt = new Date(now.getTime() + durationMinutes * 60 * 1_000);
 
   return db.transaction(async (tx) => {
     await assertPlatformAdmin(actorUserId, tx);
+
+    const [targetEvent] = await tx
+      .select({ id: event.id })
+      .from(event)
+      .where(eq(event.id, eventId))
+      .limit(1);
+    if (!targetEvent) {
+      throw new PlatformAdminError("That Event does not exist.");
+    }
 
     const [accessRecord] = await tx
       .insert(supportAccess)
@@ -301,32 +329,57 @@ export async function grantSupportAccess({
   });
 }
 
-export async function getActiveSupportAccess({
+export async function revokeSupportAccess({
   actorUserId,
-  eventId,
+  supportAccessId,
+  reason,
   now = new Date(),
 }: {
   actorUserId: string;
-  eventId: string;
+  supportAccessId: string;
+  reason: string;
   now?: Date;
 }) {
-  await assertPlatformAdmin(actorUserId);
+  const validatedReason = validateAdminReason(reason);
 
-  const [activeAccess] = await db
-    .select()
-    .from(supportAccess)
-    .where(
-      and(
-        eq(supportAccess.eventId, eventId),
-        eq(supportAccess.adminUserId, actorUserId),
-        isNull(supportAccess.revokedAt),
-        gt(supportAccess.expiresAt, now),
-      ),
-    )
-    .orderBy(desc(supportAccess.expiresAt))
-    .limit(1);
+  return db.transaction(async (tx) => {
+    await assertPlatformAdmin(actorUserId, tx);
 
-  return activeAccess ?? null;
+    const [activeAccess] = await tx
+      .select()
+      .from(supportAccess)
+      .where(
+        and(
+          eq(supportAccess.id, supportAccessId),
+          isNull(supportAccess.revokedAt),
+          gt(supportAccess.expiresAt, now),
+        ),
+      )
+      .for("update")
+      .limit(1);
+    if (!activeAccess) {
+      throw new SupportAccessRequiredError(
+        "That Support Access grant is already closed.",
+      );
+    }
+
+    await tx
+      .update(supportAccess)
+      .set({ revokedAt: now })
+      .where(eq(supportAccess.id, activeAccess.id));
+
+    await tx.insert(auditEntry).values({
+      actorUserId,
+      eventId: activeAccess.eventId,
+      action: "admin.support_access_revoked",
+      targetType: "support_access",
+      targetId: activeAccess.id,
+      reason: validatedReason,
+      metadata: {},
+    });
+
+    return { eventId: activeAccess.eventId };
+  });
 }
 
 export async function getEventAttendeeDataForSupport({

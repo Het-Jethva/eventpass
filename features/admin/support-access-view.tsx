@@ -53,6 +53,11 @@ interface SupportAccessViewProps {
   activeSupportAccess: SupportAccessDetails | null;
   registrations: SupportAttendeeRecord[];
   onGrantSupportAccess: (eventId: string, reason: string) => Promise<void>;
+  onRevokeSupportAccess: (
+    eventId: string,
+    supportAccessId: string,
+    reason: string,
+  ) => Promise<void>;
   onBack: () => void;
 }
 
@@ -76,10 +81,12 @@ export function SupportAccessView({
   activeSupportAccess,
   registrations,
   onGrantSupportAccess,
+  onRevokeSupportAccess,
   onBack,
 }: SupportAccessViewProps) {
   const [search, setSearch] = useState("");
   const [showGrantModal, setShowGrantModal] = useState(false);
+  const [showRevokeModal, setShowRevokeModal] = useState(false);
 
   const term = search.trim().toLowerCase();
   const filteredRegistrations = term
@@ -142,10 +149,19 @@ export function SupportAccessView({
                 </p>
               </div>
             </div>
-            <Badge variant="info" className="shrink-0 self-start sm:self-auto">
-              <IconClock aria-hidden="true" />
-              Until {formatTime(activeSupportAccess.expiresAt)}
-            </Badge>
+            <div className="flex shrink-0 flex-wrap items-center gap-2 self-start sm:self-auto">
+              <Badge variant="info">
+                <IconClock aria-hidden="true" />
+                Until {formatTime(activeSupportAccess.expiresAt)}
+              </Badge>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowRevokeModal(true)}
+              >
+                Close access now
+              </Button>
+            </div>
           </div>
 
           <AdminTableToolbar
@@ -236,6 +252,21 @@ export function SupportAccessView({
           setShowGrantModal(false);
         }}
       />
+
+      {activeSupportAccess ? (
+        <AdminActionDialog
+          title="Close attendee access?"
+          description={`Nobody will be able to open ${eventName} attendee details again without recording a new reason. Reads already made stay in the audit history.`}
+          actionLabel="Close access"
+          isDestructive
+          isOpen={showRevokeModal}
+          onClose={() => setShowRevokeModal(false)}
+          onConfirm={async (reason) => {
+            await onRevokeSupportAccess(eventId, activeSupportAccess.id, reason);
+            setShowRevokeModal(false);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

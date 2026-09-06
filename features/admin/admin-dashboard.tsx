@@ -29,6 +29,7 @@ interface AdminDashboardProps {
   onSuspendEvent: (eventId: string, reason: string) => Promise<void>;
   onReactivateEvent: (eventId: string, reason: string) => Promise<void>;
   onGrantSupportAccess: (eventId: string, reason: string) => Promise<void>;
+  onRevokeSupportAccess: (supportAccessId: string, reason: string) => Promise<void>;
   onFetchSupportData: (eventId: string) => Promise<{
     event: { id: string; name: string; slug: string } | undefined;
     activeSupportAccess: SupportAccessDetails;
@@ -44,6 +45,7 @@ export function AdminDashboard({
   onSuspendEvent,
   onReactivateEvent,
   onGrantSupportAccess,
+  onRevokeSupportAccess,
   onFetchSupportData,
 }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<"accounts" | "events">("accounts");
@@ -83,6 +85,15 @@ export function AdminDashboard({
 
   async function handleGrantSupportAccessInView(eventId: string, reason: string) {
     await onGrantSupportAccess(eventId, reason);
+    await handleInspect(eventId);
+  }
+
+  async function handleRevokeSupportAccessInView(
+    eventId: string,
+    supportAccessId: string,
+    reason: string,
+  ) {
+    await onRevokeSupportAccess(supportAccessId, reason);
     await handleInspect(eventId);
   }
 
@@ -139,6 +150,7 @@ export function AdminDashboard({
             activeSupportAccess={supportAccessData?.activeSupportAccess ?? null}
             registrations={supportAccessData?.registrations ?? []}
             onGrantSupportAccess={handleGrantSupportAccessInView}
+            onRevokeSupportAccess={handleRevokeSupportAccessInView}
             onBack={() => {
               setInspectingEventId(null);
               setSupportAccessData(null);

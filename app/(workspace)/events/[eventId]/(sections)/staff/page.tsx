@@ -40,7 +40,7 @@ import {
   removeEventStaffAction,
   revokeStaffInvitationAction,
 } from "./actions";
-import { acceptOwnershipTransferAction } from "./transfer-actions";
+import { acceptOwnershipTransferAction, withdrawOwnershipTransferAction } from "./transfer-actions";
 
 export const metadata: Metadata = { title: "Staff" };
 
@@ -273,6 +273,16 @@ export default async function EventStaffPage({
                 <form action={acceptOwnershipTransferAction.bind(null, eventId, transfer.id)}>
                   <FormSubmitButton pendingLabel="Accepting ownership">
                     Accept ownership
+                  </FormSubmitButton>
+                </form>
+              ) : null}
+              {staffing.actorRole === "owner" && transfer.proposedByUserId === session.user.id ? (
+                <form action={withdrawOwnershipTransferAction.bind(null, eventId, transfer.id)}>
+                  <FormSubmitButton
+                    variant="outline"
+                    pendingLabel="Withdrawing proposal"
+                  >
+                    Withdraw proposal
                   </FormSubmitButton>
                 </form>
               ) : null}

@@ -13,6 +13,7 @@ import {
   grantSupportAccessAction,
   reactivateEventAction,
   reactivateStaffAccountAction,
+  revokeSupportAccessAction,
   suspendEventAction,
   suspendStaffAccountAction,
 } from "./actions";
@@ -55,6 +56,7 @@ export default async function AdminPage() {
       onSuspendEvent={suspendEventAction}
       onReactivateEvent={reactivateEventAction}
       onGrantSupportAccess={grantSupportAccessAction}
+      onRevokeSupportAccess={revokeSupportAccessAction}
       onFetchSupportData={fetchSupportAttendeeDataAction}
     />
   );

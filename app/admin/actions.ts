@@ -7,6 +7,7 @@ import {
   grantSupportAccess,
   reactivateEvent,
   reactivateStaffAccount,
+  revokeSupportAccess,
   suspendEvent,
   suspendStaffAccount,
 } from "@/features/admin/server/admin-application";
@@ -86,6 +87,22 @@ export async function grantSupportAccessAction(
   await grantSupportAccess({
     actorUserId: session.user.id,
     eventId,
+    reason,
+  });
+
+  revalidatePath("/admin");
+}
+
+export async function revokeSupportAccessAction(
+  supportAccessId: string,
+  reason: string,
+) {
+  const session = await getActiveStaffSession();
+  if (!session) throw new Error("Unauthorized");
+
+  await revokeSupportAccess({
+    actorUserId: session.user.id,
+    supportAccessId,
     reason,
   });
 

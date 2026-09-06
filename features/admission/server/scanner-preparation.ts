@@ -11,9 +11,9 @@ import {
 } from "../../../lib/db/schema";
 import {
   OFFLINE_EVENT_SNAPSHOT_VERSION,
-  type OfflineTicketValidityState,
   type ScannerPreparationResult,
 } from "../offline-snapshot";
+import { resolveSnapshotValidityState } from "../check-in-validity";
 import { signScannerAuthorization } from "../scanner-authorization";
 import { isEventSuspended } from "../../events/server/event-suspension";
 
@@ -32,23 +32,6 @@ export type PrepareOfflineScannerInput = {
   scannerDeviceId: string;
   scannerDeviceLabel: string;
 };
-
-function resolveValidityState(values: {
-  eventStatus: string;
-  registrationStatus: string;
-  ticketStatus: string;
-}): OfflineTicketValidityState {
-  if (
-    values.eventStatus === "canceled" ||
-    values.registrationStatus === "canceled" ||
-    values.ticketStatus === "canceled"
-  ) {
-    return "canceled";
-  }
-  if (values.registrationStatus === "expired") return "expired";
-  if (values.ticketStatus === "replaced") return "replaced";
-  return "active";
-}
 
 export function createScannerPreparationService({
   database,
@@ -152,7 +135,7 @@ export function createScannerPreparationService({
             ticketId: row.ticketId,
             ticketCode: row.ticketCode,
             displayName: row.displayName,
-            validityState: resolveValidityState({
+            validityState: resolveSnapshotValidityState({
               eventStatus: authorizedEvent.status,
               registrationStatus: row.registrationStatus,
               ticketStatus: row.ticketStatus,

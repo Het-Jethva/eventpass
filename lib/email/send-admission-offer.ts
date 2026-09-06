@@ -7,24 +7,15 @@ import { db } from "@/lib/db";
 import { emailDelivery } from "@/lib/db/schema";
 import { EMAIL_BODY_STYLE } from "./shell";
 import { escapeHtml } from "./escape-html";
+import { isTransientDeliveryStatusCode } from "./delivery-failure";
+import { formatEventInstant } from "@/lib/format-event-range";
 
 /**
  * Deadlines are communicated in the Event Time Zone, never the server's or
  * UTC: an Attendee reads "claim by 6:00 PM" against the clock on their wall.
  */
 export function formatAdmissionOfferDeadline(expiresAt: Date, eventTimeZone: string) {
-  // Components spelled out because `dateStyle`/`timeStyle` cannot be combined
-  // with `timeZoneName`; the mix throws "Invalid option : option".
-  return new Intl.DateTimeFormat("en", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: eventTimeZone,
-    timeZoneName: "short",
-  }).format(expiresAt);
+  return formatEventInstant(expiresAt, eventTimeZone);
 }
 
 export async function sendAdmissionOffer({
@@ -90,9 +81,7 @@ export async function sendAdmissionOffer({
       .where(eq(emailDelivery.id, delivery.id));
     return;
   }
-  const transient =
-    response.error.statusCode === 429 ||
-    (response.error.statusCode !== null && response.error.statusCode >= 500);
+  const transient = isTransientDeliveryStatusCode(response.error.statusCode);
   await db
     .update(emailDelivery)
     .set({

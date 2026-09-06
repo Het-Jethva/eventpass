@@ -10,7 +10,6 @@ import {
   type RegistrationSubmissionValues,
 } from "../registration-submission";
 import {
-  admissionOffer,
   capacityHold,
   event,
   registration,
@@ -23,6 +22,10 @@ import {
   reconcileWaitlistInTransaction,
   type AdmissionOfferMessage,
 } from "./waitlist-reconciliation";
+import {
+  getActiveCapacityUsage,
+  hasCapacityForNewClaim,
+} from "@/features/events/server/capacity-ledger";
 import { isEventSuspended } from "@/features/events/server/event-suspension";
 import { deliverAdmissionOfferMessages } from "@/lib/email/deliver-admission-offers";
 import { isRegistrationAttemptLimited } from "@/lib/registration-attempt-throttle";
@@ -315,38 +318,15 @@ export function createRegistrationApplicationService({
           };
         }
 
-        const [capacityUsage] = await transaction
-          .select({
-            confirmed: sql<number>`(
-            select count(*)::int from ${registration} as confirmed_registration
-            where confirmed_registration.event_id = ${publishedEvent.id}
-              and confirmed_registration.status = 'confirmed'
-          )`,
-            holds: sql<number>`(
-            select count(*)::int from ${capacityHold} as active_hold
-            inner join ${registration} as held_registration
-              on held_registration.id = active_hold.registration_id
-            where held_registration.event_id = ${publishedEvent.id}
-              and active_hold.claimed_at is null
-              and active_hold.expires_at > ${submittedAt}
-          )`,
-            offers: sql<number>`(
-            select count(*)::int from ${admissionOffer} as active_offer
-            inner join ${registration} as offered_registration
-              on offered_registration.id = active_offer.registration_id
-            where offered_registration.event_id = ${publishedEvent.id}
-              and active_offer.status = 'active'
-              and active_offer.expires_at > ${submittedAt}
-          )`,
-          })
-          .from(event)
-          .where(eq(event.id, publishedEvent.id))
-          .limit(1);
-        const hasCapacity =
-          (capacityUsage?.confirmed ?? 0) +
-            (capacityUsage?.holds ?? 0) +
-            (capacityUsage?.offers ?? 0) <
-          publishedEvent.capacity;
+        const usage = await getActiveCapacityUsage(
+          transaction,
+          publishedEvent.id,
+          submittedAt,
+        );
+        const hasCapacity = hasCapacityForNewClaim(
+          usage,
+          publishedEvent.capacity,
+        );
 
         const [created] = await transaction
           .insert(registration)

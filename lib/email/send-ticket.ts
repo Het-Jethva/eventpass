@@ -10,6 +10,7 @@ import { db } from "@/lib/db";
 import { emailDelivery } from "@/lib/db/schema";
 import { EMAIL_BODY_STYLE, EMAIL_CODE_STYLE } from "./shell";
 import { escapeHtml } from "./escape-html";
+import { isTransientDeliveryStatusCode } from "./delivery-failure";
 import { formatEventRange } from "@/lib/format-event-range";
 
 export { formatEventRange };
@@ -103,9 +104,7 @@ export async function sendTicket({
     return;
   }
 
-  const transient =
-    response.error.statusCode === 429 ||
-    (response.error.statusCode !== null && response.error.statusCode >= 500);
+  const transient = isTransientDeliveryStatusCode(response.error.statusCode);
   await db
     .update(emailDelivery)
     .set({

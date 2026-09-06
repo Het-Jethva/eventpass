@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   canManageRole,
+  isEventOwner,
+  isOrganizerOrOwner,
+  roleSatisfiesMinimum,
   scannerExitPath,
   staffEventHomePath,
 } from "./staffing-policy";
@@ -17,6 +20,18 @@ describe("Event Staff authorization policy", () => {
     expect(canManageRole("owner", "check_in_volunteer")).toBe(true);
     expect(canManageRole("organizer", "check_in_volunteer")).toBe(true);
     expect(canManageRole("check_in_volunteer", "check_in_volunteer")).toBe(false);
+  });
+
+  it("ranks the Event Staff lattice once for every caller", () => {
+    expect(isOrganizerOrOwner("owner")).toBe(true);
+    expect(isOrganizerOrOwner("organizer")).toBe(true);
+    expect(isOrganizerOrOwner("check_in_volunteer")).toBe(false);
+    expect(isOrganizerOrOwner(undefined)).toBe(false);
+    expect(isOrganizerOrOwner("suspended_or_unknown")).toBe(false);
+    expect(isEventOwner("owner")).toBe(true);
+    expect(isEventOwner("organizer")).toBe(false);
+    expect(roleSatisfiesMinimum("organizer", "organizer")).toBe(true);
+    expect(roleSatisfiesMinimum("check_in_volunteer", "organizer")).toBe(false);
   });
 
   it("sends Check-in Volunteers to the scanner, not the Organizer workspace", () => {

@@ -1,3 +1,5 @@
+import { isEventOwner } from "../staffing/staffing-policy";
+
 export class PublishedEventChangeError extends Error {}
 
 export type PublishedEventConfiguration = {
@@ -36,7 +38,7 @@ export function assertPostCheckInChangeAllowed(
       current.registrationClosesAt.getTime() ||
     next.checkInOpensAt.getTime() !== current.checkInOpensAt.getTime();
   if (
-    current.role !== "owner" ||
+    !isEventOwner(current.role) ||
     immutableValuesChanged ||
     next.endsAt < current.endsAt ||
     next.checkInClosesAt < current.checkInClosesAt

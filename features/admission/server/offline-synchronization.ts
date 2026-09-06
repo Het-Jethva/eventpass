@@ -5,7 +5,6 @@ import type { KeyObject } from "node:crypto";
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import {
-  auditEntry,
   checkIn,
   checkInConflict,
   event,
@@ -18,7 +17,11 @@ import {
 import { verifyTicket } from "../../tickets/ticket-crypto";
 import { digestScanInput as digestInput } from "@/lib/scan-input-digest";
 import { verifyScannerAuthorization } from "../scanner-authorization";
-import { lockEventForMutation } from "../../events/server/event-suspension";
+import { arbitrateCheckInConflict } from "../check-in-conflict";
+import { decideTicketValidity } from "../check-in-validity";
+import { createCheckInConflictResolutionService } from "./check-in-conflict-resolution";
+
+export { CheckInConflictError } from "./check-in-conflict-resolution";
 
 type SynchronizationDatabase = typeof import("../../../lib/db").db;
 type SynchronizationTransaction = Parameters<
@@ -127,17 +130,6 @@ type PreparedAttempt = OfflineScanAttemptInput & {
   rawDeviceTime: Date;
   signedTicketIsValid: boolean;
 };
-
-/**
- * A Check-in Conflict resolution the caller may report verbatim.
- *
- * Conflict resolution is the one admission path that still signalled refusal
- * with a bare Error, so its callers had to widen to `instanceof Error` to say
- * anything useful — and a driver or database failure then reached an
- * Organizer's screen wearing the same clothes as "pick an attempt from this
- * conflict". Naming the domain refusals separates the two.
- */
-export class CheckInConflictError extends Error {}
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -616,51 +608,51 @@ export function createOfflineSynchronizationService({
           !attemptMatchesPresentedTicket(attempt, presentedTicket)
         ) {
           outcome = !presentedTicket ? "unknown" : "invalid";
-        } else if (
-          presentedTicket.eventStatus === "canceled" ||
-          presentedTicket.registrationStatus === "canceled" ||
-          presentedTicket.status === "canceled"
-        ) {
-          outcome = "canceled";
-        } else if (presentedTicket.status === "replaced") {
-          outcome = "replaced";
-        } else if (presentedTicket.registrationStatus === "expired") {
-          outcome = "expired";
-        } else if (
-          presentedTicket.registrationStatus !== "confirmed" ||
-          presentedTicket.eventStatus !== "published"
-        ) {
-          outcome = "invalid";
-        } else if (attempt.attemptedAt >= presentedTicket.checkInClosesAt) {
-          outcome = "expired";
-        } else if (attempt.attemptedAt < presentedTicket.checkInOpensAt) {
-          outcome = "outside_window";
-        } else if (attempt.capturedOutcome !== "provisional") {
-          outcome = attempt.capturedOutcome;
         } else {
-          const ticketKey = normalizeId(presentedTicket.id);
-          const competingAttempts = (
-            competingAttemptsByTicket.get(ticketKey) ?? []
-          ).filter(
-            (candidate) =>
-              candidate.scannerDeviceId !== attempt.scannerDeviceId,
-          );
-
-          if (competingAttempts.length > 0) {
-            const hasLowConfidence =
-              attempt.timestampConfidence === "low" ||
-              competingAttempts.some(
-                (candidate) => candidate.timestampConfidence === "low",
-              );
-            const currentConflict = latestConflictsByTicket.get(ticketKey);
-            const activeCheckIn = activeCheckInsByTicket.get(ticketKey);
-            const settledCheckIn =
-              Boolean(activeCheckIn) &&
-              (currentConflict?.status === "resolved_auto" ||
-                currentConflict?.status === "resolved_manual");
-            if (hasLowConfidence && settledCheckIn) {
-              outcome = "duplicate";
-            } else if (hasLowConfidence) {
+          const decision = decideTicketValidity({
+            statuses: {
+              eventStatus: presentedTicket.eventStatus,
+              registrationStatus: presentedTicket.registrationStatus,
+              ticketStatus: presentedTicket.status,
+            },
+            credentialValid: true,
+            attemptedAt: attempt.attemptedAt,
+            checkInOpensAt: presentedTicket.checkInOpensAt,
+            checkInClosesAt: presentedTicket.checkInClosesAt,
+            canOverrideWindow: false,
+          });
+          if (decision.verdict === "refuse") {
+            outcome = decision.reason;
+          } else if (attempt.capturedOutcome !== "provisional") {
+            outcome = attempt.capturedOutcome;
+          } else {
+            const ticketKey = normalizeId(presentedTicket.id);
+            const competingAttempts = (
+              competingAttemptsByTicket.get(ticketKey) ?? []
+            ).filter(
+              (candidate) =>
+                candidate.scannerDeviceId !== attempt.scannerDeviceId,
+            );
+            const directive = arbitrateCheckInConflict({
+              attempt: {
+                id: attempt.id,
+                actorUserId: payload.volunteerUserId,
+                attemptedAt: attempt.attemptedAt,
+                timestampConfidence: attempt.timestampConfidence,
+              },
+              competing: competingAttempts.map((candidate) => ({
+                id: candidate.id,
+                actorUserId: candidate.actorUserId,
+                attemptedAt: candidate.attemptedAt,
+                timestampConfidence: candidate.timestampConfidence,
+              })),
+              activeCheckIn: activeCheckInsByTicket.get(ticketKey),
+              currentConflictStatus:
+                latestConflictsByTicket.get(ticketKey)?.status,
+            });
+            let linkedCheckInId: string | null = null;
+            if (directive.invalidateActiveCheckIn) {
+              const activeCheckIn = activeCheckInsByTicket.get(ticketKey);
               if (activeCheckIn) {
                 await transaction
                   .update(checkIn)
@@ -668,115 +660,15 @@ export function createOfflineSynchronizationService({
                   .where(eq(checkIn.id, activeCheckIn.id));
                 activeCheckInsByTicket.delete(ticketKey);
               }
-              stored = await rememberStoredAttempt({
-                attempt,
-                ticketId: presentedTicket.id,
-                checkInId: null,
-                outcome: "conflict",
-              });
-              if (!currentConflict || currentConflict.status !== "unresolved") {
-                const [createdConflict] = await transaction
-                  .insert(checkInConflict)
-                  .values({
-                    eventId: attempt.eventId,
-                    ticketId: presentedTicket.id,
-                  })
-                  .returning({ createdAt: checkInConflict.createdAt });
-                latestConflictsByTicket.set(ticketKey, {
-                  status: "unresolved",
-                  authoritativeScanAttemptId: null,
-                  createdAt: createdConflict?.createdAt ?? reconciliationNow,
-                });
-              }
-            } else {
-              const candidates = [
-                ...competingAttempts,
-                {
-                  id: attempt.id,
-                  actorUserId: payload.volunteerUserId,
-                  attemptedAt: attempt.attemptedAt,
-                  timestampConfidence: attempt.timestampConfidence,
-                  scannerDeviceId: attempt.scannerDeviceId,
-                  checkInId: null,
-                },
-              ].sort(
-                (left, right) =>
-                  left.attemptedAt.getTime() - right.attemptedAt.getTime() ||
-                  left.id.localeCompare(right.id),
-              );
-              const winner = candidates[0]!;
-              let winningCheckInId: string | null = null;
-              const activeCheckIn = activeCheckInsByTicket.get(ticketKey);
-              if (
-                activeCheckIn &&
-                activeCheckIn.actorUserId === winner.actorUserId &&
-                activeCheckIn.checkedInAt.getTime() ===
-                  winner.attemptedAt.getTime()
-              ) {
-                winningCheckInId = activeCheckIn.id;
-              } else {
-                if (activeCheckIn) {
-                  await transaction
-                    .update(checkIn)
-                    .set({ invalidatedAt: reconciliationNow })
-                    .where(eq(checkIn.id, activeCheckIn.id));
-                }
-                const [createdCheckIn] = await transaction
-                  .insert(checkIn)
-                  .values({
-                    eventId: attempt.eventId,
-                    ticketId: presentedTicket.id,
-                    actorUserId: winner.actorUserId,
-                    checkedInAt: winner.attemptedAt,
-                  })
-                  .returning({ id: checkIn.id });
-                if (!createdCheckIn) {
-                  throw new Error("Failed to create the reconciled Check-in.");
-                }
-                winningCheckInId = createdCheckIn.id;
-                activeCheckInsByTicket.set(ticketKey, {
-                  id: winningCheckInId,
-                  actorUserId: winner.actorUserId,
-                  checkedInAt: winner.attemptedAt,
-                });
-              }
-
-              const newAttemptWon =
-                normalizeId(winner.id) === normalizeId(attempt.id);
-              stored = await rememberStoredAttempt({
-                attempt,
-                ticketId: presentedTicket.id,
-                checkInId: newAttemptWon ? winningCheckInId : null,
-                outcome: newAttemptWon ? "accepted" : "duplicate",
-              });
-              const [createdConflict] = await transaction
-                .insert(checkInConflict)
-                .values({
-                  eventId: attempt.eventId,
-                  ticketId: presentedTicket.id,
-                  status: "resolved_auto",
-                  authoritativeScanAttemptId: winner.id,
-                  resolvedAt: reconciliationNow,
-                })
-                .returning({ createdAt: checkInConflict.createdAt });
-              latestConflictsByTicket.set(ticketKey, {
-                status: "resolved_auto",
-                authoritativeScanAttemptId: winner.id,
-                createdAt: createdConflict?.createdAt ?? reconciliationNow,
-              });
             }
-          } else {
-            const activeCheckIn = activeCheckInsByTicket.get(ticketKey);
-            if (activeCheckIn) {
-              outcome = "duplicate";
-            } else {
+            if (directive.createCheckInFor) {
               const [createdCheckIn] = await transaction
                 .insert(checkIn)
                 .values({
                   eventId: attempt.eventId,
                   ticketId: presentedTicket.id,
-                  actorUserId: payload.volunteerUserId,
-                  checkedInAt: attempt.attemptedAt,
+                  actorUserId: directive.createCheckInFor.actorUserId,
+                  checkedInAt: directive.createCheckInFor.checkedInAt,
                 })
                 .returning({ id: checkIn.id });
               if (!createdCheckIn) {
@@ -784,15 +676,62 @@ export function createOfflineSynchronizationService({
               }
               activeCheckInsByTicket.set(ticketKey, {
                 id: createdCheckIn.id,
-                actorUserId: payload.volunteerUserId,
-                checkedInAt: attempt.attemptedAt,
+                actorUserId: directive.createCheckInFor.actorUserId,
+                checkedInAt: directive.createCheckInFor.checkedInAt,
               });
+              linkedCheckInId = createdCheckIn.id;
+            } else if (directive.linkAttemptToActiveCheckIn) {
+              linkedCheckInId =
+                activeCheckInsByTicket.get(ticketKey)?.id ?? null;
+            }
+            if (directive.ensureConflict?.status === "unresolved") {
+              const [createdConflict] = await transaction
+                .insert(checkInConflict)
+                .values({
+                  eventId: attempt.eventId,
+                  ticketId: presentedTicket.id,
+                })
+                .returning({ createdAt: checkInConflict.createdAt });
+              latestConflictsByTicket.set(ticketKey, {
+                status: "unresolved",
+                authoritativeScanAttemptId: null,
+                createdAt: createdConflict?.createdAt ?? reconciliationNow,
+              });
+            } else if (directive.ensureConflict?.status === "resolved_auto") {
+              const [createdConflict] = await transaction
+                .insert(checkInConflict)
+                .values({
+                  eventId: attempt.eventId,
+                  ticketId: presentedTicket.id,
+                  status: "resolved_auto",
+                  authoritativeScanAttemptId:
+                    directive.ensureConflict.authoritativeScanAttemptId,
+                  resolvedAt: reconciliationNow,
+                })
+                .returning({ createdAt: checkInConflict.createdAt });
+              latestConflictsByTicket.set(ticketKey, {
+                status: "resolved_auto",
+                authoritativeScanAttemptId:
+                  directive.ensureConflict.authoritativeScanAttemptId,
+                createdAt: createdConflict?.createdAt ?? reconciliationNow,
+              });
+            }
+            if (directive.attemptOutcome === "conflict") {
               stored = await rememberStoredAttempt({
                 attempt,
                 ticketId: presentedTicket.id,
-                checkInId: createdCheckIn.id,
+                checkInId: null,
+                outcome: "conflict",
+              });
+            } else if (directive.attemptOutcome === "accepted") {
+              stored = await rememberStoredAttempt({
+                attempt,
+                ticketId: presentedTicket.id,
+                checkInId: linkedCheckInId,
                 outcome: "accepted",
               });
+            } else {
+              outcome = "duplicate";
             }
           }
         }
@@ -820,193 +759,14 @@ export function createOfflineSynchronizationService({
     });
   }
 
-  async function listCheckInConflicts(values: {
-    eventId: string;
-    actorUserId: string;
-  }) {
-    const [assignment] = await database
-      .select({ role: eventStaff.role })
-      .from(eventStaff)
-      .where(
-        and(
-          eq(eventStaff.eventId, values.eventId),
-          eq(eventStaff.userId, values.actorUserId),
-          inArray(eventStaff.role, ["owner", "organizer"]),
-        ),
-      )
-      .limit(1);
-    if (!assignment) return [];
-
-    const conflicts = await database
-      .select({
-        id: checkInConflict.id,
-        eventId: checkInConflict.eventId,
-        ticketId: checkInConflict.ticketId,
-        status: checkInConflict.status,
-        attendeeName: registration.attendeeName,
-        createdAt: checkInConflict.createdAt,
-      })
-      .from(checkInConflict)
-      .innerJoin(ticket, eq(ticket.id, checkInConflict.ticketId))
-      .innerJoin(registration, eq(registration.id, ticket.registrationId))
-      .where(
-        and(
-          eq(checkInConflict.eventId, values.eventId),
-          eq(checkInConflict.status, "unresolved"),
-        ),
-      )
-      .orderBy(asc(checkInConflict.createdAt));
-
-    if (conflicts.length === 0) return [];
-
-    const attempts = await database
-      .select({
-        ticketId: scanAttempt.ticketId,
-        id: scanAttempt.id,
-        scannerDeviceId: scanAttempt.scannerDeviceId,
-        actorName: user.name,
-        attemptedAt: scanAttempt.attemptedAt,
-        rawDeviceTime: scanAttempt.rawDeviceTime,
-        timestampConfidence: scanAttempt.timestampConfidence,
-      })
-      .from(scanAttempt)
-      .innerJoin(user, eq(user.id, scanAttempt.actorUserId))
-      .where(
-        and(
-          inArray(
-            scanAttempt.ticketId,
-            conflicts.map((conflict) => conflict.ticketId),
-          ),
-          eq(scanAttempt.source, "offline"),
-          inArray(scanAttempt.outcome, ["accepted", "conflict"]),
-        ),
-      )
-      .orderBy(asc(scanAttempt.attemptedAt), asc(scanAttempt.id));
-
-    const attemptsByTicket = new Map<
-      string,
-      Array<Omit<(typeof attempts)[number], "ticketId">>
-    >();
-    for (const { ticketId, ...attempt } of attempts) {
-      if (!ticketId) continue;
-      const groupedAttempts = attemptsByTicket.get(ticketId);
-      if (groupedAttempts) {
-        groupedAttempts.push(attempt);
-      } else {
-        attemptsByTicket.set(ticketId, [attempt]);
-      }
-    }
-
-    return conflicts.map((conflict) => ({
-      ...conflict,
-      attempts: attemptsByTicket.get(conflict.ticketId) ?? [],
-    }));
-  }
-
-  async function resolveCheckInConflict(values: {
-    conflictId: string;
-    actorUserId: string;
-    authoritativeAttemptId: string;
-    reason: string;
-  }) {
-    const reason = values.reason.trim();
-    if (!reason) {
-      throw new CheckInConflictError("A resolution reason is required.");
-    }
-
-    return database.transaction(async (transaction) => {
-      const [conflict] = await transaction
-        .select()
-        .from(checkInConflict)
-        .where(eq(checkInConflict.id, values.conflictId))
-        .for("update")
-        .limit(1);
-      if (!conflict || conflict.status !== "unresolved") {
-        throw new CheckInConflictError(
-          "This Check-in Conflict is no longer unresolved.",
-        );
-      }
-      await lockEventForMutation(transaction, conflict.eventId);
-      const [assignment] = await transaction
-        .select({ role: eventStaff.role })
-        .from(eventStaff)
-        .where(
-          and(
-            eq(eventStaff.eventId, conflict.eventId),
-            eq(eventStaff.userId, values.actorUserId),
-            inArray(eventStaff.role, ["owner", "organizer"]),
-          ),
-        )
-        .limit(1);
-      if (!assignment) {
-        throw new CheckInConflictError(
-          "Only an Organizer can resolve Check-in Conflicts.",
-        );
-      }
-      const [selectedAttempt] = await transaction
-        .select({
-          id: scanAttempt.id,
-          actorUserId: scanAttempt.actorUserId,
-          attemptedAt: scanAttempt.attemptedAt,
-        })
-        .from(scanAttempt)
-        .where(
-          and(
-            eq(scanAttempt.id, values.authoritativeAttemptId),
-            eq(scanAttempt.eventId, conflict.eventId),
-            eq(scanAttempt.ticketId, conflict.ticketId),
-            eq(scanAttempt.source, "offline"),
-            inArray(scanAttempt.outcome, ["accepted", "conflict"]),
-          ),
-        )
-        .limit(1);
-      if (!selectedAttempt) {
-        throw new CheckInConflictError(
-          "Select a Scan Attempt from this Check-in Conflict.",
-        );
-      }
-
-      await transaction
-        .update(checkIn)
-        .set({ invalidatedAt: now() })
-        .where(
-          and(
-            eq(checkIn.ticketId, conflict.ticketId),
-            isNull(checkIn.invalidatedAt),
-          ),
-        );
-      await transaction.insert(checkIn).values({
-        eventId: conflict.eventId,
-        ticketId: conflict.ticketId,
-        actorUserId: selectedAttempt.actorUserId,
-        checkedInAt: selectedAttempt.attemptedAt,
-      });
-      await transaction
-        .update(checkInConflict)
-        .set({
-          status: "resolved_manual",
-          authoritativeScanAttemptId: selectedAttempt.id,
-          resolvedByUserId: values.actorUserId,
-          resolutionReason: reason,
-          resolvedAt: now(),
-        })
-        .where(eq(checkInConflict.id, conflict.id));
-      await transaction.insert(auditEntry).values({
-        eventId: conflict.eventId,
-        actorUserId: values.actorUserId,
-        action: "check_in_conflict.resolved",
-        targetType: "check_in_conflict",
-        targetId: conflict.id,
-        reason,
-        metadata: { authoritativeScanAttemptId: selectedAttempt.id },
-      });
-      return { eventId: conflict.eventId };
-    });
-  }
+  const conflictResolution = createCheckInConflictResolutionService({
+    database,
+    now,
+  });
 
   return {
     synchronizeOfflineAttempts,
-    listCheckInConflicts,
-    resolveCheckInConflict,
+    listCheckInConflicts: conflictResolution.listCheckInConflicts,
+    resolveCheckInConflict: conflictResolution.resolveCheckInConflict,
   };
 }

@@ -14,9 +14,7 @@ import {
 import { z } from "zod";
 
 import {
-  admissionOffer,
   auditEntry,
-  capacityHold,
   checkIn,
   event,
   eventStaff,
@@ -38,6 +36,7 @@ import {
   isEventSuspended,
   lockEvent,
 } from "../../events/server/event-suspension";
+import { getActiveCapacityUsage } from "../../events/server/capacity-ledger";
 import {
   reconcileWaitlistInTransaction,
   type AdmissionOfferMessage,
@@ -213,34 +212,8 @@ async function getCapacityUsage(
   eventId: string,
   at: Date,
 ) {
-  const [usage] = await database
-    .select({
-      confirmed: sql<number>`(
-        select count(*)::int from ${registration} as confirmed_registration
-        where confirmed_registration.event_id = ${eventId}
-          and confirmed_registration.status = 'confirmed'
-      )`,
-      holds: sql<number>`(
-        select count(*)::int from ${capacityHold} as active_hold
-        inner join ${registration} as held_registration
-          on held_registration.id = active_hold.registration_id
-        where held_registration.event_id = ${eventId}
-          and active_hold.claimed_at is null
-          and active_hold.expires_at > ${at}
-      )`,
-      offers: sql<number>`(
-        select count(*)::int from ${admissionOffer} as active_offer
-        inner join ${registration} as offered_registration
-          on offered_registration.id = active_offer.registration_id
-        where offered_registration.event_id = ${eventId}
-          and active_offer.status = 'active'
-          and active_offer.expires_at > ${at}
-      )`,
-    })
-    .from(event)
-    .where(eq(event.id, eventId))
-    .limit(1);
-  return (usage?.confirmed ?? 0) + (usage?.holds ?? 0) + (usage?.offers ?? 0);
+  const usage = await getActiveCapacityUsage(database, eventId, at);
+  return usage.claimed;
 }
 
 function mapHeaders(headers: string[], fields: PublicRegistrationField[]) {

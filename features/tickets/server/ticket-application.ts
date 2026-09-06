@@ -34,6 +34,7 @@ import { deliverAdmissionOfferMessages } from "@/lib/email/deliver-admission-off
 import { digestBearerToken } from "@/lib/bearer-token-digest";
 import { TICKET_ISSUED_TEMPLATE } from "../../messaging/email-delivery-state";
 import { createTicketCode as createRandomTicketCode } from "./create-ticket-code";
+import { issueTicket, issueReplacementTicket } from "./ticket-issuance";
 import { signTicket } from "../ticket-crypto";
 
 type TicketDatabase = typeof import("../../../lib/db").db;
@@ -359,32 +360,13 @@ export function createTicketApplicationService({
       }
       if (hold.claimedAt) return { outcome: "consumed" } as const;
 
-      let ticketCode: string | null = null;
-      for (let attempt = 0; attempt < 10; attempt += 1) {
-        const candidate = createTicketCode();
-        const [existing] = await transaction
-          .select({ id: ticket.id })
-          .from(ticket)
-          .where(and(eq(ticket.eventId, lockedEvent.id), eq(ticket.code, candidate)))
-          .limit(1);
-        if (!existing) {
-          ticketCode = candidate;
-          break;
-        }
-      }
-      if (!ticketCode) throw new Error("Could not allocate a unique Ticket Code.");
-
-      const ticketJws = signTicket(
-        { eventId: lockedEvent.id, ticketId },
-        signingKey,
-      );
-      await transaction.insert(ticket).values({
-        id: ticketId,
+      const { ticketCode, ticketJws } = await issueTicket({
+        transaction,
         eventId: lockedEvent.id,
         registrationId: capability.registrationId,
-        code: ticketCode,
-        signedPayload: ticketJws,
-        signingKeyId: signingKey.id,
+        ticketId,
+        signingKey,
+        createTicketCode,
       });
       await transaction
         .update(capacityHold)
@@ -511,32 +493,13 @@ export function createTicketApplicationService({
         return { outcome: "expired" } as const;
       }
 
-      let ticketCode: string | null = null;
-      for (let attempt = 0; attempt < 10; attempt += 1) {
-        const candidate = createTicketCode();
-        const [existing] = await transaction
-          .select({ id: ticket.id })
-          .from(ticket)
-          .where(and(eq(ticket.eventId, offered.eventId), eq(ticket.code, candidate)))
-          .limit(1);
-        if (!existing) {
-          ticketCode = candidate;
-          break;
-        }
-      }
-      if (!ticketCode) throw new Error("Could not allocate a unique Ticket Code.");
-
-      const ticketJws = signTicket(
-        { eventId: offered.eventId, ticketId },
-        signingKey,
-      );
-      await transaction.insert(ticket).values({
-        id: ticketId,
+      const { ticketCode, ticketJws } = await issueTicket({
+        transaction,
         eventId: offered.eventId,
         registrationId: offered.registrationId,
-        code: ticketCode,
-        signedPayload: ticketJws,
-        signingKeyId: signingKey.id,
+        ticketId,
+        signingKey,
+        createTicketCode,
       });
       await transaction
         .update(admissionOffer)
@@ -1148,33 +1111,15 @@ export function createTicketApplicationService({
         return { outcome: "throttled" } as const;
       }
 
-      let ticketCode: string | null = null;
-      for (let attempt = 0; attempt < 10; attempt += 1) {
-        const candidate = createTicketCode();
-        const [existing] = await transaction
-          .select({ id: ticket.id })
-          .from(ticket)
-          .where(and(eq(ticket.eventId, managed.eventId), eq(ticket.code, candidate)))
-          .limit(1);
-        if (!existing) {
-          ticketCode = candidate;
-          break;
-        }
-      }
-      if (!ticketCode) throw new Error("Could not allocate a unique Ticket Code.");
-      const ticketId = createTicketId();
-      const ticketJws = signTicket({ eventId: managed.eventId, ticketId }, signingKey);
-      await transaction
-        .update(ticket)
-        .set({ status: "replaced", invalidatedAt: replacedAt })
-        .where(and(eq(ticket.id, activeTicket.id), eq(ticket.status, "active")));
-      await transaction.insert(ticket).values({
-        id: ticketId,
+      const { ticketCode, ticketJws } = await issueReplacementTicket({
+        transaction,
         eventId: managed.eventId,
         registrationId: managed.registrationId,
-        code: ticketCode,
-        signedPayload: ticketJws,
-        signingKeyId: signingKey.id,
+        activeTicketId: activeTicket.id,
+        replacedAt,
+        ticketId: createTicketId(),
+        signingKey,
+        createTicketCode,
       });
       emailMessage = {
         email: managed.email,

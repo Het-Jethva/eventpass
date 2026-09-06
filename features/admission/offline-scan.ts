@@ -1,11 +1,12 @@
 "use client";
 
-import { normalizeTicketCode } from "../tickets/ticket-code";
+import { classifyTicketCredential } from "../tickets/ticket-credential";
 import type {
   AdmissionOutcome,
   AdmissionResult,
 } from "./server/admission-application";
 import { getSnapshotReadiness } from "./offline-snapshot";
+import { decideSnapshotTicketOutcome } from "./check-in-validity";
 import {
   offlineScannerStore,
   type PendingScanAttemptRecord,
@@ -132,10 +133,12 @@ export async function admitOffline(
   if (getSnapshotReadiness(snapshot, estimatedServerTime) !== "ready") {
     return resultFor("unauthorized");
   }
-  const ticketCode = normalizeTicketCode(values.input);
-  const ticketPayload = ticketCode
-    ? null
-    : await verifyOfflineTicket(values.input, snapshot.verificationKeys);
+  const credential = classifyTicketCredential(values.input);
+  const ticketCode = credential.kind === "code" ? credential.code : null;
+  const ticketPayload =
+    credential.kind === "code"
+      ? null
+      : await verifyOfflineTicket(credential.jws, snapshot.verificationKeys);
   const ticket = ticketCode
     ? await store.getCachedTicketByCode(values.eventId, ticketCode)
     : ticketPayload?.eventId === values.eventId
@@ -148,26 +151,23 @@ export async function admitOffline(
     outcome = "invalid";
   } else if (!ticket) {
     outcome = "unknown";
-  } else if (
-    snapshot.event.status === "canceled" ||
-    ticket.validityState === "canceled"
-  ) {
-    outcome = "canceled";
-  } else if (ticket.validityState === "replaced") {
-    outcome = "replaced";
-  } else if (ticket.validityState === "expired") {
-    outcome = "expired";
-  } else if (estimatedServerTime >= new Date(snapshot.event.checkInClosesAt)) {
-    outcome = "expired";
-  } else if (estimatedServerTime < new Date(snapshot.event.checkInOpensAt)) {
-    outcome = "outside_window";
-  } else if (
-    ticket.existingCheckInState === "checked_in" ||
-    (await store.hasLocallyAcceptedTicket(values.eventId, ticket.ticketId))
-  ) {
-    outcome = "duplicate";
   } else {
-    outcome = "provisional";
+    const snapshotOutcome = decideSnapshotTicketOutcome({
+      validityState: ticket.validityState,
+      attemptedAt: estimatedServerTime,
+      checkInOpensAt: new Date(snapshot.event.checkInOpensAt),
+      checkInClosesAt: new Date(snapshot.event.checkInClosesAt),
+    });
+    if (snapshotOutcome) {
+      outcome = snapshotOutcome;
+    } else if (
+      ticket.existingCheckInState === "checked_in" ||
+      (await store.hasLocallyAcceptedTicket(values.eventId, ticket.ticketId))
+    ) {
+      outcome = "duplicate";
+    } else {
+      outcome = "provisional";
+    }
   }
 
   const attempt: PendingScanAttemptRecord = {

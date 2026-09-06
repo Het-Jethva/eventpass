@@ -13,10 +13,12 @@ import {
   scanAttempt,
   ticket,
 } from "../../../lib/db/schema";
-import { normalizeTicketCode } from "../../tickets/ticket-code";
+import { classifyTicketCredential } from "../../tickets/ticket-credential";
 import { digestScanInput as digestInput } from "@/lib/scan-input-digest";
 import { verifyTicket } from "../../tickets/ticket-crypto";
 import { isEventSuspended } from "../../events/server/event-suspension";
+import { isOrganizerOrOwner } from "../../staffing/staffing-policy";
+import { decideTicketValidity } from "../check-in-validity";
 
 type AdmissionDatabase = typeof import("../../../lib/db").db;
 
@@ -99,9 +101,11 @@ export function createAdmissionApplicationService({
         return { outcome: "event_unavailable" };
       }
 
-      const code = normalizeTicketCode(input);
+      const credential = classifyTicketCredential(input);
+      const code = credential.kind === "code" ? credential.code : null;
       const verificationKeys = getVerificationKeys();
-      const verification = code ? null : verifyTicket(input, verificationKeys);
+      const verification =
+        credential.kind === "code" ? null : verifyTicket(credential.jws, verificationKeys);
       if (
         verification &&
         (!verification.valid || verification.payload.eventId !== eventId)
@@ -160,48 +164,27 @@ export function createAdmissionApplicationService({
         storedTicketVerification.payload.eventId === eventId &&
         storedTicketVerification.payload.ticketId === presentedTicket.id;
 
-      let rejection: Exclude<
-        AdmissionOutcome,
-        "accepted" | "duplicate" | "unknown" | "unauthorized"
-      > | null = null;
-      if (!storedTicketIsValid || authorizedEvent.status === "draft") {
-        rejection = "invalid";
-      } else if (
-        authorizedEvent.status === "canceled" ||
-        presentedTicket.registrationStatus === "canceled"
-      ) {
-        rejection = "canceled";
-      } else if (presentedTicket.registrationStatus === "expired") {
-        rejection = "expired";
-      } else if (presentedTicket.registrationStatus !== "confirmed") {
-        rejection = "invalid";
-      } else if (presentedTicket.status === "canceled") {
-        rejection = "canceled";
-      } else if (presentedTicket.status === "replaced") {
-        rejection = "replaced";
-      }
-
       const outsideCheckInWindow =
         attemptedAt < authorizedEvent.checkInOpensAt ||
         attemptedAt >= authorizedEvent.checkInClosesAt;
       const normalizedOverrideReason = overrideReason?.trim() ?? "";
       const canOverrideWindow =
         normalizedOverrideReason.length > 0 &&
-        (authorizedEvent.role === "owner" ||
-          authorizedEvent.role === "organizer");
-      if (
-        !rejection &&
-        attemptedAt >= authorizedEvent.checkInClosesAt &&
-        !canOverrideWindow
-      ) {
-        rejection = "expired";
-      } else if (
-        !rejection &&
-        attemptedAt < authorizedEvent.checkInOpensAt &&
-        !canOverrideWindow
-      ) {
-        rejection = "outside_window";
-      }
+        isOrganizerOrOwner(authorizedEvent.role);
+      const decision = decideTicketValidity({
+        statuses: {
+          eventStatus: authorizedEvent.status,
+          registrationStatus: presentedTicket.registrationStatus,
+          ticketStatus: presentedTicket.status,
+        },
+        credentialValid: storedTicketIsValid,
+        attemptedAt,
+        checkInOpensAt: authorizedEvent.checkInOpensAt,
+        checkInClosesAt: authorizedEvent.checkInClosesAt,
+        canOverrideWindow,
+      });
+      const rejection =
+        decision.verdict === "refuse" ? decision.reason : null;
 
       if (rejection) {
         await transaction.insert(scanAttempt).values({

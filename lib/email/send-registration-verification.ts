@@ -8,6 +8,7 @@ import { emailDelivery } from "@/lib/db/schema";
 import { getConfiguredApplicationUrl } from "@/lib/application-url";
 import { EMAIL_BODY_STYLE } from "./shell";
 import { escapeHtml } from "./escape-html";
+import { isTransientDeliveryStatusCode } from "./delivery-failure";
 
 const TEMPLATE = "registration-verification-v1";
 
@@ -63,9 +64,7 @@ export async function sendRegistrationVerification({
       if (!response.error) {
         return { kind: "submitted" as const, id: response.data.id };
       }
-      const transient =
-        response.error.statusCode === 429 ||
-        (response.error.statusCode !== null && response.error.statusCode >= 500);
+      const transient = isTransientDeliveryStatusCode(response.error.statusCode);
       return { kind: transient ? ("transient" as const) : ("permanent" as const) };
     } catch {
       return { kind: "transient" as const };

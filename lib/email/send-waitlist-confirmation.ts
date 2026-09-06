@@ -5,6 +5,7 @@ import { Resend } from "resend";
 
 import { db } from "@/lib/db";
 import { emailDelivery } from "@/lib/db/schema";
+import { isTransientDeliveryStatusCode } from "./delivery-failure";
 
 export async function sendWaitlistConfirmation({
   email,
@@ -57,9 +58,7 @@ export async function sendWaitlistConfirmation({
       .where(eq(emailDelivery.id, delivery.id));
     return;
   }
-  const transient =
-    response.error.statusCode === 429 ||
-    (response.error.statusCode !== null && response.error.statusCode >= 500);
+  const transient = isTransientDeliveryStatusCode(response.error.statusCode);
   await db
     .update(emailDelivery)
     .set({

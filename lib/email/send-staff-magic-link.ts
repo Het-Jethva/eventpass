@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { emailDelivery } from "@/lib/db/schema";
 import { EMAIL_BODY_STYLE } from "./shell";
 import { escapeHtml } from "./escape-html";
+import { isTransientDeliveryStatusCode } from "./delivery-failure";
 
 const TEMPLATE = "staff-magic-link-v1";
 
@@ -79,9 +80,7 @@ export async function sendStaffMagicLink(email: string, url: string) {
     return;
   }
 
-  const transient =
-    response.error.statusCode === 429 ||
-    (response.error.statusCode !== null && response.error.statusCode >= 500);
+  const transient = isTransientDeliveryStatusCode(response.error.statusCode);
 
   await db
     .update(emailDelivery)

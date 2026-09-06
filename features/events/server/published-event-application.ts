@@ -6,7 +6,6 @@ import { z } from "zod";
 import {
   admissionOffer,
   auditEntry,
-  capacityHold,
   emailDelivery,
   event,
   eventStaff,
@@ -17,9 +16,13 @@ import { createDraftEventInputSchema } from "./create-draft-event";
 import { localDateTimeInTimeZoneToUtc } from "./event-schedule";
 import {
   reconcileWaitlistInTransaction,
-  clampActiveOffersToRegistrationWindow,
   type AdmissionOfferMessage,
 } from "../../registration/server/waitlist-reconciliation";
+import {
+  clampActiveOffersToRegistrationWindow,
+  decreaseDisplacesClaims,
+  getActiveCapacityUsage,
+} from "./capacity-ledger";
 import { deliverAdmissionOfferMessages } from "@/lib/email/deliver-admission-offers";
 import { runBoundedTasks } from "@/lib/run-bounded-tasks";
 import {
@@ -27,6 +30,7 @@ import {
   PublishedEventChangeError,
 } from "../published-event-policy";
 import { lockEventForMutation } from "./event-suspension";
+import { isOrganizerOrOwner } from "@/features/staffing/staffing-policy";
 
 export { PublishedEventChangeError } from "../published-event-policy";
 
@@ -217,7 +221,7 @@ export function createPublishedEventApplicationService({
 
       if (
         !current ||
-        !["owner", "organizer"].includes(current.role) ||
+        !isOrganizerOrOwner(current.role) ||
         current.status !== "published"
       ) {
         throw new PublishedEventAuthorizationError(
@@ -240,38 +244,14 @@ export function createPublishedEventApplicationService({
         registrationClosesAt: next.registrationClosesAt,
       });
 
-      const [usage] = await transaction
-        .select({
-          confirmed: sql<number>`(
-            select count(*)::int from ${registration} as confirmed_registration
-            where confirmed_registration.event_id = ${eventId}
-              and confirmed_registration.status = 'confirmed'
-          )`,
-          holds: sql<number>`(
-            select count(*)::int from ${capacityHold} as active_hold
-            inner join ${registration} as held_registration
-              on held_registration.id = active_hold.registration_id
-            where held_registration.event_id = ${eventId}
-              and active_hold.claimed_at is null
-              and active_hold.expires_at > ${changedAt}
-          )`,
-          offers: sql<number>`(
-            select count(*)::int from ${admissionOffer} as active_offer
-            inner join ${registration} as offered_registration
-              on offered_registration.id = active_offer.registration_id
-            where offered_registration.event_id = ${eventId}
-              and active_offer.status = 'active'
-              and active_offer.expires_at > ${changedAt}
-          )`,
-        })
-        .from(event)
-        .where(eq(event.id, eventId))
-        .limit(1);
-      const claimedCapacity =
-        (usage?.confirmed ?? 0) + (usage?.holds ?? 0) + (usage?.offers ?? 0);
-      if (next.capacity < claimedCapacity) {
+      const usage = await getActiveCapacityUsage(
+        transaction,
+        eventId,
+        changedAt,
+      );
+      if (decreaseDisplacesClaims(usage.claimed, next.capacity)) {
         throw new EventCapacityConflictError(
-          `Event Capacity cannot be lower than the ${claimedCapacity} existing claims.`,
+          `Event Capacity cannot be lower than the ${usage.claimed} existing claims.`,
         );
       }
 

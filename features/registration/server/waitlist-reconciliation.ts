@@ -2,16 +2,22 @@ import "server-only";
 
 import { randomBytes } from "node:crypto";
 
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 
 import {
   admissionOffer,
-  capacityHold,
   event,
   registration,
-  registrationVerification,
 } from "../../../lib/db/schema";
 import { digestBearerToken } from "@/lib/bearer-token-digest";
+import {
+  expireLapsedCapacityClaims,
+  getActiveCapacityUsage,
+  getAdmissionOfferExpiry,
+} from "@/features/events/server/capacity-ledger";
+
+export { getAdmissionOfferExpiry } from "@/features/events/server/capacity-ledger";
+export { clampActiveOffersToRegistrationWindow } from "@/features/events/server/capacity-ledger";
 
 type Database = typeof import("../../../lib/db").db;
 export type DatabaseTransaction = Parameters<
@@ -28,41 +34,6 @@ export type AdmissionOfferMessage = {
   expiresAt: Date;
   token: string;
 };
-
-export function getAdmissionOfferExpiry(issuedAt: Date, registrationClosesAt: Date) {
-  return new Date(
-    Math.min(
-      issuedAt.getTime() + 12 * 60 * 60_000,
-      registrationClosesAt.getTime(),
-    ),
-  );
-}
-
-export async function clampActiveOffersToRegistrationWindow({
-  transaction,
-  eventId,
-  registrationClosesAt,
-}: {
-  transaction: DatabaseTransaction;
-  eventId: string;
-  registrationClosesAt: Date;
-}) {
-  await transaction
-    .update(admissionOffer)
-    .set({
-      expiresAt: sql`least(${admissionOffer.expiresAt}, ${registrationClosesAt})`,
-    })
-    .where(
-      and(
-        eq(admissionOffer.status, "active"),
-        sql`exists (
-          select 1 from ${registration}
-          where ${registration.id} = ${admissionOffer.registrationId}
-            and ${registration.eventId} = ${eventId}
-        )`,
-      ),
-    );
-}
 
 export async function reconcileWaitlistInTransaction({
   transaction,
@@ -94,90 +65,16 @@ export async function reconcileWaitlistInTransaction({
   if (lockedEvent.suspended) return [];
   if (lockedEvent.status !== "published") return [];
 
-  await transaction.execute(sql`
-    update ${registration}
-    set status = 'expired', updated_at = ${reconciledAt}
-    where ${registration.eventId} = ${eventId}
-      and ${registration.status} = 'unconfirmed'
-      and (
-        exists (
-          select 1 from ${capacityHold}
-          where ${capacityHold.registrationId} = ${registration.id}
-            and ${capacityHold.claimedAt} is null
-            and ${capacityHold.expiresAt} <= ${reconciledAt}
-        )
-        or exists (
-          select 1 from ${registrationVerification}
-          where ${registrationVerification.registrationId} = ${registration.id}
-            and ${registrationVerification.consumedAt} is null
-            and ${registrationVerification.expiresAt} <= ${reconciledAt}
-        )
-      )
-  `);
-
-  const expiredOffers = await transaction
-    .update(admissionOffer)
-    .set({ status: "expired" })
-    .where(
-      and(
-        eq(admissionOffer.status, "active"),
-        sql`${admissionOffer.expiresAt} <= ${reconciledAt}`,
-        sql`exists (
-          select 1 from ${registration}
-          where ${registration.id} = ${admissionOffer.registrationId}
-            and ${registration.eventId} = ${eventId}
-        )`,
-      ),
-    )
-    .returning({ registrationId: admissionOffer.registrationId });
-  if (expiredOffers.length > 0) {
-    await transaction
-      .update(registration)
-      .set({ status: "expired", updatedAt: reconciledAt })
-      .where(
-        and(
-          inArray(
-            registration.id,
-            expiredOffers.map(({ registrationId }) => registrationId),
-          ),
-          eq(registration.status, "waitlisted"),
-        ),
-      );
-  }
+  await expireLapsedCapacityClaims({ transaction, eventId, at: reconciledAt });
 
   if (lockedEvent.registrationClosesAt <= reconciledAt) return [];
 
-  const [usage] = await transaction
-    .select({
-      confirmed: sql<number>`(
-        select count(*)::int from ${registration} as confirmed_registration
-        where confirmed_registration.event_id = ${eventId}
-          and confirmed_registration.status = 'confirmed'
-      )`,
-      holds: sql<number>`(
-        select count(*)::int from ${capacityHold} as active_hold
-        inner join ${registration} as held_registration
-          on held_registration.id = active_hold.registration_id
-        where held_registration.event_id = ${eventId}
-          and active_hold.claimed_at is null
-          and active_hold.expires_at > ${reconciledAt}
-      )`,
-      offers: sql<number>`(
-        select count(*)::int from ${admissionOffer} as active_offer
-        inner join ${registration} as offered_registration
-          on offered_registration.id = active_offer.registration_id
-        where offered_registration.event_id = ${eventId}
-          and active_offer.status = 'active'
-          and active_offer.expires_at > ${reconciledAt}
-      )`,
-    })
-    .from(event)
-    .where(eq(event.id, eventId));
-  const available = Math.max(
-    0,
-    lockedEvent.capacity -
-      ((usage?.confirmed ?? 0) + (usage?.holds ?? 0) + (usage?.offers ?? 0)),
+  const usage = await getActiveCapacityUsage(
+    transaction,
+    eventId,
+    reconciledAt,
   );
+  const available = Math.max(0, lockedEvent.capacity - usage.claimed);
   if (available === 0) return [];
 
   const candidates = await transaction

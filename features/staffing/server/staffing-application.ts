@@ -19,6 +19,7 @@ import { normalizeStaffEmail } from "@/features/staff-identity/normalize-staff-e
 import { evaluateStaffInvitationAcceptance } from "@/features/staffing/staff-invitation-policy";
 import {
   canManageRole,
+  isEventOwner,
   type EventStaffRole,
   type InviteableStaffRole,
 } from "@/features/staffing/staffing-policy";
@@ -349,7 +350,7 @@ export async function proposeOwnershipTransfer(
   return db.transaction(async (transaction) => {
     await lockEventForMutation(transaction, eventId);
     const actorRole = await findActorRole(transaction, eventId, actorUserId);
-    if (actorRole !== "owner") {
+    if (!isEventOwner(actorRole)) {
       throw new StaffingAuthorizationError(
         "Only the Event Owner can propose Ownership Transfer.",
       );
@@ -522,7 +523,7 @@ export async function withdrawOwnershipTransfer(
       transfer.eventId,
       actorUserId,
     );
-    if (actorRole !== "owner" || transfer.proposedByUserId !== actorUserId) {
+    if (!isEventOwner(actorRole) || transfer.proposedByUserId !== actorUserId) {
       throw new StaffingAuthorizationError(
         "Only the Event Owner who proposed this transfer can withdraw it.",
       );

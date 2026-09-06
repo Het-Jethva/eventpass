@@ -12,6 +12,7 @@ import {
   user,
 } from "../../../lib/db/schema";
 import { lockEventForMutation } from "../../events/server/event-suspension";
+import { isOrganizerOrOwner } from "../../staffing/staffing-policy";
 
 const QUICK_REVERSAL_WINDOW_MS = 30_000;
 export const ACTIVE_CHECK_IN_PAGE_SIZE = 25;
@@ -96,8 +97,7 @@ export function createCheckInCorrectionService({
       );
     }
 
-    const organizer =
-      assignment.role === "owner" || assignment.role === "organizer";
+    const organizer = isOrganizerOrOwner(assignment.role);
     let kind: "quick" | "organizer";
     if (organizer) {
       kind = "organizer";

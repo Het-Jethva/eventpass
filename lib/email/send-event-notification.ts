@@ -8,6 +8,8 @@ import { db } from "@/lib/db";
 import { emailDelivery } from "@/lib/db/schema";
 import { EMAIL_BODY_STYLE } from "./shell";
 import { escapeHtml } from "./escape-html";
+import { formatEventInstant } from "@/lib/format-event-range";
+import { isTransientDeliveryStatusCode } from "./delivery-failure";
 
 const materialChangeSchema = z.object({
   kind: z.literal("material_change"),
@@ -64,19 +66,8 @@ export function displayMaterialChangeValue(
   if (value === null || value === "") return "Not set";
   if (typeof value === "number") return value.toLocaleString("en");
   const date = /^\d{4}-\d{2}-\d{2}T/.test(value) ? new Date(value) : null;
-  // Components spelled out because `dateStyle`/`timeStyle` cannot be combined
-  // with `timeZoneName`; the mix throws "Invalid option : option".
   return date && !Number.isNaN(date.getTime())
-    ? new Intl.DateTimeFormat("en", {
-        weekday: "long",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-        timeZone: eventTimeZone,
-        timeZoneName: "short",
-      }).format(date)
+    ? formatEventInstant(date, eventTimeZone)
     : value;
 }
 
@@ -168,9 +159,7 @@ export async function sendEventNotification(deliveryId: string) {
     return { outcome: "submitted" as const };
   }
 
-  const transient =
-    response.error.statusCode === 429 ||
-    (response.error.statusCode !== null && response.error.statusCode >= 500);
+  const transient = isTransientDeliveryStatusCode(response.error.statusCode);
   await db
     .update(emailDelivery)
     .set({

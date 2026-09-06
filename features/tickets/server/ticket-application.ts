@@ -206,8 +206,6 @@ export type TicketManagementResult = {
   managementToken?: string;
 };
 
-export { digestBearerToken };
-
 function isWellFormedCapability(token: string) {
   return /^[A-Za-z0-9_-]{32,128}$/.test(token);
 }

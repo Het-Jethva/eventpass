@@ -22,7 +22,7 @@ const SAMPLE = {
   venue: "Whitcombe Hall, Building C",
 };
 
-export async function ScanOutcomeShowcase() {
+export function ScanOutcomeShowcase() {
   return (
     <figure className="flex flex-col gap-3">
       <div className="grid gap-5 sm:grid-cols-2">

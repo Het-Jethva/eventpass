@@ -18,7 +18,8 @@ import {
   registrationVerification,
   ticket,
 } from "../../../lib/db/schema";
-import { digestBearerToken, createTicketApplicationService } from "./ticket-application";
+import { digestBearerToken } from "@/lib/bearer-token-digest";
+import { createTicketApplicationService } from "./ticket-application";
 
 const { privateKey } = generateKeyPairSync("ec", { namedCurve: "P-256" });
 

@@ -15,7 +15,7 @@ import {
   user,
 } from "../../../lib/db/schema";
 import { verifyTicket } from "../../tickets/ticket-crypto";
-import { digestScanInput as digestInput } from "@/lib/scan-input-digest";
+import { digestBearerToken as digestInput } from "@/lib/bearer-token-digest";
 import { verifyScannerAuthorization } from "../scanner-authorization";
 import { arbitrateCheckInConflict } from "../check-in-conflict";
 import { decideTicketValidity } from "../check-in-validity";

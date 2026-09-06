@@ -14,7 +14,7 @@ import {
   ticket,
 } from "../../../lib/db/schema";
 import { classifyTicketCredential } from "../../tickets/ticket-credential";
-import { digestScanInput as digestInput } from "@/lib/scan-input-digest";
+import { digestBearerToken as digestInput } from "@/lib/bearer-token-digest";
 import { verifyTicket } from "../../tickets/ticket-crypto";
 import { isEventSuspended } from "../../events/server/event-suspension";
 import { isOrganizerOrOwner } from "../../staffing/staffing-policy";

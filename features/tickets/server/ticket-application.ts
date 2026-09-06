@@ -48,6 +48,8 @@ type TicketTransaction = Parameters<
  * the new link back to whoever asked, so without a ceiling a single link
  * holder could keep the Attendee's inbox — and the sending quota — busy for as
  * long as they liked. Three an hour covers "it did not arrive, try again".
+ * Failed and still-pending deliveries do not count: those are the cases a
+ * resend is for.
  */
 const TICKET_EMAIL_WINDOW_MILLISECONDS = 60 * 60_000;
 const MAX_TICKET_EMAILS_PER_WINDOW = 3;
@@ -68,6 +70,7 @@ async function isTicketEmailLimited(
           emailDelivery.createdAt,
           new Date(values.at.getTime() - TICKET_EMAIL_WINDOW_MILLISECONDS),
         ),
+        inArray(emailDelivery.outcome, ["submitted", "sent", "delivered"]),
       ),
     );
   return (recent?.value ?? 0) >= MAX_TICKET_EMAILS_PER_WINDOW;
@@ -297,6 +300,12 @@ export function createTicketApplicationService({
             .update(registration)
             .set({ status: "expired", updatedAt: verifiedAt })
             .where(eq(registration.id, capability.registrationId));
+          offerMessages = await reconcileWaitlistInTransaction({
+            transaction,
+            eventId: lockedEvent.id,
+            reconciledAt: verifiedAt,
+            createOfferToken,
+          });
           return { outcome: "expired" } as const;
         }
         await transaction
@@ -356,6 +365,12 @@ export function createTicketApplicationService({
               eq(registration.status, "unconfirmed"),
             ),
           );
+        offerMessages = await reconcileWaitlistInTransaction({
+          transaction,
+          eventId: lockedEvent.id,
+          reconciledAt: verifiedAt,
+          createOfferToken,
+        });
         return { outcome: "expired" } as const;
       }
       if (hold.claimedAt) return { outcome: "consumed" } as const;

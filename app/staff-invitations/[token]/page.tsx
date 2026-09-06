@@ -84,6 +84,7 @@ export default async function StaffInvitationPage({
                   href={`/sign-in?callbackUrl=${encodeURIComponent(`/staff-invitations/${token}`)}`}
                   className={buttonVariants()}
                   pendingLabel="Opening sign in"
+                  referrerPolicy="no-referrer"
                 >
                   <IconMailCheck data-icon="inline-start" />
                   Sign in to accept

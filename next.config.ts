@@ -29,12 +29,30 @@ const SECURITY_HEADERS = [
   },
 ];
 
+// Last matching source wins for a given header (Next.js header overriding).
+// Put these after `/:path*` so they actually replace the site-wide
+// Referrer-Policy. Page metadata `referrer: "no-referrer"` does not, because
+// a response header already set by `/:path*` wins over `<meta name="referrer">`.
+const CAPABILITY_ROUTE_HEADERS = [
+  ...SECURITY_HEADERS.filter((header) => header.key !== "Referrer-Policy"),
+  { key: "Referrer-Policy", value: "no-referrer" },
+  { key: "Cache-Control", value: "private, no-store" },
+  { key: "X-Robots-Tag", value: "noindex, nofollow" },
+];
+
 // React's <ViewTransition> needs no configuration as of Next 16.3 — the App
 // Router builds against a React canary that exports it. It degrades cleanly:
 // without browser support the app works normally and simply does not animate.
 const nextConfig: NextConfig = {
   async headers() {
-    return [{ source: "/:path*", headers: SECURITY_HEADERS }];
+    return [
+      { source: "/:path*", headers: SECURITY_HEADERS },
+      { source: "/tickets/:path*", headers: CAPABILITY_ROUTE_HEADERS },
+      { source: "/offers/:path*", headers: CAPABILITY_ROUTE_HEADERS },
+      { source: "/staff-invitations/:path*", headers: CAPABILITY_ROUTE_HEADERS },
+      { source: "/e/:slug/verify", headers: CAPABILITY_ROUTE_HEADERS },
+      { source: "/sign-in", headers: CAPABILITY_ROUTE_HEADERS },
+    ];
   },
 };
 

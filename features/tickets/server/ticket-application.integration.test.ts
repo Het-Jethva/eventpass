@@ -575,4 +575,59 @@ describeWithDatabase("Ticket application service", () => {
     // Nothing rotated: the original link still opens the Registration.
     expect(await service.getManagementView(verified.managementToken)).not.toBeNull();
   });
+
+  it("does not count failed Ticket emails toward the hourly ceiling", async () => {
+    const held = await createHeldRegistration();
+    const verified = await service.verifyRegistration(held.event.slug, held.verificationToken);
+    expect(verified.outcome).toBe("confirmed");
+    if (verified.outcome !== "confirmed") throw new Error("Expected confirmation.");
+
+    await database.insert(emailDelivery).values(
+      Array.from({ length: 3 }, () => ({
+        template: TICKET_ISSUED_TEMPLATE,
+        recipient: held.email,
+        provider: "resend",
+        eventId: held.event.id,
+        outcome: "transient_failure",
+        createdAt: new Date("2030-01-01T11:30:00.000Z"),
+      })),
+    );
+
+    const resent = await service.resendTicket(verified.managementToken);
+    expect(resent.outcome).toBe("sent");
+  });
+
+  it("promotes the waitlist when an expired Capacity Hold is verified", async () => {
+    const held = await createHeldRegistration(new Date("2030-01-01T11:59:59.000Z"), 1);
+    await database.insert(registration).values({
+      eventId: held.event.id,
+      attendeeName: "Waitlisted After Hold Lapses",
+      email: "lapsed-hold-waitlist@example.com",
+      normalizedEmail: "lapsed-hold-waitlist@example.com",
+      status: "waitlisted",
+      capacityOutcome: "waitlist",
+      verifiedAt: new Date("2030-01-01T11:50:00.000Z"),
+    });
+
+    expect(await service.verifyRegistration(held.event.slug, held.verificationToken)).toEqual({
+      outcome: "expired",
+    });
+    const [expired] = await database
+      .select({ status: registration.status })
+      .from(registration)
+      .where(eq(registration.id, held.registrationId));
+    expect(expired?.status).toBe("expired");
+    const activeOffers = await database
+      .select({ email: registration.email })
+      .from(admissionOffer)
+      .innerJoin(registration, eq(registration.id, admissionOffer.registrationId))
+      .where(
+        and(
+          eq(registration.eventId, held.event.id),
+          eq(admissionOffer.status, "active"),
+        ),
+      );
+    expect(activeOffers).toEqual([{ email: "lapsed-hold-waitlist@example.com" }]);
+    expect(offeredTokens.at(-1)).toEqual(expect.any(String));
+  });
 });

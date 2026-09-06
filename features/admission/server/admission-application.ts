@@ -2,7 +2,7 @@ import "server-only";
 
 import type { KeyObject } from "node:crypto";
 
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 
 import {
   auditEntry,
@@ -21,14 +21,9 @@ import { isOrganizerOrOwner } from "../../staffing/staffing-policy";
 import { decideTicketValidity } from "../check-in-validity";
 
 type AdmissionDatabase = typeof import("../../../lib/db").db;
-
-type AdmissionApplicationDependencies = {
-  database: AdmissionDatabase;
-  getVerificationKeys: () => Readonly<
-    Record<string, KeyObject | string | Buffer>
-  >;
-  now?: () => Date;
-};
+type AdmissionTransaction = Parameters<
+  Parameters<AdmissionDatabase["transaction"]>[0]
+>[0];
 
 export type AdmissionOutcome =
   | "accepted"
@@ -59,6 +54,121 @@ export type AdmissionInput = {
   overrideReason?: string;
 };
 
+const REPLAYABLE_ONLINE_OUTCOMES = new Set<AdmissionOutcome>([
+  "accepted",
+  "duplicate",
+  "invalid",
+  "unknown",
+  "canceled",
+  "replaced",
+  "expired",
+  "outside_window",
+]);
+
+function isUniqueViolation(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  if ("code" in error && error.code === "23505") return true;
+  if ("cause" in error) return isUniqueViolation(error.cause);
+  return false;
+}
+
+async function lockOnlineAttemptId(
+  transaction: AdmissionTransaction,
+  clientAttemptId: string,
+) {
+  await transaction.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${`online-scan-attempt:${clientAttemptId}`}, 0))`,
+  );
+}
+
+async function replayStoredOnlineAttempt(
+  transaction: AdmissionTransaction,
+  values: {
+    clientAttemptId: string;
+    eventId: string;
+    actorUserId: string;
+    inputDigest: string;
+    inputMethod: "camera" | "manual";
+  },
+): Promise<AdmissionResult | null> {
+  const [existing] = await transaction
+    .select({
+      outcome: scanAttempt.outcome,
+      checkInId: scanAttempt.checkInId,
+      ticketId: scanAttempt.ticketId,
+      eventId: scanAttempt.eventId,
+      actorUserId: scanAttempt.actorUserId,
+      inputDigest: scanAttempt.inputDigest,
+      inputMethod: scanAttempt.inputMethod,
+    })
+    .from(scanAttempt)
+    .where(eq(scanAttempt.id, values.clientAttemptId))
+    .limit(1);
+
+  if (!existing) return null;
+  if (
+    existing.eventId !== values.eventId ||
+    existing.actorUserId !== values.actorUserId ||
+    existing.inputDigest !== values.inputDigest ||
+    existing.inputMethod !== values.inputMethod
+  ) {
+    return { outcome: "invalid" };
+  }
+
+  const outcome = REPLAYABLE_ONLINE_OUTCOMES.has(
+    existing.outcome as AdmissionOutcome,
+  )
+    ? (existing.outcome as AdmissionOutcome)
+    : "invalid";
+
+  let attendeeName: string | undefined;
+  let checkedInAt: Date | undefined;
+  if (existing.ticketId) {
+    const [presented] = await transaction
+      .select({ attendeeName: registration.attendeeName })
+      .from(ticket)
+      .innerJoin(registration, eq(registration.id, ticket.registrationId))
+      .where(eq(ticket.id, existing.ticketId))
+      .limit(1);
+    attendeeName = presented?.attendeeName;
+  }
+  if (existing.checkInId) {
+    const [storedCheckIn] = await transaction
+      .select({ checkedInAt: checkIn.checkedInAt })
+      .from(checkIn)
+      .where(eq(checkIn.id, existing.checkInId))
+      .limit(1);
+    checkedInAt = storedCheckIn?.checkedInAt;
+  } else if (existing.ticketId && (outcome === "accepted" || outcome === "duplicate")) {
+    const [activeCheckIn] = await transaction
+      .select({ checkedInAt: checkIn.checkedInAt })
+      .from(checkIn)
+      .where(
+        and(
+          eq(checkIn.ticketId, existing.ticketId),
+          isNull(checkIn.invalidatedAt),
+        ),
+      )
+      .limit(1);
+    checkedInAt = activeCheckIn?.checkedInAt;
+  }
+
+  return {
+    outcome,
+    attendeeName,
+    checkInId: existing.checkInId ?? undefined,
+    checkedInAt,
+  };
+}
+
+type AdmissionApplicationDependencies = {
+  database: AdmissionDatabase;
+  getVerificationKeys: () => Readonly<
+    Record<string, KeyObject | string | Buffer>
+  >;
+  now?: () => Date;
+};
+
 export function createAdmissionApplicationService({
   database,
   getVerificationKeys,
@@ -74,8 +184,16 @@ export function createAdmissionApplicationService({
   }: AdmissionInput): Promise<AdmissionResult> {
     const attemptedAt = now();
     const inputDigest = digestInput(input);
+    const replayKey = {
+      clientAttemptId,
+      eventId,
+      actorUserId,
+      inputDigest,
+      inputMethod,
+    };
 
-    return database.transaction(async (transaction) => {
+    try {
+      return await database.transaction(async (transaction) => {
       const [authorizedEvent] = await transaction
         .select({
           id: event.id,
@@ -100,6 +218,10 @@ export function createAdmissionApplicationService({
       if (isEventSuspended(authorizedEvent)) {
         return { outcome: "event_unavailable" };
       }
+
+      await lockOnlineAttemptId(transaction, clientAttemptId);
+      const replayed = await replayStoredOnlineAttempt(transaction, replayKey);
+      if (replayed) return replayed;
 
       const credential = classifyTicketCredential(input);
       const code = credential.kind === "code" ? credential.code : null;
@@ -269,6 +391,17 @@ export function createAdmissionApplicationService({
         checkedInAt: createdCheckIn!.checkedInAt,
       };
     });
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+      return database.transaction(async (transaction) => {
+        await lockOnlineAttemptId(transaction, clientAttemptId);
+        return (
+          (await replayStoredOnlineAttempt(transaction, replayKey)) ?? {
+            outcome: "invalid" as const,
+          }
+        );
+      });
+    }
   }
 
   return { admitOnline };

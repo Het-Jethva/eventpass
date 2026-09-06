@@ -56,7 +56,7 @@ export default async function AdmissionOfferPage({
               </h1>
               <p className="mt-4 max-w-2xl text-muted-foreground">
                 {offer.attendeeName}, you reached the front of the verified waitlist. Claiming
-                claiming this offer confirms your registration and issues your ticket.
+                this offer confirms your registration and issues your ticket.
               </p>
               <Alert className="mt-8">
                 <IconClock aria-hidden="true" />
@@ -108,6 +108,7 @@ export default async function AdmissionOfferPage({
             href={offer ? `/e/${offer.eventSlug}` : "/"}
             className={cn(buttonVariants({ variant: "outline" }), "mt-8")}
             pendingLabel="Opening event"
+            referrerPolicy="no-referrer"
           >
             {offer ? "Return to event" : "Go to EventPass"}
           </PendingLink>

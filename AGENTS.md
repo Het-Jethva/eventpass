@@ -20,7 +20,7 @@ Event registration and offline-capable check-in. `README.md` has the product and
 
 - Bearer capabilities (verification, management, offer, invitation, scanner tokens) are stored only as SHA-256 digests. Compare digests, never plaintext.
 - Capacity decisions run inside a transaction that has locked the Event row (`lockEventForMutation`, ADR 0005). Anything that confirms, holds, offers or cancels goes through it.
-- Every instant shown to a person is formatted in the Event Time Zone. `dateStyle`/`timeStyle` cannot be combined with `timeZoneName` (ECMA-402 throws), so spell components out — see `formatEventRange` in `lib/email/send-ticket.ts`.
+- Every instant shown to a person is formatted in the Event Time Zone. `dateStyle`/`timeStyle` cannot be combined with `timeZoneName` (ECMA-402 throws), so spell components out — see `formatEventRange` in `lib/format-event-range.ts`.
 - Schema changes: edit `lib/db/schema.ts`, run `npm run db:generate`, commit the new file under `drizzle/`. Migrations are applied by `vercel-build` in deployment and by CI before tests.
 
 ## Verifying

@@ -684,6 +684,32 @@ export function createOfflineSynchronizationService({
               linkedCheckInId =
                 activeCheckInsByTicket.get(ticketKey)?.id ?? null;
             }
+            // Persist the Scan Attempt before any Check-in Conflict that may
+            // name it as authoritative. Postgres checks the foreign key at
+            // insert, so a resolved_auto row cannot point at an attempt that
+            // is still only in memory.
+            if (directive.attemptOutcome === "conflict") {
+              stored = await rememberStoredAttempt({
+                attempt,
+                ticketId: presentedTicket.id,
+                checkInId: null,
+                outcome: "conflict",
+              });
+            } else if (directive.attemptOutcome === "accepted") {
+              stored = await rememberStoredAttempt({
+                attempt,
+                ticketId: presentedTicket.id,
+                checkInId: linkedCheckInId,
+                outcome: "accepted",
+              });
+            } else {
+              stored = await rememberStoredAttempt({
+                attempt,
+                ticketId: presentedTicket.id,
+                checkInId: null,
+                outcome: "duplicate",
+              });
+            }
             if (directive.ensureConflict?.status === "unresolved") {
               const [createdConflict] = await transaction
                 .insert(checkInConflict)
@@ -715,23 +741,6 @@ export function createOfflineSynchronizationService({
                   directive.ensureConflict.authoritativeScanAttemptId,
                 createdAt: createdConflict?.createdAt ?? reconciliationNow,
               });
-            }
-            if (directive.attemptOutcome === "conflict") {
-              stored = await rememberStoredAttempt({
-                attempt,
-                ticketId: presentedTicket.id,
-                checkInId: null,
-                outcome: "conflict",
-              });
-            } else if (directive.attemptOutcome === "accepted") {
-              stored = await rememberStoredAttempt({
-                attempt,
-                ticketId: presentedTicket.id,
-                checkInId: linkedCheckInId,
-                outcome: "accepted",
-              });
-            } else {
-              outcome = "duplicate";
             }
           }
         }

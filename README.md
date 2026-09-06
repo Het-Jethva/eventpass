@@ -249,6 +249,14 @@ openssl ecparam -genkey -name prime256v1 -noout -out ticket-key.pem
 openssl ec -in ticket-key.pem -pubout -out ticket-key.pub
 ```
 
+Turn those PEM files into the env values `.env.example` expects. `TICKET_PUBLIC_KEYS_JSON` is a JSON object, not the raw public PEM:
+
+```bash
+node -e "const fs=require('fs'); const id='2026-01'; const priv=fs.readFileSync('ticket-key.pem','utf8').trim(); const pub=fs.readFileSync('ticket-key.pub','utf8').trim(); console.log('TICKET_SIGNING_KEY_ID='+id); console.log('TICKET_SIGNING_PRIVATE_KEY_PEM='+JSON.stringify(priv)); console.log('TICKET_PUBLIC_KEYS_JSON='+JSON.stringify({[id]: pub}));"
+```
+
+Paste the three lines into `.env.local`. `npm run db:migrate` and `db:generate` load `.env.local` (then `.env`); a shell `DATABASE_URL` still wins.
+
 ### Scripts
 
 | Command | Purpose |
@@ -277,10 +285,24 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:54432/eventpass npm run db
 DATABASE_URL=postgresql://postgres:postgres@localhost:54432/eventpass npm run dev
 ```
 
+PowerShell does not accept `VAR=value cmd`. Assign the URL first:
+
+```powershell
+docker compose up -d
+$env:DATABASE_URL = "postgresql://postgres:postgres@localhost:54432/eventpass"
+npm run db:migrate
+npm run dev
+```
+
 Unit tests run with `npm test`. Integration tests need the same database:
 
 ```bash
 TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:54432/eventpass npm test
+```
+
+```powershell
+$env:TEST_DATABASE_URL = "postgresql://postgres:postgres@localhost:54432/eventpass"
+npm test
 ```
 
 `lib/db/index.ts` points the driver at the proxy whenever the database URL is

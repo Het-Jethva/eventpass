@@ -43,7 +43,12 @@ export async function isRegistrationAttemptLimited({
 
   await transaction
     .delete(registrationAttempt)
-    .where(lt(registrationAttempt.attemptedAt, retentionStart));
+    .where(
+      and(
+        eq(registrationAttempt.eventId, eventId),
+        lt(registrationAttempt.attemptedAt, retentionStart),
+      ),
+    );
 
   const lockKeys = [
     `registration-attempt:email:${eventId}:${emailDigest}`,

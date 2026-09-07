@@ -140,12 +140,13 @@ export default function Home() {
                   Get started
                   <IconArrowRight data-icon="inline-end" />
                 </PendingLink>
-                <a
-                  href="#door"
+                <PendingLink
+                  href="/demo"
                   className={buttonVariants({ variant: "outline", size: "lg" })}
+                  pendingLabel="Opening demo"
                 >
-                  See a check-in
-                </a>
+                  View live demo
+                </PendingLink>
               </div>
             </div>
 
@@ -254,14 +255,23 @@ export default function Home() {
               Create the event, share the registration link, and hand your door
               team a scanner that will not let you down at the worst moment.
             </p>
-            <PendingLink
-              href="/sign-in"
-              className={buttonVariants({ size: "lg", className: "mt-2" })}
-              pendingLabel="Opening sign in"
-            >
-              Get started
-              <IconArrowRight data-icon="inline-end" />
-            </PendingLink>
+            <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
+              <PendingLink
+                href="/sign-in"
+                className={buttonVariants({ size: "lg" })}
+                pendingLabel="Opening sign in"
+              >
+                Get started
+                <IconArrowRight data-icon="inline-end" />
+              </PendingLink>
+              <PendingLink
+                href="/demo"
+                className={buttonVariants({ variant: "outline", size: "lg" })}
+                pendingLabel="Opening demo"
+              >
+                View live demo
+              </PendingLink>
+            </div>
           </div>
         </section>
       </main>

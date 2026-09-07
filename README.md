@@ -15,10 +15,11 @@ is worth.
 > seeded data, no reset button. Every row in the database got there through the
 > same workflow a real organizer would use.
 >
-> The landing page is the one exception, and it says so on the page. The scan
-> outcomes and the ticket you see there are the real components rendered with
-> sample props, so the product does not look empty to a stranger who has no
-> live event.
+> The landing page and the public `/demo` route are the exceptions, and both
+> say so on the page. The scan outcomes and the ticket you see there are the
+> real components rendered with sample props, and the demo stores nothing — it
+> runs in the browser and resets on refresh — so the product does not look
+> empty to a stranger who has no live event.
 
 ---
 

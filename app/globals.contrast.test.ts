@@ -3,14 +3,6 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-// The palette in `globals.css` is the only source of color in the product, and
-// the contrast floor is WCAG 2.2 AA. Five hue families across two themes is far
-// more color than anyone can verify by eye, so it is verified here instead: this
-// suite fails the build when a token drifts below its required ratio.
-//
-// Adding a color in globals.css without adding it to this audit is not
-// permitted.
-
 const CSS = readFileSync(path.join(__dirname, "globals.css"), "utf8");
 
 const AA_TEXT = 4.5;
@@ -240,9 +232,6 @@ describe.each([
 });
 
 describe("signal tokens", () => {
-  // The scanner outcome must not change with the theme: a rejection rendered as
-  // dark red on black is unreadable across a lit gymnasium. The signal tokens
-  // are authored once, so drifting one into `.dark` is a regression this catches.
   it.each(SIGNALS)("signal-%s is identical in both themes", (signal) => {
     expect(DARK.get(`--signal-${signal}`)).toBe(LIGHT.get(`--signal-${signal}`));
     expect(DARK.get(`--signal-${signal}-text`)).toBe(
@@ -261,8 +250,6 @@ describe("signal tokens", () => {
 
 describe("palette hygiene", () => {
   it("carries a tint on every neutral", () => {
-    // A chroma of exactly 0 is the absence of a hue decision, which is what the
-    // stock preset shipped. Every Neutral in this palette has to carry a tint.
     const neutrals = [
       "--background",
       "--foreground",
@@ -299,8 +286,6 @@ describe("palette hygiene", () => {
   });
 
   it("has no violet left over from the stock preset", () => {
-    // The preset shipped --sidebar-primary at oklch(0.488 0.243 264) in dark
-    // mode, a saturated violet sitting unused in a palette nobody had authored.
     for (const [theme, tokens] of [
       ["light", LIGHT],
       ["dark", DARK],

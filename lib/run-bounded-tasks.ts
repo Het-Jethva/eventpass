@@ -18,3 +18,21 @@ export async function runBoundedTasks<T>(
     }),
   );
 }
+
+export async function runBoundedTasksIgnoringFailures<T>(
+  items: readonly T[],
+  worker: (item: T) => Promise<void>,
+  concurrency = 5,
+) {
+  await runBoundedTasks(
+    items,
+    async (item) => {
+      try {
+        await worker(item);
+      } catch {
+        return;
+      }
+    },
+    concurrency,
+  );
+}

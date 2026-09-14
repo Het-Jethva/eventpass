@@ -3,13 +3,11 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { expect, it } from "vitest";
 
-import { describeWithDatabase, testDatabaseUrl } from "@/lib/test-db-helper";
+import { describeWithDatabase, pointSharedDatabaseAtTestUrl } from "@/lib/test-db-helper";
 import { applyResendDeliveryTransition } from "./apply-resend-delivery-transition";
 import { emailDelivery } from "@/lib/db/schema";
 
-if (testDatabaseUrl) {
-  process.env.DATABASE_URL = testDatabaseUrl;
-}
+pointSharedDatabaseAtTestUrl();
 
 describeWithDatabase("Resend delivery transitions", () => {
   it("applies a higher-ranked outcome and refuses to downgrade a delivered row", async () => {

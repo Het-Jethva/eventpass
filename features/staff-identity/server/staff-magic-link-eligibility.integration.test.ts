@@ -2,12 +2,10 @@ import { randomUUID } from "node:crypto";
 
 import { expect, it } from "vitest";
 
-import { describeWithDatabase, testDatabaseUrl } from "@/lib/test-db-helper";
+import { describeWithDatabase, pointSharedDatabaseAtTestUrl } from "@/lib/test-db-helper";
 import { event, eventStaff, staffInvitation, user } from "@/lib/db/schema";
 
-if (testDatabaseUrl) {
-  process.env.DATABASE_URL = testDatabaseUrl;
-}
+pointSharedDatabaseAtTestUrl();
 
 async function loadEligibility() {
   const [eligibility, database] = await Promise.all([

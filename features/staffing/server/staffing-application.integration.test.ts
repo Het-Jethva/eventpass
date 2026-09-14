@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { expect, it } from "vitest";
 
-import { describeWithDatabase, testDatabaseUrl } from "@/lib/test-db-helper";
+import { describeWithDatabase, pointSharedDatabaseAtTestUrl } from "@/lib/test-db-helper";
 import {
   event,
   eventStaff,
@@ -13,11 +13,7 @@ import {
 } from "@/lib/db/schema";
 import { digestTokenBase64Url } from "@/lib/bearer-token-digest";
 
-// See admin-application.integration.test.ts: the staffing service also uses
-// the shared `db`, so point it at the test database before first import.
-if (testDatabaseUrl) {
-  process.env.DATABASE_URL = testDatabaseUrl;
-}
+pointSharedDatabaseAtTestUrl();
 
 async function loadStaffingApplication() {
   const [application, database] = await Promise.all([
@@ -87,46 +83,37 @@ describeWithDatabase("Ownership transfer withdrawal", () => {
       { eventId: createdEvent!.id, userId: organizer.id, role: "organizer" },
     ]);
 
-    try {
-      const transfer = await proposeOwnershipTransfer(
-        createdEvent!.id,
-        organizer.id,
-        owner.id,
-      );
+    const transfer = await proposeOwnershipTransfer(
+      createdEvent!.id,
+      organizer.id,
+      owner.id,
+    );
 
-      // The proposed owner cannot withdraw someone else's proposal.
-      await expect(
-        withdrawOwnershipTransfer(transfer.id, organizer.id),
-      ).rejects.toThrow(StaffingAuthorizationError);
+    await expect(
+      withdrawOwnershipTransfer(transfer.id, organizer.id),
+    ).rejects.toThrow(StaffingAuthorizationError);
 
-      await withdrawOwnershipTransfer(transfer.id, owner.id);
+    await withdrawOwnershipTransfer(transfer.id, owner.id);
 
-      const [withdrawn] = await db
-        .select({ revokedAt: ownershipTransfer.revokedAt })
-        .from(ownershipTransfer)
-        .where(eq(ownershipTransfer.id, transfer.id));
-      expect(withdrawn?.revokedAt).toBeInstanceOf(Date);
+    const [withdrawn] = await db
+      .select({ revokedAt: ownershipTransfer.revokedAt })
+      .from(ownershipTransfer)
+      .where(eq(ownershipTransfer.id, transfer.id));
+    expect(withdrawn?.revokedAt).toBeInstanceOf(Date);
 
-      // A withdrawn proposal can neither be accepted nor withdrawn again.
-      await expect(
-        acceptOwnershipTransfer(transfer.id, organizer.id),
-      ).rejects.toThrow(OwnershipTransferUnavailableError);
-      await expect(
-        withdrawOwnershipTransfer(transfer.id, owner.id),
-      ).rejects.toThrow(OwnershipTransferUnavailableError);
+    await expect(
+      acceptOwnershipTransfer(transfer.id, organizer.id),
+    ).rejects.toThrow(OwnershipTransferUnavailableError);
+    await expect(
+      withdrawOwnershipTransfer(transfer.id, owner.id),
+    ).rejects.toThrow(OwnershipTransferUnavailableError);
 
-      // Withdrawing clears the single-pending slot: proposing again works.
-      const second = await proposeOwnershipTransfer(
-        createdEvent!.id,
-        organizer.id,
-        owner.id,
-      );
-      expect(second.id).not.toBe(transfer.id);
-    } finally {
-      // Audit Entries are immutable by database trigger (by design), so the
-      // users, events, transfers, and audit rows created here stay behind.
-      // Fixtures use random identifiers per run, so leftovers cannot collide.
-    }
+    const second = await proposeOwnershipTransfer(
+      createdEvent!.id,
+      organizer.id,
+      owner.id,
+    );
+    expect(second.id).not.toBe(transfer.id);
   });
 
   it("stores a Staff Invitation digest, accepts the matching token, and rejects the rest", async () => {

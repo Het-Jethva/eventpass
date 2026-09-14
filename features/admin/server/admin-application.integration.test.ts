@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { and, eq, inArray } from "drizzle-orm";
 import { expect, it } from "vitest";
 
-import { describeWithDatabase, testDatabaseUrl } from "@/lib/test-db-helper";
+import { describeWithDatabase, pointSharedDatabaseAtTestUrl } from "@/lib/test-db-helper";
 import {
   PlatformAdminError,
   SupportAccessRequiredError,
@@ -16,13 +16,7 @@ import {
   user,
 } from "@/lib/db/schema";
 
-// The admin service uses the shared `db` (DATABASE_URL), while integration
-// suites are pointed at TEST_DATABASE_URL. Redirect the shared client before
-// the service modules are first imported; each test file runs in its own
-// module registry, so this cannot leak into other suites.
-if (testDatabaseUrl) {
-  process.env.DATABASE_URL = testDatabaseUrl;
-}
+pointSharedDatabaseAtTestUrl();
 
 async function loadAdminApplication() {
   const [application, database] = await Promise.all([

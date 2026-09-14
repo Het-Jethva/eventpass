@@ -3,12 +3,10 @@ import { randomUUID } from "node:crypto";
 import { and, eq, isNull } from "drizzle-orm";
 import { expect, it } from "vitest";
 
-import { describeWithDatabase, testDatabaseUrl } from "@/lib/test-db-helper";
+import { describeWithDatabase, pointSharedDatabaseAtTestUrl } from "@/lib/test-db-helper";
 import { auditEntry, event, eventStaff, staffInvitation, user } from "@/lib/db/schema";
 
-if (testDatabaseUrl) {
-  process.env.DATABASE_URL = testDatabaseUrl;
-}
+pointSharedDatabaseAtTestUrl();
 
 async function loadDraftDeleteModules() {
   const [deletion, staffing, database] = await Promise.all([

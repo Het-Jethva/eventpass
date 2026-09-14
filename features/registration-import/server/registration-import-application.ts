@@ -43,7 +43,7 @@ import {
 } from "../../registration/server/waitlist-reconciliation";
 import { deliverAdmissionOfferMessages } from "@/lib/email/deliver-admission-offers";
 import { digestBearerToken as digestToken } from "@/lib/bearer-token-digest";
-import { runBoundedTasks } from "@/lib/run-bounded-tasks";
+import { runBoundedTasksIgnoringFailures } from "@/lib/run-bounded-tasks";
 
 import { encodeCsv, parseBoundedCsv } from "../csv";
 
@@ -684,17 +684,7 @@ export function createRegistrationImportService({
       } as const;
     });
     await deliverAdmissionOfferMessages(offerMessages, sendAdmissionOfferEmail);
-    await runBoundedTasks(
-      ticketMessages,
-      async (message) => {
-        try {
-          await sendTicketEmail(message);
-        } catch {
-          // Domain state is committed independently from delivery outcomes.
-        }
-      },
-      5,
-    );
+    await runBoundedTasksIgnoringFailures(ticketMessages, sendTicketEmail, 5);
     return result;
   }
 

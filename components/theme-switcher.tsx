@@ -46,10 +46,8 @@ const OPTIONS = [
 export function ThemeSwitcher() {
   const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
-  // Writes the preference and hands off. The root layout's script owns the
-  // class, the `theme-color` meta tags and the OS-change listener; duplicating
-  // that resolution here is how the two drifted apart in the first place —
-  // choosing `system` re-read the media query once and then stopped listening.
+  // Writes the preference and hands off. The root layout script owns the class,
+  // the `theme-color` meta tags and the OS change listener.
   function applyTheme(mode: ThemeMode) {
     if (mode === "system") {
       localStorage.removeItem(STORAGE_KEY);
@@ -67,8 +65,7 @@ export function ThemeSwitcher() {
       aria-label="Theme selection"
       className="flex items-center gap-0.5 rounded-lg border p-0.5"
     >
-      {/* Icon only. Three spelled-out labels made a preference control the
-          widest thing in the header, ahead of the product's own name. */}
+      {/* Icon only. Labels would make this control wider than the product name. */}
       {OPTIONS.map(({ icon: Icon, label, mode }) => (
         <Button
           key={mode}

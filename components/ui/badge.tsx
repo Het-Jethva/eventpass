@@ -8,11 +8,9 @@ const badgeVariants = cva(
   // rounded-full is permitted here: a badge is a status chip, one of the three
   // shapes exempt from the radius scale.
   //
-  // The base reserves the border width only. `border-transparent` in the base
-  // outranked every variant's `border-*` on emit order rather than on the class
-  // list, which quietly erased the hairline that gives each outcome family its
-  // edge against a subtle surface — the one place in the product where colour is
-  // load-bearing. Border colour is a variant decision now.
+  // The base reserves the border width only. Border colour is a variant
+  // decision. Colour is load-bearing here, so each outcome family keeps its
+  // own edge.
   "group/badge inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-all focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3!",
   {
     variants: {
@@ -27,8 +25,7 @@ const badgeVariants = cva(
           "border-transparent hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
         link: "border-transparent text-primary underline-offset-4 hover:underline",
         // Outcome families. Each pairs a subtle surface with its accessible text
-        // and border, so a status reads the same wherever it appears. Always
-        // pair these with an icon or label — color is never the only signal.
+        // and border. Always pair these with an icon or label.
         success:
           "border-success-border bg-success-subtle text-success-text",
         warning:

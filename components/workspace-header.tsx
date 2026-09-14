@@ -12,14 +12,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * The signed-in chrome, shared by the event workspace and the administration
- * surface.
- *
- * It lived inside the `(workspace)` route group, which put `/admin` — the one
- * page in the product that can suspend an account — on a screen with no
- * wordmark, no way back to the events list, no theme control and no sign-out.
- *
- * The `Events` link also carried a hardcoded active underline, so it read as
- * the current section while you were standing on `/admin`.
+ * surface. Active state follows the pathname.
  */
 export function WorkspaceHeader({
   email,

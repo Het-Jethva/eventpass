@@ -4,10 +4,7 @@ import { Input as InputPrimitive } from "@base-ui/react/input"
 import { cn } from "@/lib/utils"
 
 // Control radius, like every other control. `rounded-3xl` resolves to
-// `--radius-overlay` — the radius of a dialog — which put a 16px curve on a 36px
-// field and stood it next to a 6px button in every form in the product. An input
-// is not an overlay, and the three-role radius scale in globals.css exists so a
-// component never has to guess which one it is.
+// `--radius-overlay`, the radius of a dialog. An input is not an overlay.
 function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   return (
     <InputPrimitive

@@ -4,14 +4,8 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 /**
- * The product's one segmented control: a hairlined shell holding mutually
- * exclusive options, with the active one taking the secondary fill.
- *
- * It exists because the roster and the audit log had each grown their own
- * loose row of buttons filled `bg-foreground`. That was a third treatment
- * beside the theme switcher's, and on the audit log — which shows two groups
- * side by side — an unshelled row read as seven buttons with two of them
- * inexplicably highlighted. The shell is what says "pick one of these".
+ * The product's one segmented control. A hairlined shell holds mutually
+ * exclusive options. The active option takes the secondary fill.
  */
 export function SegmentedFilter({
   className,

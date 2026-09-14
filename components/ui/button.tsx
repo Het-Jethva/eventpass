@@ -6,13 +6,9 @@ import { cn } from "@/lib/utils"
 const buttonVariants = cva(
   // Control radius, not a pill. A primary action is a decision, not a chip.
   //
-  // The base reserves the border *width* but never names its colour. It used to
-  // carry `border-transparent`, and `border-transparent` and `border-border` are
-  // both plain `border-color` utilities of equal specificity — so which one won
-  // was decided by Tailwind's emit order, not by the class list cva builds.
-  // Transparent won, and every outline button in the product rendered without
-  // its border. Each variant now states its own border colour, so the two never
-  // land on one element.
+  // The base reserves the border width but never names its colour.
+  // `border-transparent` and `border-border` share specificity, so emit order
+  // decided the winner. Each variant states its own border colour.
   "group/button inline-flex shrink-0 items-center justify-center rounded-md border bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
@@ -25,10 +21,9 @@ const buttonVariants = cva(
           "border-transparent bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         ghost:
           "border-transparent hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
-        // Destructive splits by role. This tinted variant is the *trigger* —
-        // it sits in table rows and settings lists, where a solid red button in
-        // every row would scream. Use `destructive-solid` for the confirm inside
-        // the dialog it opens: quiet to reach for, loud to commit.
+        // Destructive splits by role. This tinted variant is the trigger in
+        // table rows and settings lists. Use `destructive-solid` for the
+        // confirm inside the dialog it opens.
         destructive:
           "border-transparent bg-destructive-subtle text-destructive-text hover:bg-destructive-subtle/70 focus-visible:border-destructive/40 focus-visible:ring-destructive/25",
         "destructive-solid":

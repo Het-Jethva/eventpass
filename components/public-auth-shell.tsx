@@ -8,10 +8,7 @@ import {
 
 import { EventPassMark } from "@/components/eventpass-mark";
 
-// The wordmark goes home, as it does in both the marketing and workspace
-// headers. It was inert on this shell, which made sign-in — the surface a
-// mistyped staff link most often lands on — the one page in the product with no
-// way out except the browser's back button.
+// The wordmark goes home, as it does in the marketing and workspace headers.
 function HomeMark() {
   return (
     <Link
@@ -49,10 +46,7 @@ export function PublicAuthShell({ children }: { children: ReactNode }) {
         <HomeMark />
 
         <div className="flex max-w-md flex-col gap-10">
-          {/* No label above the heading. "Staff workspace" said nothing the
-              heading and the three safeguards below it do not already say, and
-              a small grey line stacked over a headline is a decoration the
-              sentence has to be read around. */}
+          {/* No label above the heading. The heading and the safeguards below it already say it. */}
           <div className="flex flex-col gap-4">
             <h2 className="text-3xl font-headline text-balance">
               Calm operations start with trustworthy access.

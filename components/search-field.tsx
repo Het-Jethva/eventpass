@@ -15,9 +15,8 @@ const DEBOUNCE_MS = 250;
  *
  * The query belongs in the URL so a view is shareable and survives a reload,
  * but writing on every keystroke would refetch the server on every letter.
- * Only the caller knows which sibling params a new query invalidates — a
- * cursor, a stale notice — so it supplies `buildHref` rather than passing a
- * list of keys to clear.
+ * Only the caller knows which sibling params a new query invalidates, so it
+ * supplies `buildHref` rather than passing a list of keys to clear.
  *
  * `navigate` comes back out so adjacent controls (status filters, and such)
  * can push their own hrefs through the same transition, sharing one pending

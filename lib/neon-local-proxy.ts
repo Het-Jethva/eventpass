@@ -5,8 +5,7 @@ import { neonConfig } from "@neondatabase/serverless";
  * `compose.yaml` when the database is a local Postgres.
  *
  * The driver talks WebSockets to a Neon endpoint, so without this it cannot
- * reach a plain Postgres container at all — the connection fails with an
- * `ErrorEvent` carrying no message. Bridging the real driver keeps local
+ * reach a plain Postgres container at all. Bridging the real driver keeps local
  * development and the integration suites on the same transport production
  * uses, rather than swapping in `pg` and losing its pipelining and transaction
  * semantics.

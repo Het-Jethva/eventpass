@@ -22,13 +22,6 @@ export const EMAIL_DELIVERY_OUTCOME_RANK: Record<EmailDeliveryOutcome, number> =
   permanent_failure: 5,
 };
 
-export function supersedesEmailDeliveryOutcome(
-  next: EmailDeliveryOutcome,
-  current: EmailDeliveryOutcome,
-): boolean {
-  return EMAIL_DELIVERY_OUTCOME_RANK[next] > EMAIL_DELIVERY_OUTCOME_RANK[current];
-}
-
 export const RESEND_EVENT_OUTCOMES: Record<
   string,
   {

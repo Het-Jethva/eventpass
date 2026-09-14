@@ -20,14 +20,3 @@ export function classifyTicketCredential(input: string): TicketCredential {
   const code = normalizeTicketCode(input);
   return code ? { kind: "code", code } : { kind: "jws", jws: input };
 }
-
-/**
- * One refusal vocabulary for both verifiers. The server verifier in
- * `ticket-crypto` and the browser verifier in `offline-scan` answer with
- * these reasons; callers map them to Scan Attempt outcomes.
- */
-export type TicketCredentialRefusal =
-  | "malformed"
-  | "unknown_key"
-  | "invalid_signature"
-  | "wrong_event";

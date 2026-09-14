@@ -76,9 +76,6 @@ export function decideTicketValidity(values: {
   if (statuses.registrationStatus !== "confirmed") {
     return { verdict: "refuse", reason: "invalid" };
   }
-  if (statuses.ticketStatus === "canceled") {
-    return { verdict: "refuse", reason: "canceled" };
-  }
   if (statuses.ticketStatus === "replaced") {
     return { verdict: "refuse", reason: "replaced" };
   }

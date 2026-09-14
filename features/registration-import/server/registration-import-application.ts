@@ -43,11 +43,29 @@ import {
 } from "../../registration/server/waitlist-reconciliation";
 import { deliverAdmissionOfferMessages } from "@/lib/email/deliver-admission-offers";
 import { digestBearerToken as digestToken } from "@/lib/bearer-token-digest";
+import { runBoundedTasks } from "@/lib/run-bounded-tasks";
 
 import { encodeCsv, parseBoundedCsv } from "../csv";
 
 type RegistrationImportDatabase = typeof import("../../../lib/db").db;
 type SigningKey = { id: string; privateKey: KeyObject };
+
+type ImportTicketEmail = {
+  email: string;
+  attendeeName: string;
+  eventId: string;
+  event: {
+    name: string;
+    eventTimeZone: string;
+    startsAt: Date;
+    endsAt: Date;
+    venueName: string;
+    venueAddress: string;
+  };
+  ticketCode: string;
+  ticketJws: string;
+  managementToken: string;
+};
 
 type ImportDependencies = {
   database: RegistrationImportDatabase;
@@ -58,6 +76,7 @@ type ImportDependencies = {
   createManagementToken?: () => string;
   createOfferToken?: () => string;
   sendAdmissionOfferEmail?: (message: AdmissionOfferMessage) => Promise<void>;
+  sendTicketEmail?: (message: ImportTicketEmail) => Promise<void>;
 };
 
 const answerSchema = z.union([
@@ -251,6 +270,7 @@ export function createRegistrationImportService({
   createManagementToken = () => randomBytes(32).toString("base64url"),
   createOfferToken,
   sendAdmissionOfferEmail = async () => undefined,
+  sendTicketEmail = async () => undefined,
 }: ImportDependencies) {
   async function previewImport(
     eventId: string,
@@ -442,10 +462,17 @@ export function createRegistrationImportService({
   ): Promise<ConfirmImportResult> {
     const confirmedAt = now();
     let offerMessages: AdmissionOfferMessage[] = [];
+    let ticketMessages: ImportTicketEmail[] = [];
     const result = await database.transaction(async (transaction) => {
       const [authorizedEvent] = await transaction
         .select({
           id: event.id,
+          name: event.name,
+          eventTimeZone: event.eventTimeZone,
+          startsAt: event.startsAt,
+          endsAt: event.endsAt,
+          venueName: event.venueName,
+          venueAddress: event.venueAddress,
           capacity: event.capacity,
           status: event.status,
           suspended: event.suspended,
@@ -530,11 +557,12 @@ export function createRegistrationImportService({
         return { outcome: "stale" } as const;
       }
       const signingKey = getSigningKey();
+      const managementTokens = payload.rows.map(() => createManagementToken());
 
       const insertedRegistrations = await transaction
         .insert(registration)
         .values(
-          payload.rows.map((row) => ({
+          payload.rows.map((row, index) => ({
             eventId,
             attendeeName: row.name,
             email: row.email,
@@ -543,7 +571,7 @@ export function createRegistrationImportService({
             capacityOutcome: "capacity_hold",
             source: "imported",
             verifiedAt: confirmedAt,
-            managementTokenDigest: digestToken(createManagementToken()),
+            managementTokenDigest: digestToken(managementTokens[index]!),
           })),
         )
         .returning({ id: registration.id });
@@ -585,6 +613,30 @@ export function createRegistrationImportService({
         };
       });
       await transaction.insert(ticket).values(ticketRows);
+
+      ticketMessages = createdRegistrations.map(({ row }, index) => {
+        const issued = ticketRows[index];
+        const managementToken = managementTokens[index];
+        if (!issued || !managementToken) {
+          throw new Error("Could not import Registration.");
+        }
+        return {
+          email: row.email,
+          attendeeName: row.name,
+          eventId,
+          event: {
+            name: authorizedEvent.name,
+            eventTimeZone: authorizedEvent.eventTimeZone,
+            startsAt: authorizedEvent.startsAt,
+            endsAt: authorizedEvent.endsAt,
+            venueName: authorizedEvent.venueName,
+            venueAddress: authorizedEvent.venueAddress,
+          },
+          ticketCode: issued.code,
+          ticketJws: issued.signedPayload,
+          managementToken,
+        };
+      });
 
       const fieldIds = payload.mappings.flatMap((mapping) =>
         mapping.kind === "field" && mapping.fieldId ? [mapping.fieldId] : [],
@@ -632,6 +684,17 @@ export function createRegistrationImportService({
       } as const;
     });
     await deliverAdmissionOfferMessages(offerMessages, sendAdmissionOfferEmail);
+    await runBoundedTasks(
+      ticketMessages,
+      async (message) => {
+        try {
+          await sendTicketEmail(message);
+        } catch {
+          // Domain state is committed independently from delivery outcomes.
+        }
+      },
+      5,
+    );
     return result;
   }
 

@@ -607,8 +607,8 @@ export function LiveMetricsDashboard({
           </div>
           {deliveryOutcomes.total === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No ticket emails have been sent yet. They go out as attendees
-              confirm their registration.
+              No ticket emails have been sent yet. They go out when attendees
+              confirm a Registration or when an Organizer completes a CSV import.
             </p>
           ) : (
             <>

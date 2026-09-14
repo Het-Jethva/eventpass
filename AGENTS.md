@@ -27,7 +27,23 @@ Event registration and offline-capable check-in. `README.md` has the product and
 
 `npm run typecheck && npm run lint && npm test` is the bar for every change; `npm run build` before touching `next.config.ts`, the service worker or anything under `app/` that renders statically.
 
-Integration suites (`*.integration.test.ts`) run only when `TEST_DATABASE_URL` is set and skip otherwise. Locally: `docker compose up -d`, then `DATABASE_URL=postgresql://postgres:postgres@localhost:54432/eventpass npm run db:migrate`, then run tests with `TEST_DATABASE_URL` set to the same URL. The app reaches local Postgres through the wsproxy container in `compose.yaml`, so the production driver is the one under test. `next build` uses `--webpack` because `@serwist/next` does not yet support Turbopack.
+Integration suites (`*.integration.test.ts`) run only when `TEST_DATABASE_URL` is set and skip otherwise. Locally: `docker compose up -d`, then migrate and test against the compose Postgres. Bash:
+
+```bash
+DATABASE_URL=postgresql://postgres:postgres@localhost:54432/eventpass npm run db:migrate
+TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:54432/eventpass npm test
+```
+
+PowerShell:
+
+```powershell
+$env:DATABASE_URL = "postgresql://postgres:postgres@localhost:54432/eventpass"
+npm run db:migrate
+$env:TEST_DATABASE_URL = $env:DATABASE_URL
+npm test
+```
+
+You can also put `TEST_DATABASE_URL` in `.env.local`; Vitest loads that name from the file and still never falls back to `DATABASE_URL`. The app reaches local Postgres through the wsproxy container in `compose.yaml`, so the production driver is the one under test. `next build` uses `--webpack` because `@serwist/next` does not yet support Turbopack.
 
 ## Commits
 

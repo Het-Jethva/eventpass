@@ -23,13 +23,6 @@ export class SupportAccessRequiredError extends PlatformAdminError {
   }
 }
 
-export class EventSuspendedError extends PlatformAdminError {
-  constructor(message = "This Event is currently unavailable.") {
-    super(message);
-    this.name = "EventSuspendedError";
-  }
-}
-
 export function parsePlatformAdminEmails(envValue?: string): string[] {
   if (!envValue) return [];
   return envValue

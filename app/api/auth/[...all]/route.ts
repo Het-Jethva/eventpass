@@ -1,10 +1,13 @@
 import { toNextJsHandler } from "better-auth/next-js";
-import type { NextRequest } from "next/server";
+import { NextRequest } from "next/server";
 
 import { isEligibleStaffMagicLinkRecipient } from "@/features/staff-identity/server/staff-magic-link-eligibility";
 import {
+  isStaffMagicLinkConsumeRequest,
   isStaffMagicLinkRequestPath,
   isStaffMagicLinkVerifyPath,
+  STAFF_MAGIC_LINK_CONSUME_PARAM,
+  staffMagicLinkConfirmPath,
 } from "@/features/staff-identity/magic-link-policy";
 import { normalizeStaffEmail } from "@/features/staff-identity/normalize-staff-email";
 import { getConfiguredApplicationOrigin } from "@/lib/application-url";
@@ -25,13 +28,30 @@ export async function GET(request: NextRequest) {
     return handler.GET(request);
   }
 
-  const token = request.nextUrl.searchParams.get("token") ?? "missing";
+  const token = request.nextUrl.searchParams.get("token");
+  if (!token) {
+    return Response.redirect(configuredSignInUrl("/sign-in?error=invalid-link"));
+  }
+
+  if (!isStaffMagicLinkConsumeRequest(request.nextUrl)) {
+    const callbackURL = request.nextUrl.searchParams.get("callbackURL") ?? undefined;
+    return Response.redirect(
+      configuredSignInUrl(staffMagicLinkConfirmPath(token, callbackURL)),
+    );
+  }
 
   if (await isMagicLinkVerificationLimited(token, request.headers)) {
     return Response.redirect(configuredSignInUrl("/sign-in?error=rate-limited"));
   }
 
-  return handler.GET(request);
+  const consumeUrl = request.nextUrl.clone();
+  consumeUrl.searchParams.delete(STAFF_MAGIC_LINK_CONSUME_PARAM);
+  return handler.GET(
+    new NextRequest(consumeUrl, {
+      headers: request.headers,
+      method: "GET",
+    }),
+  );
 }
 
 export async function POST(request: NextRequest) {

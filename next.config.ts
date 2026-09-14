@@ -52,6 +52,7 @@ const nextConfig: NextConfig = {
       { source: "/staff-invitations/:path*", headers: CAPABILITY_ROUTE_HEADERS },
       { source: "/e/:slug/verify", headers: CAPABILITY_ROUTE_HEADERS },
       { source: "/sign-in", headers: CAPABILITY_ROUTE_HEADERS },
+      { source: "/sign-in/confirm", headers: CAPABILITY_ROUTE_HEADERS },
     ];
   },
 };

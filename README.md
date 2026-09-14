@@ -214,14 +214,15 @@ Better Auth, Zod, Tailwind CSS 4, shadcn/Base UI, Serwist, Dexie, Resend.
 
 ## Running locally
 
-You need Node 20 or newer and a PostgreSQL database. The free Neon tier is
-plenty.
+You need Node 20.9 or newer and a PostgreSQL database. The free Neon tier is
+plenty. CI runs Node 24.
 
 ```bash
 git clone https://github.com/Het-Jethva/eventpass.git
 cd eventpass
 npm install
-cp .env.example .env.local   # then fill in the values below
+cp .env.example .env.local   # PowerShell: Copy-Item .env.example .env.local
+# then fill in the values below
 npm run db:migrate
 npm run dev
 ```
@@ -242,6 +243,7 @@ npm run dev
 | `RESEND_WEBHOOK_SECRET` | yes | Verifies signed delivery webhooks |
 | `PLATFORM_ADMIN_EMAILS` | no | Comma-separated platform administrators |
 | `NEON_WS_PROXY` | no | WebSocket bridge host for a local Postgres (see below) |
+| `TEST_DATABASE_URL` | no | Integration tests only. Vitest reads this name from the environment or `.env.local`; it never falls back to `DATABASE_URL`. |
 
 Generate a ticket signing key pair:
 

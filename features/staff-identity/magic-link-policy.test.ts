@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  isStaffMagicLinkConsumeRequest,
   isStaffMagicLinkRequestPath,
   isStaffMagicLinkVerifyPath,
+  staffMagicLinkConfirmPath,
+  staffMagicLinkConsumePath,
 } from "./magic-link-policy";
 
 describe("staff magic-link paths", () => {
@@ -23,5 +26,25 @@ describe("staff magic-link paths", () => {
     expect(
       isStaffMagicLinkRequestPath("/api/auth/nested/sign-in/magic-link"),
     ).toBe(false);
+  });
+
+  it("sends email scanners to a confirm page and only consumes after an explicit confirm", () => {
+    const confirmPath = staffMagicLinkConfirmPath("tok", "/events");
+    expect(confirmPath).toBe("/sign-in/confirm?token=tok&callbackURL=%2Fevents");
+    expect(
+      isStaffMagicLinkConsumeRequest(
+        new URL("https://eventpass.example/api/auth/magic-link/verify?token=tok"),
+      ),
+    ).toBe(false);
+    expect(
+      isStaffMagicLinkConsumeRequest(
+        new URL(
+          "https://eventpass.example/api/auth/magic-link/verify?token=tok&ep_confirm=1",
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      staffMagicLinkConsumePath("tok", "/events", "/sign-in?error=invalid-link"),
+    ).toContain("ep_confirm=1");
   });
 });

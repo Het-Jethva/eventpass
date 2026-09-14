@@ -8,8 +8,10 @@ import {
   event,
   eventStaff,
   ownershipTransfer,
+  staffInvitation,
   user,
 } from "@/lib/db/schema";
+import { digestTokenBase64Url } from "@/lib/bearer-token-digest";
 
 // See admin-application.integration.test.ts: the staffing service also uses
 // the shared `db`, so point it at the test database before first import.
@@ -125,5 +127,104 @@ describeWithDatabase("Ownership transfer withdrawal", () => {
       // users, events, transfers, and audit rows created here stay behind.
       // Fixtures use random identifiers per run, so leftovers cannot collide.
     }
+  });
+
+  it("stores a Staff Invitation digest, accepts the matching token, and rejects the rest", async () => {
+    const {
+      createStaffInvitation,
+      acceptStaffInvitation,
+      inspectStaffInvitation,
+      StaffingAuthorizationError,
+      StaffInvitationUnavailableError,
+      StaffInvitationEmailMismatchError,
+      db,
+    } = await loadStaffingApplication();
+
+    const volunteerEmail = uniqueEmail("invite-volunteer");
+    const [owner, volunteer, other] = await Promise.all([
+      db
+        .insert(user)
+        .values({
+          name: "Invite Owner",
+          email: uniqueEmail("invite-owner"),
+          emailVerified: true,
+        })
+        .returning({ id: user.id })
+        .then((rows) => rows[0]!),
+      db
+        .insert(user)
+        .values({
+          name: "Invite Volunteer",
+          email: volunteerEmail,
+          emailVerified: true,
+        })
+        .returning({ id: user.id })
+        .then((rows) => rows[0]!),
+      db
+        .insert(user)
+        .values({
+          name: "Wrong Inbox",
+          email: uniqueEmail("invite-other"),
+          emailVerified: true,
+        })
+        .returning({ id: user.id })
+        .then((rows) => rows[0]!),
+    ]);
+    const [createdEvent] = await db
+      .insert(event)
+      .values({
+        name: "Invitation digest test",
+        description: "Exercises Staff Invitation token lookup.",
+        slug: `invite-digest-${randomUUID()}`,
+        status: "published",
+        eventTimeZone: "UTC",
+        startsAt: new Date("2030-01-02T12:00:00.000Z"),
+        endsAt: new Date("2030-01-02T14:00:00.000Z"),
+        venueName: "Test Venue",
+        venueAddress: "Test address",
+        capacity: 5,
+        registrationOpensAt: new Date("2029-12-01T00:00:00.000Z"),
+        registrationClosesAt: new Date("2030-01-02T12:00:00.000Z"),
+        checkInOpensAt: new Date("2030-01-02T11:00:00.000Z"),
+        checkInClosesAt: new Date("2030-01-02T14:00:00.000Z"),
+        publishedAt: new Date("2029-12-01T00:00:00.000Z"),
+      })
+      .returning({ id: event.id });
+    await db.insert(eventStaff).values({
+      eventId: createdEvent!.id,
+      userId: owner.id,
+      role: "owner",
+    });
+
+    const invitation = await createStaffInvitation(createdEvent!.id, owner.id, {
+      email: volunteerEmail,
+      role: "check_in_volunteer",
+    });
+    const [stored] = await db
+      .select({ tokenDigest: staffInvitation.tokenDigest })
+      .from(staffInvitation)
+      .where(eq(staffInvitation.eventId, createdEvent!.id));
+    expect(stored?.tokenDigest).toBe(digestTokenBase64Url(invitation.token));
+    expect(await inspectStaffInvitation("not-the-token")).toBeNull();
+    expect(await inspectStaffInvitation(invitation.token)).toMatchObject({
+      role: "check_in_volunteer",
+      normalizedEmail: volunteerEmail.toLowerCase(),
+    });
+
+    await expect(
+      acceptStaffInvitation(invitation.token, other.id),
+    ).rejects.toThrow(StaffInvitationEmailMismatchError);
+
+    await acceptStaffInvitation(invitation.token, volunteer.id);
+    await expect(
+      acceptStaffInvitation(invitation.token, volunteer.id),
+    ).rejects.toThrow(StaffInvitationUnavailableError);
+
+    await expect(
+      createStaffInvitation(createdEvent!.id, volunteer.id, {
+        email: uniqueEmail("blocked-organizer"),
+        role: "organizer",
+      }),
+    ).rejects.toThrow(StaffingAuthorizationError);
   });
 });

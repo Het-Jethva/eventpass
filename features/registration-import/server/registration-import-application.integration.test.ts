@@ -16,6 +16,7 @@ import {
   ticket,
   user,
 } from "../../../lib/db/schema";
+import { digestBearerToken } from "@/lib/bearer-token-digest";
 import { verifyTicket } from "../../tickets/ticket-crypto";
 
 import { createRegistrationImportService } from "./registration-import-application";
@@ -85,6 +86,11 @@ describeWithDatabase("Registration import application service", () => {
 
         const codes = ["0123456789", "ABCDEFGHJK"];
         let codeIndex = 0;
+        const sentTickets: Array<{
+          email: string;
+          managementToken: string;
+          ticketCode: string;
+        }> = [];
         const service = createRegistrationImportService({
           database: transaction as unknown as typeof database,
           getSigningKey: () => ({ id: "import-key", privateKey }),
@@ -92,6 +98,13 @@ describeWithDatabase("Registration import application service", () => {
           createTicketCode: () => codes[codeIndex++]!,
           createTicketId: () => randomUUID(),
           createManagementToken: () => randomUUID().replaceAll("-", ""),
+          sendTicketEmail: async (message) => {
+            sentTickets.push({
+              email: message.email,
+              managementToken: message.managementToken,
+              ticketCode: message.ticketCode,
+            });
+          },
         });
         const preview = await service.previewImport(
           createdEvent!.id,
@@ -135,6 +148,16 @@ describeWithDatabase("Registration import application service", () => {
         expect(imported).toHaveLength(2);
         expect(imported.every((row) => row.status === "confirmed" && row.source === "imported")).toBe(true);
         expect(issuedTickets).toHaveLength(2);
+        expect(sentTickets).toHaveLength(2);
+        for (const importedRow of imported) {
+          const sent = sentTickets.find(
+            (message) => message.email === importedRow.email,
+          );
+          expect(sent).toBeDefined();
+          expect(importedRow.managementTokenDigest).toBe(
+            digestBearerToken(sent!.managementToken),
+          );
+        }
         expect(
           issuedTickets.every(
             (row) =>

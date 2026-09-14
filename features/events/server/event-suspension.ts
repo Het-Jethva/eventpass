@@ -2,10 +2,14 @@ import "server-only";
 
 import { eq } from "drizzle-orm";
 
-import { EventSuspendedError } from "@/features/admin/admin-policy";
 import { event } from "@/lib/db/schema";
 
-export { EventSuspendedError } from "@/features/admin/admin-policy";
+export class EventSuspendedError extends Error {
+  constructor(message = "This Event is currently unavailable.") {
+    super(message);
+    this.name = "EventSuspendedError";
+  }
+}
 
 type EventDatabase = typeof import("@/lib/db").db;
 type EventTransaction = Parameters<Parameters<EventDatabase["transaction"]>[0]>[0];

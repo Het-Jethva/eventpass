@@ -3,12 +3,11 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-// DESIGN.md states several rules that are easy to state and easy to violate
-// six months later, so they are checked rather than trusted. The palette had
-// already drifted this way once: the doc said component colours must come from
-// semantic tokens, but the token set was too small to obey, and components
-// quietly reached for text-emerald-600 and bg-amber-500/5 in the highest-stakes
-// screens in the product.
+// These rules are easy to state and easy to violate six months later, so they
+// are checked rather than trusted. The palette had already drifted this way
+// once: component colours must come from semantic tokens, but the token set
+// was too small to obey, and components quietly reached for text-emerald-600
+// and bg-amber-500/5 in the highest-stakes screens in the product.
 
 const ROOT = path.join(__dirname, "..");
 const SOURCE_DIRECTORIES = ["app", "components", "features"];
@@ -87,9 +86,9 @@ describe("design rules", () => {
 
   it("speaks in one voice", () => {
     // This test used to permit a display serif on titles and ban it on
-    // operational text. There is no second face any more: DESIGN.md § Typography
-    // says hierarchy is size, weight and spacing, and `--font-heading` does not
-    // exist. So the rule is now the stronger one — the token appears nowhere.
+    // operational text. There is no second face any more. Hierarchy is size,
+    // weight and spacing, and `--font-heading` does not exist. So the rule is
+    // now the stronger one, the token appears nowhere.
     const offenders = FILES.filter(({ source }) =>
       source.includes("font-heading"),
     ).map(({ path: file }) => file);

@@ -4,10 +4,13 @@ import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
+  auditEntry,
   event,
   eventStaff,
+  ownershipTransfer,
   registrationField,
   registrationFieldChoice,
+  staffInvitation,
 } from "@/lib/db/schema";
 
 import { lockEventForMutation } from "./event-suspension";
@@ -55,8 +58,16 @@ export async function deleteDraftEvent(eventId: string, actorUserId: string) {
         .where(eq(registrationField.eventId, eventId));
     }
 
-    // Durable Registration records begin in issue #6. Their restrictive foreign
-    // keys will make this delete fail once the Draft is no longer empty.
+    await transaction
+      .delete(staffInvitation)
+      .where(eq(staffInvitation.eventId, eventId));
+    await transaction
+      .delete(ownershipTransfer)
+      .where(eq(ownershipTransfer.eventId, eventId));
+    await transaction
+      .update(auditEntry)
+      .set({ eventId: null })
+      .where(eq(auditEntry.eventId, eventId));
     await transaction.delete(eventStaff).where(eq(eventStaff.eventId, eventId));
     await transaction
       .delete(event)

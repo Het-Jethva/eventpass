@@ -39,13 +39,14 @@ export default async function AdminPage() {
     redirect("/events");
   }
 
-  const accounts = await listPlatformAccounts({
-    actorUserId: staffSession.user.id,
-  });
-
-  const events = await listPlatformEvents({
-    actorUserId: staffSession.user.id,
-  });
+  const [accounts, events] = await Promise.all([
+    listPlatformAccounts({
+      actorUserId: staffSession.user.id,
+    }),
+    listPlatformEvents({
+      actorUserId: staffSession.user.id,
+    }),
+  ]);
 
   return (
     <AdminDashboard

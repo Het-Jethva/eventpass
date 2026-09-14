@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
 import {
   IconAlertTriangle,
@@ -8,6 +9,7 @@ import {
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { FormSubmitButton } from "@/components/form-submit-button";
 import {
   Field,
@@ -61,16 +63,13 @@ export default async function CheckInConflictsPage({
 
   const checkInSearch = query.q?.trim() ?? "";
 
-  const [event, conflicts, activeCheckIns] = await Promise.all([
+  const [event, conflicts] = await Promise.all([
     getOrganizerEvent(eventId, session.user.id),
     listCheckInConflicts({ eventId, actorUserId: session.user.id }),
-    listActiveCheckIns({
-      eventId,
-      actorUserId: session.user.id,
-      searchQuery: checkInSearch,
-    }),
   ]);
   if (!event) notFound();
+  const actorUserId = session.user.id;
+  const eventTimeZone = event.eventTimeZone;
 
   return (
     <>
@@ -120,60 +119,24 @@ export default async function CheckInConflictsPage({
 
         <div className="mb-4 flex flex-col gap-2">
           <ActiveCheckInSearch initialQuery={checkInSearch} />
-          {/*
-            States what was searched, not just what is shown. The list is capped
-            because it exists to correct one specific check-in, and an
-            Organizer should never be left wondering whether the person they
-            searched for was simply below the cut.
-          */}
-          <p className="text-sm text-muted-foreground" role="status" aria-live="polite">
-            {checkInSearch
-              ? `${activeCheckIns.matchingCount.toLocaleString()} of ${activeCheckIns.totalCount.toLocaleString()} active check-ins match`
-              : activeCheckIns.matchingCount > activeCheckIns.limit
-                ? `Showing the ${activeCheckIns.limit} most recent of ${activeCheckIns.totalCount.toLocaleString()} active check-ins. Search by name to find any of them.`
-                : `${activeCheckIns.totalCount.toLocaleString()} active check-in${activeCheckIns.totalCount === 1 ? "" : "s"}`}
-          </p>
         </div>
 
-        {activeCheckIns.rows.length === 0 ? (
-          <div className="border-y bg-background px-5 py-8 text-center text-sm text-muted-foreground">
-            {checkInSearch
-              ? "No active check-ins match that name. Every active check-in was searched, not just the visible page."
-              : "Nobody is checked in yet."}
-          </div>
-        ) : (
-          <div className="divide-y rounded-2xl border bg-background">
-            {activeCheckIns.rows.map((activeCheckIn) => (
-              <div
-                key={activeCheckIn.id}
-                className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <h3 className="font-medium">{activeCheckIn.attendeeName}</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Checked in by {activeCheckIn.actorName} at{" "}
-                    {formatAttemptTime(
-                      activeCheckIn.checkedInAt,
-                      event.eventTimeZone,
-                    )}
-                  </p>
-                </div>
-                <ReasonedCheckInAction
-                  label="Reverse check-in"
-                  title={`Reverse ${activeCheckIn.attendeeName}'s check-in?`}
-                  description="The check-in is undone and the history is kept. The ticket can be admitted again."
-                  reasonDescription="The correction, and your reason for it, are kept permanently."
-                  variant="destructive"
-                  action={reverseOrganizerCheckInAction.bind(
-                    null,
-                    eventId,
-                    activeCheckIn.id,
-                  )}
-                />
-              </div>
-            ))}
-          </div>
-        )}
+        {/*
+          Results get their own boundary so the search input above stays
+          mounted while the server refetches. Keying on the query shows the
+          skeleton for a new search instead of holding previous rows.
+        */}
+        <Suspense
+          key={checkInSearch}
+          fallback={<ActiveCheckInsSkeleton />}
+        >
+          <ActiveCheckInResults
+            eventId={eventId}
+            actorUserId={actorUserId}
+            searchQuery={checkInSearch}
+            eventTimeZone={eventTimeZone}
+          />
+        </Suspense>
       </section>
 
       {conflicts.length === 0 ? (
@@ -311,5 +274,101 @@ export default async function CheckInConflictsPage({
       )}
 
     </>
+  );
+}
+
+async function ActiveCheckInResults({
+  eventId,
+  actorUserId,
+  searchQuery,
+  eventTimeZone,
+}: {
+  eventId: string;
+  actorUserId: string;
+  searchQuery: string;
+  eventTimeZone: string;
+}) {
+  const activeCheckIns = await listActiveCheckIns({
+    eventId,
+    actorUserId,
+    searchQuery,
+  });
+
+  return (
+    <>
+      {/*
+        States what was searched, not just what is shown. The list is capped
+        because it exists to correct one specific check-in, and an
+        Organizer should never be left wondering whether the person they
+        searched for was simply below the cut.
+      */}
+      <p className="mb-4 text-sm text-muted-foreground" role="status" aria-live="polite">
+        {searchQuery
+          ? `${activeCheckIns.matchingCount.toLocaleString()} of ${activeCheckIns.totalCount.toLocaleString()} active check-ins match`
+          : activeCheckIns.matchingCount > activeCheckIns.limit
+            ? `Showing the ${activeCheckIns.limit} most recent of ${activeCheckIns.totalCount.toLocaleString()} active check-ins. Search by name to find any of them.`
+            : `${activeCheckIns.totalCount.toLocaleString()} active check-in${activeCheckIns.totalCount === 1 ? "" : "s"}`}
+      </p>
+
+      {activeCheckIns.rows.length === 0 ? (
+        <div className="border-y bg-background px-5 py-8 text-center text-sm text-muted-foreground">
+          {searchQuery
+            ? "No active check-ins match that name. Every active check-in was searched, not just the visible page."
+            : "Nobody is checked in yet."}
+        </div>
+      ) : (
+        <div className="divide-y rounded-2xl border bg-background">
+          {activeCheckIns.rows.map((activeCheckIn) => (
+            <div
+              key={activeCheckIn.id}
+              className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div>
+                <h3 className="font-medium">{activeCheckIn.attendeeName}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Checked in by {activeCheckIn.actorName} at{" "}
+                  {formatAttemptTime(activeCheckIn.checkedInAt, eventTimeZone)}
+                </p>
+              </div>
+              <ReasonedCheckInAction
+                label="Reverse check-in"
+                title={`Reverse ${activeCheckIn.attendeeName}'s check-in?`}
+                description="The check-in is undone and the history is kept. The ticket can be admitted again."
+                reasonDescription="The correction, and your reason for it, are kept permanently."
+                variant="destructive"
+                action={reverseOrganizerCheckInAction.bind(
+                  null,
+                  eventId,
+                  activeCheckIn.id,
+                )}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+function ActiveCheckInsSkeleton() {
+  return (
+    <div className="flex flex-col gap-3" aria-busy="true">
+      <Skeleton className="h-4 w-64 rounded-md" />
+      <div className="divide-y rounded-2xl border bg-background">
+        {Array.from({ length: 4 }, (_, index) => (
+          <div
+            key={index}
+            className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div className="flex-1">
+              <Skeleton className="h-4 w-40 rounded-md" />
+              <Skeleton className="mt-2 h-3 w-56 rounded-md" />
+            </div>
+            <Skeleton className="h-10 w-32 rounded-xl" />
+          </div>
+        ))}
+      </div>
+      <span className="sr-only">Loading active check-ins</span>
+    </div>
   );
 }

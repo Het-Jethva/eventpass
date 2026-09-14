@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { formatAdmissionOfferDeadline } from "./send-admission-offer";
 import { displayMaterialChangeValue } from "./send-event-notification";
-import { formatEventRange } from "./send-ticket";
+import { formatEventRange } from "@/lib/format-event-range";
 
 // Two regressions live here. Offer and change emails once formatted every
 // instant in UTC while the Ticket email used the Event Time Zone; and all

@@ -13,8 +13,6 @@ import { escapeHtml } from "./escape-html";
 import { isTransientDeliveryStatusCode } from "./delivery-failure";
 import { formatEventRange } from "@/lib/format-event-range";
 
-export { formatEventRange };
-
 const TEMPLATE = TICKET_ISSUED_TEMPLATE;
 
 export async function sendTicket({

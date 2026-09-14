@@ -147,4 +147,20 @@ describeWithDatabase("Staff magic-link eligibility", () => {
       await isEligibleStaffMagicLinkRecipient(`nobody-${randomUUID()}@example.com`),
     ).toBe(false);
   });
+
+  it("allows a configured platform admin with no staff row or invitation", async () => {
+    const { isEligibleStaffMagicLinkRecipient } = await loadEligibility();
+    const adminEmail = uniqueEmail("eligible-admin");
+    const previous = process.env.PLATFORM_ADMIN_EMAILS;
+    process.env.PLATFORM_ADMIN_EMAILS = adminEmail;
+    try {
+      expect(await isEligibleStaffMagicLinkRecipient(adminEmail)).toBe(true);
+    } finally {
+      if (previous === undefined) {
+        delete process.env.PLATFORM_ADMIN_EMAILS;
+      } else {
+        process.env.PLATFORM_ADMIN_EMAILS = previous;
+      }
+    }
+  });
 });

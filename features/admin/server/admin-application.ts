@@ -21,6 +21,10 @@ import {
   user,
 } from "@/lib/db/schema";
 
+function escapeLikePattern(value: string) {
+  return value.replace(/[\\%_]/g, (match) => `\\${match}`);
+}
+
 export async function assertPlatformAdmin(
   actorUserId: string,
   transactionOrDb: typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0] = db,
@@ -63,10 +67,13 @@ export async function listPlatformAccounts({
   await assertPlatformAdmin(actorUserId);
 
   const trimmedSearch = search?.trim();
-  const searchFilter = trimmedSearch
+  const likePattern = trimmedSearch
+    ? `%${escapeLikePattern(trimmedSearch)}%`
+    : null;
+  const searchFilter = likePattern
     ? or(
-        ilike(user.name, `%${trimmedSearch}%`),
-        ilike(user.email, `%${trimmedSearch}%`),
+        ilike(user.name, likePattern),
+        ilike(user.email, likePattern),
       )
     : undefined;
 
@@ -95,10 +102,13 @@ export async function listPlatformEvents({
   await assertPlatformAdmin(actorUserId);
 
   const trimmedSearch = search?.trim();
-  const searchFilter = trimmedSearch
+  const likePattern = trimmedSearch
+    ? `%${escapeLikePattern(trimmedSearch)}%`
+    : null;
+  const searchFilter = likePattern
     ? or(
-        ilike(event.name, `%${trimmedSearch}%`),
-        ilike(event.slug, `%${trimmedSearch}%`),
+        ilike(event.name, likePattern),
+        ilike(event.slug, likePattern),
       )
     : undefined;
 

@@ -33,10 +33,22 @@ export function createCheckInCorrectionService({
     actorUserId: string;
     reason: string;
   }) {
+    const UUID_PATTERN =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (
+      !UUID_PATTERN.test(values.eventId) ||
+      !UUID_PATTERN.test(values.checkInId) ||
+      !UUID_PATTERN.test(values.actorUserId)
+    ) {
+      throw new CheckInCorrectionError("That Check-in could not be found.");
+    }
     const reversedAt = now();
     const reason = values.reason.trim();
     if (!reason) {
       throw new CheckInCorrectionError("Provide a reason for this reversal.");
+    }
+    if (reason.length > 500) {
+      throw new CheckInCorrectionError("Keep the reason under 500 characters.");
     }
 
     return database.transaction(async (transaction) => {

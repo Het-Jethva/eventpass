@@ -24,8 +24,14 @@ export async function submitRegistrationAction(
     redirect(`/e/${slug}/check-email?outcome=neutral`);
   }
 
+  // Bound action args travel through the client, so only well-formed field
+  // identifiers shape the answers. Unknown keys are ignored downstream.
+  const UUID_PATTERN =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const safeFieldIds = fieldIds.filter((fieldId) => UUID_PATTERN.test(fieldId)).slice(0, 100);
+
   const answers = Object.fromEntries(
-    fieldIds.map((fieldId) => {
+    safeFieldIds.map((fieldId) => {
       const values = formData
         .getAll(`answer.${fieldId}`)
         .filter((value): value is string => typeof value === "string");

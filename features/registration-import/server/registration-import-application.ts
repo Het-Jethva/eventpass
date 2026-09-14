@@ -434,6 +434,21 @@ export function createRegistrationImportService({
     const created = await database.transaction(async (transaction) => {
       const lockedEvent = await lockEvent(transaction, eventId);
       if (!lockedEvent || isEventSuspended(lockedEvent)) return null;
+      // Re-check staffing inside the same transaction: the authorization read
+      // above runs before CSV parsing, so revocation in between must not slip
+      // a preview through.
+      const [stillAuthorized] = await transaction
+        .select({ id: eventStaff.id })
+        .from(eventStaff)
+        .where(
+          and(
+            eq(eventStaff.eventId, eventId),
+            eq(eventStaff.userId, actorUserId),
+            inArray(eventStaff.role, ["owner", "organizer"]),
+          ),
+        )
+        .limit(1);
+      if (!stillAuthorized) return null;
       const [saved] = await transaction
         .insert(registrationImport)
         .values({

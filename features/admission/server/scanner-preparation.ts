@@ -45,6 +45,18 @@ export function createScannerPreparationService({
     scannerDeviceId,
     scannerDeviceLabel,
   }: PrepareOfflineScannerInput): Promise<ScannerPreparationResult> {
+    const UUID_PATTERN =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const label = scannerDeviceLabel.trim();
+    if (
+      !UUID_PATTERN.test(eventId) ||
+      !UUID_PATTERN.test(actorUserId) ||
+      !UUID_PATTERN.test(scannerDeviceId) ||
+      label.length < 2 ||
+      label.length > 80
+    ) {
+      return { outcome: "event_unavailable" };
+    }
     const generatedAt = now();
     return database.transaction(async (transaction) => {
       const [authorizedEvent] = await transaction

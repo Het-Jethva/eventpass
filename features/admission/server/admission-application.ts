@@ -65,6 +65,27 @@ const REPLAYABLE_ONLINE_OUTCOMES = new Set<AdmissionOutcome>([
   "outside_window",
 ]);
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Transport validates first, but the service also guards its shape so direct
+// callers cannot skip length and identity checks with expensive work.
+function isWellFormedAdmissionInput(values: AdmissionInput): boolean {
+  if (!UUID_PATTERN.test(values.eventId)) return false;
+  if (!UUID_PATTERN.test(values.clientAttemptId)) return false;
+  if (!UUID_PATTERN.test(values.actorUserId)) return false;
+  const input = values.input.trim();
+  if (input.length < 1 || input.length > 4096) return false;
+  if (values.inputMethod !== "camera" && values.inputMethod !== "manual") {
+    return false;
+  }
+  if (values.overrideReason !== undefined) {
+    const reason = values.overrideReason.trim();
+    if (reason.length < 1 || reason.length > 500) return false;
+  }
+  return true;
+}
+
 function isUniqueViolation(error: unknown): boolean {
   if (typeof error !== "object" || error === null) return false;
   if ("code" in error && error.code === "23505") return true;
@@ -182,6 +203,9 @@ export function createAdmissionApplicationService({
     inputMethod,
     overrideReason,
   }: AdmissionInput): Promise<AdmissionResult> {
+    if (!isWellFormedAdmissionInput({ eventId, actorUserId, clientAttemptId, input, inputMethod, overrideReason })) {
+      return { outcome: "invalid" };
+    }
     const attemptedAt = now();
     const inputDigest = digestInput(input);
     const replayKey = {

@@ -108,6 +108,37 @@ export function createRegistrationApplicationService({
     values: RegistrationSubmissionValues,
     requestHeaders: Headers,
   ): Promise<RegistrationSubmissionResult> {
+    // Cheap guards before acquiring the per-event row lock: obviously
+    // malformed submissions must not cost a FOR UPDATE lock and field load.
+    if (typeof eventSlug !== "string" || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(eventSlug)) {
+      return { outcome: "registration_closed" };
+    }
+    const earlyErrors: Record<string, string[]> = {};
+    const earlyName = typeof values?.name === "string" ? values.name.trim() : "";
+    const earlyEmail = typeof values?.email === "string" ? values.email.trim() : "";
+    if (!earlyName) earlyErrors.name = ["Enter your name."];
+    else if (earlyName.length > 200) earlyErrors.name = ["Name is too long."];
+    if (!earlyEmail) earlyErrors.email = ["Enter a valid email address."];
+    else if (earlyEmail.length > 320 || !earlyEmail.includes("@")) {
+      earlyErrors.email = ["Enter a valid email address."];
+    }
+    if (!values || typeof values.answers !== "object" || values.answers === null) {
+      earlyErrors.answers = ["Invalid submission."];
+    }
+    if (Object.keys(earlyErrors).length > 0) {
+      return {
+        outcome: "invalid",
+        fieldErrors: earlyErrors,
+        values: {
+          name: typeof values?.name === "string" ? values.name : "",
+          email: typeof values?.email === "string" ? values.email : "",
+          answers:
+            values && typeof values.answers === "object" && values.answers !== null
+              ? (values.answers as Record<string, unknown>)
+              : {},
+        },
+      };
+    }
     const submittedAt = now();
     let emailMessage: VerificationEmail | null = null;
     let offerMessages: AdmissionOfferMessage[] = [];

@@ -653,7 +653,10 @@ export function createTicketApplicationService({
     managementToken: string,
   ): Promise<RegistrationManagementView | null> {
     if (!isWellFormedCapability(managementToken)) return null;
-    const [record] = await database
+    // Single transaction so registration, ticket, and fields cannot skew
+    // under a concurrent replacement.
+    return database.transaction(async (transaction) => {
+    const [record] = await transaction
       .select({
         registrationId: registration.id,
         eventId: event.id,
@@ -684,7 +687,7 @@ export function createTicketApplicationService({
       .limit(1);
     if (!record) return null;
 
-    const [latestTicket] = await database
+    const [latestTicket] = await transaction
       .select({
         status: ticket.status,
         code: ticket.code,
@@ -695,7 +698,7 @@ export function createTicketApplicationService({
       .orderBy(desc(ticket.createdAt), desc(ticket.id))
       .limit(1);
 
-    const fieldRows = await database
+    const fieldRows = await transaction
       .select({
         id: registrationField.id,
         answerType: registrationField.answerType,
@@ -722,7 +725,7 @@ export function createTicketApplicationService({
 
     const fieldIds = fieldRows.map(({ id }) => id);
     const choiceRows = fieldIds.length
-      ? await database
+      ? await transaction
           .select({
             id: registrationFieldChoice.id,
             fieldId: registrationFieldChoice.fieldId,
@@ -782,6 +785,7 @@ export function createTicketApplicationService({
         currentTicket?.status === "active" &&
         record.checkInOpensAt > viewedAt,
     };
+    });
   }
 
   async function updateRegistration(

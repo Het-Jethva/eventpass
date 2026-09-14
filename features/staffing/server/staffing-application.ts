@@ -567,55 +567,60 @@ export async function getEventStaffing(
     throw new StaffingAuthorizationError("You cannot manage staffing for this Event.");
   }
 
-  const [staff, invitations, transfers] = await Promise.all([
-    db
-      .select({
-        assignmentId: eventStaff.id,
-        userId: user.id,
-        name: user.name,
-        email: user.email,
-        role: eventStaff.role,
-        createdAt: eventStaff.createdAt,
-      })
-      .from(eventStaff)
-      .innerJoin(user, eq(user.id, eventStaff.userId))
-      .where(eq(eventStaff.eventId, eventId))
-      .orderBy(asc(eventStaff.createdAt)),
-    db
-      .select({
-        id: staffInvitation.id,
-        normalizedEmail: staffInvitation.normalizedEmail,
-        role: staffInvitation.role,
-        expiresAt: staffInvitation.expiresAt,
-      })
-      .from(staffInvitation)
-      .where(
-        and(
-          eq(staffInvitation.eventId, eventId),
-          isNull(staffInvitation.consumedAt),
-          isNull(staffInvitation.revokedAt),
-          gt(staffInvitation.expiresAt, now),
-        ),
-      )
-      .orderBy(asc(staffInvitation.createdAt)),
-    db
-      .select({
-        id: ownershipTransfer.id,
-        proposedByUserId: ownershipTransfer.proposedByUserId,
-        proposedOwnerUserId: ownershipTransfer.proposedOwnerUserId,
-        expiresAt: ownershipTransfer.expiresAt,
-      })
-      .from(ownershipTransfer)
-      .where(
-        and(
-          eq(ownershipTransfer.eventId, eventId),
-          isNull(ownershipTransfer.acceptedAt),
-          isNull(ownershipTransfer.revokedAt),
-          gt(ownershipTransfer.expiresAt, now),
-        ),
-      )
-      .limit(1),
-  ]);
+  // One transaction so staff, invitations, and transfers reflect the same
+  // snapshot instead of three independent reads.
+  const { staff, invitations, transfers } = await db.transaction(
+    async (transaction) => {
+      const staff = await transaction
+        .select({
+          assignmentId: eventStaff.id,
+          userId: user.id,
+          name: user.name,
+          email: user.email,
+          role: eventStaff.role,
+          createdAt: eventStaff.createdAt,
+        })
+        .from(eventStaff)
+        .innerJoin(user, eq(user.id, eventStaff.userId))
+        .where(eq(eventStaff.eventId, eventId))
+        .orderBy(asc(eventStaff.createdAt));
+      const invitations = await transaction
+        .select({
+          id: staffInvitation.id,
+          normalizedEmail: staffInvitation.normalizedEmail,
+          role: staffInvitation.role,
+          expiresAt: staffInvitation.expiresAt,
+        })
+        .from(staffInvitation)
+        .where(
+          and(
+            eq(staffInvitation.eventId, eventId),
+            isNull(staffInvitation.consumedAt),
+            isNull(staffInvitation.revokedAt),
+            gt(staffInvitation.expiresAt, now),
+          ),
+        )
+        .orderBy(asc(staffInvitation.createdAt));
+      const transfers = await transaction
+        .select({
+          id: ownershipTransfer.id,
+          proposedByUserId: ownershipTransfer.proposedByUserId,
+          proposedOwnerUserId: ownershipTransfer.proposedOwnerUserId,
+          expiresAt: ownershipTransfer.expiresAt,
+        })
+        .from(ownershipTransfer)
+        .where(
+          and(
+            eq(ownershipTransfer.eventId, eventId),
+            isNull(ownershipTransfer.acceptedAt),
+            isNull(ownershipTransfer.revokedAt),
+            gt(ownershipTransfer.expiresAt, now),
+          ),
+        )
+        .limit(1);
+      return { staff, invitations, transfers };
+    },
+  );
 
   return {
     eventId,

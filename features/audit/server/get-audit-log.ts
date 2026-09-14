@@ -287,21 +287,21 @@ function toFormattedRecord(row: AuditRow): FormattedAuditRecord {
 // down a column of forty rows, so each one names the change and stops.
 function formatAuditActionLabel(action: string): string {
   const labels: Record<string, string> = {
-    "event.created": "Event created",
-    "event.updated": "Event configured",
-    "event.published": "Event published",
     "event.canceled": "Event canceled",
+    "event.material_change": "Event details changed",
     "staff_invitation.created": "Invitation sent",
     "staff_invitation.accepted": "Invitation accepted",
     "staff_invitation.revoked": "Invitation revoked",
+    "event_staff.assigned": "Staff assigned",
     "event_staff.removed": "Staff removed",
     "ownership_transfer.proposed": "Ownership transfer proposed",
     "ownership_transfer.accepted": "Ownership transferred",
-    "ownership_transfer.revoked": "Ownership transfer revoked",
-    "check_in_reversal.created": "Check-in reversed",
+    "ownership_transfer.withdrawn": "Ownership transfer withdrawn",
+    "check_in.reversed": "Check-in reversed",
+    "check_in.outside_window_override": "Check-in window overridden",
     "check_in_conflict.resolved": "Conflict resolved",
-    "registration_import.completed": "Registrations imported",
-    admission_override: "Check-in window overridden",
+    "registration.imported": "Registrations imported",
+    "registration.exported": "Registrations exported",
   };
 
   return labels[action] ?? sentenceCase(action.replace(/[._]/g, " "));

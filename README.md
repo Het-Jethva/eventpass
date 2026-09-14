@@ -242,6 +242,7 @@ npm run dev
 | `RESEND_FROM_EMAIL` | yes | Verified sending address |
 | `RESEND_WEBHOOK_SECRET` | yes | Verifies signed delivery webhooks |
 | `PLATFORM_ADMIN_EMAILS` | no | Comma-separated platform administrators |
+| `THROTTLE_SECRET` | no | Throttle HMAC secret, falls back to `BETTER_AUTH_SECRET` |
 | `NEON_WS_PROXY` | no | WebSocket bridge host for a local Postgres (see below) |
 | `TEST_DATABASE_URL` | no | Integration tests only. Vitest reads this name from the environment or `.env.local`; it never falls back to `DATABASE_URL`. |
 

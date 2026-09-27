@@ -1,0 +1,52 @@
+import "server-only";
+
+import type { DatabaseClient } from "@/lib/db";
+
+import { eq } from "drizzle-orm";
+
+import { event } from "@/lib/db/schema";
+
+export class EventSuspendedError extends Error {
+  constructor(message = "This Event is currently unavailable.") {
+    super(message);
+    this.name = "EventSuspendedError";
+  }
+}
+
+type EventDatabase = DatabaseClient;
+type EventTransaction = Parameters<Parameters<EventDatabase["transaction"]>[0]>[0];
+
+export async function lockEvent(
+  transaction: EventTransaction,
+  eventId: string,
+) {
+  const [eventRecord] = await transaction
+    .select({ id: event.id, suspended: event.suspended })
+    .from(event)
+    .where(eq(event.id, eventId))
+    .for("update")
+    .limit(1);
+
+  return eventRecord ?? null;
+}
+
+export function assertEventNotSuspended(eventRecord: { suspended: boolean }) {
+  if (eventRecord.suspended) {
+    throw new EventSuspendedError();
+  }
+}
+
+export function isEventSuspended(eventRecord: { suspended: boolean }) {
+  return eventRecord.suspended;
+}
+
+export async function lockEventForMutation(
+  transaction: EventTransaction,
+  eventId: string,
+) {
+  const eventRecord = await lockEvent(transaction, eventId);
+  if (eventRecord) {
+    assertEventNotSuspended(eventRecord);
+  }
+  return eventRecord;
+}

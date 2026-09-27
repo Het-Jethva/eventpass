@@ -1,0 +1,2 @@
+ALTER TABLE "scan_attempt" DROP CONSTRAINT "scan_attempt_outcome_check";--> statement-breakpoint
+ALTER TABLE "scan_attempt" ADD CONSTRAINT "scan_attempt_outcome_check" CHECK ("scan_attempt"."outcome" in ('accepted', 'duplicate', 'invalid', 'unknown', 'canceled', 'replaced', 'expired', 'outside_window', 'conflict', 'not_checked_in'));

@@ -1,0 +1,535 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* Base UI state variants. These were the only part of `shadcn/tailwind.css`
+   this product ever used, so the six live here instead of pulling a CLI and
+   its dependency tree into the build for them. Add the matching variant here
+   when a new component needs one — Tailwind fails the build on an unknown
+   variant, so a missing one cannot pass silently. */
+@custom-variant data-open {
+  &:where([data-state="open"]),
+  &:where([data-open]:not([data-open="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-closed {
+  &:where([data-state="closed"]),
+  &:where([data-closed]:not([data-closed="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-checked {
+  &:where([data-state="checked"]),
+  &:where([data-checked]:not([data-checked="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-disabled {
+  &:where([data-disabled="true"]),
+  &:where([data-disabled]:not([data-disabled="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-horizontal {
+  &:where([data-orientation="horizontal"]) {
+    @slot;
+  }
+}
+
+@custom-variant data-vertical {
+  &:where([data-orientation="vertical"]) {
+    @slot;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  /* One voice. Geist Sans carries headlines, body, tables, forms, and every
+     scanner string; the mono is narrowed to codes a human reads aloud or types.
+     There is no display face and no `--font-heading`: hierarchy is size, weight,
+     and spacing, which is the only hierarchy that survives a dense table. */
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  /* Type scale. Leading and tracking are properties of a size, not decisions to
+     re-make per component, so they are bound here — every `text-*` in the
+     product inherits its optical treatment. Tracking tightens as size grows and
+     never passes -0.03em. */
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.3333;
+  --text-xs--letter-spacing: 0.002em;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.4286;
+  --text-sm--letter-spacing: -0.006em;
+  --text-base: 1rem;
+  --text-base--line-height: 1.5;
+  --text-base--letter-spacing: -0.011em;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.4444;
+  --text-lg--letter-spacing: -0.014em;
+  --text-xl: 1.25rem;
+  --text-xl--line-height: 1.4;
+  --text-xl--letter-spacing: -0.017em;
+  --text-2xl: 1.5rem;
+  --text-2xl--line-height: 1.3333;
+  --text-2xl--letter-spacing: -0.019em;
+  --text-3xl: 1.875rem;
+  --text-3xl--line-height: 1.2;
+  --text-3xl--letter-spacing: -0.021em;
+  --text-4xl: 2.25rem;
+  --text-4xl--line-height: 1.1111;
+  --text-4xl--letter-spacing: -0.023em;
+  --text-5xl: 3rem;
+  --text-5xl--line-height: 1.0833;
+  --text-5xl--letter-spacing: -0.025em;
+  --text-6xl: 3.75rem;
+  --text-6xl--line-height: 1.0333;
+  --text-6xl--letter-spacing: -0.027em;
+  --text-7xl: 4.5rem;
+  --text-7xl--line-height: 1;
+  --text-7xl--letter-spacing: -0.029em;
+
+  /* Two reading steps, added because the scale was missing them and thirty
+     components had each patched it locally with `leading-6` or `leading-7`.
+     A roster cell and a paragraph explaining what a roster is are both 14px
+     and want different leading; binding one number to the size forced every
+     description in the product to override it, which is precisely the drift
+     the bound-optics rule exists to prevent. Same sizes as `sm` and `base`,
+     opened up for prose that runs to several lines. */
+  --text-support: 0.875rem;
+  --text-support--line-height: 1.7143;
+  --text-support--letter-spacing: -0.006em;
+  --text-reading: 1rem;
+  --text-reading--line-height: 1.75;
+  --text-reading--letter-spacing: -0.011em;
+
+  /* Geist Sans is variable, so the headline weight does not have to be one of
+     the nine stops. 560 holds its colour against a 48px line where 600 goes
+     blunt and 500 goes weak. */
+  --font-weight-headline: 560;
+
+  /* A Ticket Code is read across a table or dictated down a phone. Opening it up
+     is legibility, not styling, so the value is a token rather than a number
+     re-guessed at each call site. */
+  --tracking-code: 0.08em;
+
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+
+  --color-scrim: var(--scrim);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+
+  /* Outcome families. Every one carries the same five roles so a component can
+     switch families without switching vocabulary. */
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-text: var(--brand-text);
+  --color-brand-subtle: var(--brand-subtle);
+  --color-brand-border: var(--brand-border);
+
+  --color-info: var(--brand);
+  --color-info-foreground: var(--brand-foreground);
+  --color-info-text: var(--brand-text);
+  --color-info-subtle: var(--brand-subtle);
+  --color-info-border: var(--brand-border);
+
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-text: var(--success-text);
+  --color-success-subtle: var(--success-subtle);
+  --color-success-border: var(--success-border);
+
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-text: var(--warning-text);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-warning-border: var(--warning-border);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-text: var(--destructive-text);
+  --color-destructive-subtle: var(--destructive-subtle);
+  --color-destructive-border: var(--destructive-border);
+
+  --color-provisional: var(--provisional);
+  --color-provisional-foreground: var(--provisional-foreground);
+  --color-provisional-text: var(--provisional-text);
+  --color-provisional-subtle: var(--provisional-subtle);
+  --color-provisional-border: var(--provisional-border);
+
+  /* Signal pair, pinned across themes. Only the scanner outcome uses these:
+     ambient venue light beats theme preference at a door, so a rejection must
+     not render as dark-red-on-black in a lit gymnasium. */
+  --color-signal-success: var(--signal-success);
+  --color-signal-success-text: var(--signal-success-text);
+  --color-signal-warning: var(--signal-warning);
+  --color-signal-warning-text: var(--signal-warning-text);
+  --color-signal-destructive: var(--signal-destructive);
+  --color-signal-destructive-text: var(--signal-destructive-text);
+  --color-signal-provisional: var(--signal-provisional);
+  --color-signal-provisional-text: var(--signal-provisional-text);
+
+  /* Three radii, named by role. The legacy scale names are mapped onto them so
+     existing markup conforms without a sweep; prefer the role names in new
+     code. */
+  --radius-sm: var(--radius-control);
+  --radius-md: var(--radius-control);
+  --radius-lg: var(--radius-container);
+  --radius-xl: var(--radius-container);
+  --radius-2xl: var(--radius-container);
+  --radius-3xl: var(--radius-overlay);
+  --radius-4xl: var(--radius-overlay);
+  --radius-control: var(--radius-control);
+  --radius-container: var(--radius-container);
+  --radius-overlay: var(--radius-overlay);
+}
+
+:root {
+  /* The theme is chosen by a class, so the UA has to be told which one won.
+     Without this the browser keeps painting its own chrome from the OS
+     preference: scrollbars, the date and time pickers behind the Event schedule
+     fields, the file picker on the Registration Import, and every native form
+     control. A staff user on a dark laptop who picks the light theme was
+     reading a light workspace through dark scrollbars. */
+  color-scheme: light;
+
+  --radius-control: 0.375rem;
+  --radius-container: 0.75rem;
+  --radius-overlay: 1rem;
+
+  /* Neutral ramp, hue 260 at very low chroma. Never pure gray.
+
+     The light values are named separately and never overridden in `.dark`, so
+     `.signal-surface` can re-point to them without duplicating literals that
+     would silently drift out of step with this block. */
+  --light-background: oklch(0.994 0.002 260);
+  --light-foreground: oklch(0.17 0.013 260);
+  --light-primary: oklch(0.21 0.015 260);
+  --light-primary-foreground: oklch(0.985 0.002 260);
+  --light-secondary: oklch(0.967 0.004 260);
+  --light-muted: oklch(0.967 0.004 260);
+  --light-muted-foreground: oklch(0.505 0.016 260);
+  --light-accent: oklch(0.955 0.006 260);
+  --light-border: oklch(0.916 0.005 260);
+  --light-ring: oklch(0.6 0.09 200);
+
+  --background: var(--light-background);
+  --foreground: var(--light-foreground);
+  --card: oklch(1 0 0);
+  --card-foreground: var(--light-foreground);
+  --popover: oklch(1 0 0);
+  --popover-foreground: var(--light-foreground);
+  --primary: var(--light-primary);
+  --primary-foreground: var(--light-primary-foreground);
+  --secondary: var(--light-secondary);
+  --secondary-foreground: var(--light-primary);
+  --muted: var(--light-muted);
+  --muted-foreground: var(--light-muted-foreground);
+  --accent: var(--light-accent);
+  --accent-foreground: var(--light-primary);
+  --border: var(--light-border);
+  --input: var(--light-border);
+  --ring: var(--light-ring);
+
+  --brand: oklch(0.5 0.088 200);
+  --brand-foreground: oklch(0.99 0.004 200);
+  --brand-text: oklch(0.45 0.08 200);
+  --brand-subtle: oklch(0.965 0.019 200);
+  --brand-border: oklch(0.87 0.048 200);
+
+  --success: oklch(0.49 0.112 150);
+  --success-foreground: oklch(0.99 0.005 150);
+  --success-text: oklch(0.44 0.105 150);
+  --success-subtle: oklch(0.965 0.024 150);
+  --success-border: oklch(0.875 0.052 150);
+
+  --warning: oklch(0.76 0.145 75);
+  --warning-foreground: oklch(0.24 0.045 75);
+  --warning-text: oklch(0.46 0.098 75);
+  --warning-subtle: oklch(0.97 0.032 75);
+  --warning-border: oklch(0.87 0.072 75);
+
+  --destructive: oklch(0.515 0.192 27);
+  --destructive-foreground: oklch(0.99 0.005 27);
+  --destructive-text: oklch(0.475 0.186 27);
+  --destructive-subtle: oklch(0.965 0.021 27);
+  --destructive-border: oklch(0.875 0.058 27);
+
+  --provisional: oklch(0.485 0.155 265);
+  --provisional-foreground: oklch(0.99 0.004 265);
+  --provisional-text: oklch(0.45 0.15 265);
+  --provisional-subtle: oklch(0.965 0.025 265);
+  --provisional-border: oklch(0.875 0.062 265);
+
+  --sidebar: oklch(0.975 0.004 260);
+  --sidebar-foreground: oklch(0.17 0.013 260);
+  --sidebar-primary: oklch(0.21 0.015 260);
+  --sidebar-primary-foreground: oklch(0.985 0.002 260);
+  --sidebar-accent: oklch(0.93 0.008 260);
+  --sidebar-accent-foreground: oklch(0.21 0.015 260);
+  --sidebar-border: oklch(0.912 0.005 260);
+  --sidebar-ring: oklch(0.6 0.09 200);
+}
+
+/* Pinned across both themes on purpose — do not move these into .dark. */
+:root,
+.dark {
+  /* The scrim behind a modal. Pinned to the *light* ink, not to `--foreground`,
+     because `--foreground` inverts in dark mode and a 40% near-white veil over
+     a dark page lightens what it is supposed to push back. Two dialogs had each
+     reached for a raw `black/30` and `black/50` to dodge that; this is the one
+     value they now share. */
+  --scrim: oklch(0.17 0.013 260 / 0.45);
+
+  --signal-success: oklch(0.945 0.055 150);
+  --signal-success-text: oklch(0.37 0.1 150);
+  --signal-warning: oklch(0.95 0.068 75);
+  --signal-warning-text: oklch(0.39 0.095 75);
+  --signal-destructive: oklch(0.945 0.045 27);
+  --signal-destructive-text: oklch(0.4 0.17 27);
+  --signal-provisional: oklch(0.945 0.05 265);
+  --signal-provisional-text: oklch(0.38 0.145 265);
+}
+
+.dark {
+  color-scheme: dark;
+
+  --background: oklch(0.155 0.012 260);
+  --foreground: oklch(0.975 0.003 260);
+  --card: oklch(0.198 0.014 260);
+  --card-foreground: oklch(0.975 0.003 260);
+  --popover: oklch(0.198 0.014 260);
+  --popover-foreground: oklch(0.975 0.003 260);
+  --primary: oklch(0.93 0.004 260);
+  --primary-foreground: oklch(0.2 0.014 260);
+  --secondary: oklch(0.272 0.014 260);
+  --secondary-foreground: oklch(0.975 0.003 260);
+  --muted: oklch(0.272 0.014 260);
+  --muted-foreground: oklch(0.735 0.015 260);
+  --accent: oklch(0.31 0.016 260);
+  --accent-foreground: oklch(0.975 0.003 260);
+  --border: oklch(0.3 0.014 260);
+  --input: oklch(0.34 0.014 260);
+  --ring: oklch(0.68 0.088 200);
+
+  --brand: oklch(0.78 0.09 200);
+  --brand-foreground: oklch(0.19 0.03 200);
+  --brand-text: oklch(0.82 0.085 200);
+  --brand-subtle: oklch(0.27 0.036 200);
+  --brand-border: oklch(0.4 0.058 200);
+
+  --success: oklch(0.78 0.13 150);
+  --success-foreground: oklch(0.18 0.035 150);
+  --success-text: oklch(0.83 0.12 150);
+  --success-subtle: oklch(0.27 0.042 150);
+  --success-border: oklch(0.4 0.07 150);
+
+  --warning: oklch(0.82 0.14 75);
+  --warning-foreground: oklch(0.2 0.04 75);
+  --warning-text: oklch(0.86 0.125 75);
+  --warning-subtle: oklch(0.28 0.045 75);
+  --warning-border: oklch(0.42 0.075 75);
+
+  --destructive: oklch(0.7 0.175 27);
+  --destructive-foreground: oklch(0.17 0.035 27);
+  --destructive-text: oklch(0.78 0.14 27);
+  --destructive-subtle: oklch(0.28 0.055 27);
+  --destructive-border: oklch(0.43 0.1 27);
+
+  --provisional: oklch(0.75 0.13 265);
+  --provisional-foreground: oklch(0.18 0.04 265);
+  --provisional-text: oklch(0.81 0.115 265);
+  --provisional-subtle: oklch(0.28 0.055 265);
+  --provisional-border: oklch(0.43 0.095 265);
+
+  --sidebar: oklch(0.185 0.013 260);
+  --sidebar-foreground: oklch(0.975 0.003 260);
+  --sidebar-primary: oklch(0.93 0.004 260);
+  --sidebar-primary-foreground: oklch(0.2 0.014 260);
+  --sidebar-accent: oklch(0.3 0.016 260);
+  --sidebar-accent-foreground: oklch(0.975 0.003 260);
+  --sidebar-border: oklch(0.3 0.014 260);
+  --sidebar-ring: oklch(0.68 0.088 200);
+}
+
+/* A scan outcome is pinned to the light palette in both themes, but the
+   controls rendered inside it are not — in dark mode that put a near-black
+   button and a dark outline on a mint surface. Pinning the surface has to pin
+   everything sitting on it, so this re-points the neutral tokens for the whole
+   subtree. Outcome hues are untouched; only neutrals are overridden. */
+.signal-surface {
+  --background: var(--light-background);
+  --foreground: var(--light-foreground);
+  --card: var(--light-background);
+  --card-foreground: var(--light-foreground);
+  --primary: var(--light-primary);
+  --primary-foreground: var(--light-primary-foreground);
+  --secondary: var(--light-secondary);
+  --secondary-foreground: var(--light-primary);
+  --muted: var(--light-muted);
+  --muted-foreground: var(--light-muted-foreground);
+  --accent: var(--light-accent);
+  --accent-foreground: var(--light-primary);
+  --border: var(--light-border);
+  --input: var(--light-border);
+  --ring: var(--light-ring);
+  color-scheme: light;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+    /* cv05 gives the lowercase l a tail and cv08 puts serifs on the uppercase
+       i, so `Il1` in an attendee name or a venue string cannot collapse into
+       three identical strokes. This is the same disambiguation the Ticket Code
+       alphabet is designed around, applied to the text beside it. */
+    font-feature-settings:
+      "cv05" 1,
+      "cv08" 1;
+  }
+
+  /* Figures line up in a column by default. A roster, a capacity meter, and an
+     audit timestamp are all read by comparison, and proportional digits make
+     comparison harder for no gain anywhere else in the product. */
+  table,
+  time,
+  [data-slot="badge"] {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer utilities {
+  /* The product's one authored moment, in two beats: the newest scan lands in
+     the activity list, and the arrivals meter answers it. That sequence is the
+     thing the landing page is claiming — a door being worked — so it is what
+     moves, rather than the page decorating its own entrance.
+
+     Exponential ease-out. Every figure is legible before, during, and after:
+     the motion states nothing the text does not. Note this is the activity row,
+     never a scan outcome — a door decision still appears instantly and never
+     animates. */
+  @keyframes scan-arrive {
+    from {
+      opacity: 0;
+      transform: translateY(-0.5rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .animate-scan-arrive {
+    /* No delay. `both` holds the `from` state backwards through any delay, so a
+       quarter-second head start meant a blank row for anyone scrolling the
+       frame into view mid-animation — the row has to be effectively visible by
+       default, and the sequence still reads from the meter's delay alone. */
+    animation: scan-arrive 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  @keyframes meter-fill {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
+  }
+  .animate-meter-fill {
+    transform-origin: left;
+    /* Delayed past the row's arrival so the count reads as its consequence. */
+    animation: meter-fill 1.1s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both;
+  }
+
+  /* The Ticket tear line. `border-dashed` reads as a dashed box; punched round
+     holes read as a perforation, and print as one. */
+  .perforation-x {
+    background-image: radial-gradient(
+      circle at center,
+      var(--border) 0 0.09375rem,
+      transparent 0.09375rem
+    );
+    background-position: center;
+    background-repeat: repeat-x;
+    background-size: 0.5rem 0.5rem;
+  }
+  .perforation-y {
+    background-image: radial-gradient(
+      circle at center,
+      var(--border) 0 0.09375rem,
+      transparent 0.09375rem
+    );
+    background-position: center;
+    background-repeat: repeat-y;
+    background-size: 0.5rem 0.5rem;
+  }
+}
+
+@media print {
+  /* A printed Ticket is a real artifact, not a screenshot of a web page.
+     Resetting only background and foreground was not enough: a dark-mode
+     viewer printing a Ticket kept the dark --muted-foreground, so the schedule,
+     venue, and "Single entry" line came out pale grey on white. The whole
+     neutral set has to come back to light, by reference so the values stay
+     single-source. */
+  :root,
+  .dark {
+    --background: oklch(1 0 0);
+    --foreground: var(--light-foreground);
+    --card: oklch(1 0 0);
+    --card-foreground: var(--light-foreground);
+    --popover: oklch(1 0 0);
+    --popover-foreground: var(--light-foreground);
+    --primary: var(--light-primary);
+    --primary-foreground: var(--light-primary-foreground);
+    --secondary: var(--light-secondary);
+    --secondary-foreground: var(--light-primary);
+    --muted: var(--light-muted);
+    --muted-foreground: var(--light-muted-foreground);
+    --accent: var(--light-accent);
+    --accent-foreground: var(--light-primary);
+    --border: var(--light-border);
+    --input: var(--light-border);
+    color-scheme: light;
+  }
+}
+/* Keep the control's dimensions stable while its action-specific pending copy
+   occupies the same box. This also prevents transparent navigation links from
+   showing the old and pending labels on top of one another. */
+[data-slot="pending-link"]:has([data-pending="true"])
+  > [data-slot="pending-link-content"] {
+  visibility: hidden;
+}

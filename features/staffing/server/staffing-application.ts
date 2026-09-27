@@ -1,0 +1,708 @@
+import "server-only";
+
+import { randomBytes } from "node:crypto";
+import {
+  and,
+  asc,
+  eq,
+  gt,
+  inArray,
+  isNull,
+  lte,
+  sql,
+} from "drizzle-orm";
+import { z } from "zod";
+
+import { digestTokenBase64Url } from "@/lib/bearer-token-digest";
+
+import { normalizeStaffEmail } from "@/features/staff-identity/normalize-staff-email";
+import { evaluateStaffInvitationAcceptance } from "@/features/staffing/staff-invitation-policy";
+import {
+  canManageRole,
+  isEventOwner,
+  parseEventStaffRole,
+  parseInviteableStaffRole,
+  type EventStaffRole,
+  type InviteableStaffRole,
+} from "@/features/staffing/staffing-policy";
+import { db } from "@/lib/db";
+import {
+  auditEntry,
+  event,
+  eventStaff,
+  ownershipTransfer,
+  staffInvitation,
+  user,
+} from "@/lib/db/schema";
+import { lockEventForMutation } from "@/features/events/server/event-suspension";
+
+const STAFF_INVITATION_TTL_MS = 24 * 60 * 60 * 1_000;
+const OWNERSHIP_TRANSFER_TTL_MS = 24 * 60 * 60 * 1_000;
+
+export const inviteStaffInputSchema = z.object({
+  email: z.email("Enter a valid email address.").transform(normalizeStaffEmail),
+  role: z.enum(["organizer", "check_in_volunteer"]),
+});
+
+export type InviteStaffInput = z.input<typeof inviteStaffInputSchema>;
+
+export class StaffingAuthorizationError extends Error {}
+export class StaffingConflictError extends Error {}
+export class StaffInvitationUnavailableError extends Error {}
+export class StaffInvitationEmailMismatchError extends Error {}
+export class OwnershipTransferUnavailableError extends Error {}
+
+function createStaffInvitationToken() {
+  return randomBytes(32).toString("base64url");
+}
+
+async function findActorRole(
+  transaction: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  eventId: string,
+  actorUserId: string,
+) {
+  const [assignment] = await transaction
+    .select({ role: eventStaff.role })
+    .from(eventStaff)
+    .where(
+      and(eq(eventStaff.eventId, eventId), eq(eventStaff.userId, actorUserId)),
+    )
+    .limit(1);
+
+  return assignment ? parseEventStaffRole(assignment.role) : undefined;
+}
+
+function assertCanManageRole(
+  actorRole: EventStaffRole | undefined,
+  targetRole: InviteableStaffRole,
+) {
+  if (!actorRole || !canManageRole(actorRole, targetRole)) {
+    throw new StaffingAuthorizationError(
+      targetRole === "organizer"
+        ? "Only the Event Owner can manage Organizers."
+        : "Only the Event Owner or an Organizer can manage Check-in Volunteers.",
+    );
+  }
+}
+
+export async function createStaffInvitation(
+  eventId: string,
+  actorUserId: string,
+  rawInput: unknown,
+  now = new Date(),
+) {
+  const input = inviteStaffInputSchema.parse(rawInput);
+  const token = createStaffInvitationToken();
+  const tokenDigest = digestTokenBase64Url(token);
+  const expiresAt = new Date(now.getTime() + STAFF_INVITATION_TTL_MS);
+
+  const result = await db.transaction(async (transaction) => {
+    await lockEventForMutation(transaction, eventId);
+    const actorRole = await findActorRole(transaction, eventId, actorUserId);
+    assertCanManageRole(actorRole, input.role);
+
+    const [eventRecord] = await transaction
+      .select({ id: event.id, name: event.name })
+      .from(event)
+      .where(eq(event.id, eventId))
+      .limit(1);
+    if (!eventRecord) throw new StaffingAuthorizationError("Event not found.");
+
+    await transaction
+      .update(staffInvitation)
+      .set({ revokedAt: now })
+      .where(
+        and(
+          eq(staffInvitation.eventId, eventId),
+          isNull(staffInvitation.consumedAt),
+          isNull(staffInvitation.revokedAt),
+          lte(staffInvitation.expiresAt, now),
+        ),
+      );
+
+    const [existingStaff] = await transaction
+      .select({ id: eventStaff.id })
+      .from(eventStaff)
+      .innerJoin(user, eq(user.id, eventStaff.userId))
+      .where(
+        and(
+          eq(eventStaff.eventId, eventId),
+          sql`lower(btrim(${user.email})) = ${input.email}`,
+        ),
+      )
+      .limit(1);
+    if (existingStaff) {
+      throw new StaffingConflictError("That person already has access to this Event.");
+    }
+
+    const [pendingInvitation] = await transaction
+      .select({ id: staffInvitation.id })
+      .from(staffInvitation)
+      .where(
+        and(
+          eq(staffInvitation.eventId, eventId),
+          eq(staffInvitation.normalizedEmail, input.email),
+          isNull(staffInvitation.consumedAt),
+          isNull(staffInvitation.revokedAt),
+          // The expiry janitor above usually revokes lapsed rows first, but
+          // correctness here must not depend on that ordering.
+          gt(staffInvitation.expiresAt, now),
+        ),
+      )
+      .limit(1);
+    if (pendingInvitation) {
+      throw new StaffingConflictError(
+        "A pending Staff Invitation already exists for that email address.",
+      );
+    }
+
+    const [invitation] = await transaction
+      .insert(staffInvitation)
+      .values({
+        eventId,
+        invitedByUserId: actorUserId,
+        normalizedEmail: input.email,
+        role: input.role,
+        tokenDigest,
+        expiresAt,
+      })
+      .returning({ id: staffInvitation.id });
+    if (!invitation) {
+      throw new Error("Could not create the Staff Invitation.");
+    }
+
+    await transaction.insert(auditEntry).values({
+      eventId,
+      actorUserId,
+      action: "staff_invitation.created",
+      targetType: "staff_invitation",
+      targetId: invitation.id,
+      metadata: { normalizedEmail: input.email, role: input.role },
+    });
+
+    return { eventName: eventRecord.name, invitationId: invitation.id };
+  });
+
+  return { ...result, email: input.email, role: input.role, token, expiresAt };
+}
+
+export async function acceptStaffInvitation(
+  token: string,
+  actorUserId: string,
+  now = new Date(),
+) {
+  const tokenDigest = digestTokenBase64Url(token);
+
+  return db.transaction(async (transaction) => {
+    const [invitation] = await transaction
+      .select()
+      .from(staffInvitation)
+      .where(eq(staffInvitation.tokenDigest, tokenDigest))
+      .for("update")
+      .limit(1);
+
+    if (!invitation) {
+      throw new StaffInvitationUnavailableError(
+        "This Staff Invitation is expired, revoked, or already used.",
+      );
+    }
+    await lockEventForMutation(transaction, invitation.eventId);
+
+    const [actor] = await transaction
+      .select({ email: user.email, suspended: user.suspended })
+      .from(user)
+      .where(eq(user.id, actorUserId))
+      .limit(1);
+    if (!actor || actor.suspended) {
+      throw new StaffingAuthorizationError("This staff user cannot accept invitations.");
+    }
+    const acceptance = evaluateStaffInvitationAcceptance(invitation, actor.email, now);
+    if (acceptance === "unavailable") {
+      throw new StaffInvitationUnavailableError(
+        "This Staff Invitation is expired, revoked, or already used.",
+      );
+    }
+    if (acceptance === "email_mismatch") {
+      throw new StaffInvitationEmailMismatchError(
+        "Sign in with the email address named by this Staff Invitation.",
+      );
+    }
+
+    const [existingAssignment] = await transaction
+      .select({ id: eventStaff.id })
+      .from(eventStaff)
+      .where(
+        and(
+          eq(eventStaff.eventId, invitation.eventId),
+          eq(eventStaff.userId, actorUserId),
+        ),
+      )
+      .limit(1);
+    if (existingAssignment) {
+      throw new StaffingConflictError("You already have access to this Event.");
+    }
+
+    const [assignment] = await transaction
+      .insert(eventStaff)
+      .values({
+        eventId: invitation.eventId,
+        userId: actorUserId,
+        role: invitation.role,
+      })
+      .returning({ id: eventStaff.id });
+    if (!assignment) {
+      throw new Error("Could not assign Event Staff.");
+    }
+    await transaction
+      .update(staffInvitation)
+      .set({ consumedAt: now })
+      .where(eq(staffInvitation.id, invitation.id));
+    await transaction.insert(auditEntry).values([
+      {
+        eventId: invitation.eventId,
+        actorUserId,
+        action: "staff_invitation.accepted",
+        targetType: "staff_invitation",
+        targetId: invitation.id,
+        metadata: { role: invitation.role },
+      },
+      {
+        eventId: invitation.eventId,
+        actorUserId,
+        action: "event_staff.assigned",
+        targetType: "event_staff",
+        targetId: assignment.id,
+        metadata: { role: invitation.role },
+      },
+    ]);
+
+    return { eventId: invitation.eventId, role: invitation.role };
+  });
+}
+
+export async function revokeStaffInvitation(
+  invitationId: string,
+  actorUserId: string,
+  now = new Date(),
+) {
+  return db.transaction(async (transaction) => {
+    const [invitation] = await transaction
+      .select()
+      .from(staffInvitation)
+      .where(eq(staffInvitation.id, invitationId))
+      .for("update")
+      .limit(1);
+    if (!invitation || invitation.consumedAt || invitation.revokedAt) {
+      throw new StaffInvitationUnavailableError("That Staff Invitation is no longer pending.");
+    }
+    await lockEventForMutation(transaction, invitation.eventId);
+
+    const actorRole = await findActorRole(
+      transaction,
+      invitation.eventId,
+      actorUserId,
+    );
+    assertCanManageRole(actorRole, parseInviteableStaffRole(invitation.role));
+    await transaction
+      .update(staffInvitation)
+      .set({ revokedAt: now })
+      .where(eq(staffInvitation.id, invitation.id));
+    await transaction.insert(auditEntry).values({
+      eventId: invitation.eventId,
+      actorUserId,
+      action: "staff_invitation.revoked",
+      targetType: "staff_invitation",
+      targetId: invitation.id,
+      metadata: { normalizedEmail: invitation.normalizedEmail, role: invitation.role },
+    });
+    return { eventId: invitation.eventId };
+  });
+}
+
+export async function removeEventStaff(
+  assignmentId: string,
+  actorUserId: string,
+) {
+  return db.transaction(async (transaction) => {
+    const [assignment] = await transaction
+      .select()
+      .from(eventStaff)
+      .where(eq(eventStaff.id, assignmentId))
+      .for("update")
+      .limit(1);
+    if (!assignment || assignment.role === "owner") {
+      throw new StaffingAuthorizationError("The Event Owner cannot be removed.");
+    }
+    await lockEventForMutation(transaction, assignment.eventId);
+    const actorRole = await findActorRole(transaction, assignment.eventId, actorUserId);
+    assertCanManageRole(actorRole, parseInviteableStaffRole(assignment.role));
+    await transaction.delete(eventStaff).where(eq(eventStaff.id, assignment.id));
+    await transaction.insert(auditEntry).values({
+      eventId: assignment.eventId,
+      actorUserId,
+      action: "event_staff.removed",
+      targetType: "event_staff",
+      targetId: assignment.id,
+      metadata: { role: assignment.role, userId: assignment.userId },
+    });
+    return { eventId: assignment.eventId };
+  });
+}
+
+export async function proposeOwnershipTransfer(
+  eventId: string,
+  proposedOwnerUserId: string,
+  actorUserId: string,
+  now = new Date(),
+) {
+  return db.transaction(async (transaction) => {
+    await lockEventForMutation(transaction, eventId);
+    const actorRole = await findActorRole(transaction, eventId, actorUserId);
+    if (!isEventOwner(actorRole)) {
+      throw new StaffingAuthorizationError(
+        "Only the Event Owner can propose Ownership Transfer.",
+      );
+    }
+    const [target] = await transaction
+      .select({ id: eventStaff.id })
+      .from(eventStaff)
+      .where(
+        and(
+          eq(eventStaff.eventId, eventId),
+          eq(eventStaff.userId, proposedOwnerUserId),
+          eq(eventStaff.role, "organizer"),
+        ),
+      )
+      .limit(1);
+    if (!target) {
+      throw new OwnershipTransferUnavailableError(
+        "Ownership Transfer must target an existing Organizer.",
+      );
+    }
+
+    await transaction
+      .update(ownershipTransfer)
+      .set({ revokedAt: now })
+      .where(
+        and(
+          eq(ownershipTransfer.eventId, eventId),
+          isNull(ownershipTransfer.acceptedAt),
+          isNull(ownershipTransfer.revokedAt),
+          lte(ownershipTransfer.expiresAt, now),
+        ),
+      );
+    const [activeTransfer] = await transaction
+      .select({ id: ownershipTransfer.id })
+      .from(ownershipTransfer)
+      .where(
+        and(
+          eq(ownershipTransfer.eventId, eventId),
+          isNull(ownershipTransfer.acceptedAt),
+          isNull(ownershipTransfer.revokedAt),
+        ),
+      )
+      .limit(1);
+    if (activeTransfer) {
+      throw new StaffingConflictError(
+        "An Ownership Transfer is already pending for this Event.",
+      );
+    }
+    const [transfer] = await transaction
+      .insert(ownershipTransfer)
+      .values({
+        eventId,
+        proposedByUserId: actorUserId,
+        proposedOwnerUserId,
+        expiresAt: new Date(now.getTime() + OWNERSHIP_TRANSFER_TTL_MS),
+      })
+      .returning({ id: ownershipTransfer.id, expiresAt: ownershipTransfer.expiresAt });
+    if (!transfer) {
+      throw new Error("Could not propose Ownership Transfer.");
+    }
+    await transaction.insert(auditEntry).values({
+      eventId,
+      actorUserId,
+      action: "ownership_transfer.proposed",
+      targetType: "ownership_transfer",
+      targetId: transfer.id,
+      metadata: { proposedOwnerUserId },
+    });
+    return transfer;
+  });
+}
+
+export async function acceptOwnershipTransfer(
+  transferId: string,
+  actorUserId: string,
+  now?: Date,
+) {
+  return db.transaction(async (transaction) => {
+    const [located] = await transaction
+      .select({ eventId: ownershipTransfer.eventId })
+      .from(ownershipTransfer)
+      .where(eq(ownershipTransfer.id, transferId))
+      .limit(1);
+    if (!located) {
+      throw new OwnershipTransferUnavailableError(
+        "This Ownership Transfer is expired, withdrawn, or belongs to another Organizer.",
+      );
+    }
+    await lockEventForMutation(transaction, located.eventId);
+    const decidedAt = now ?? new Date();
+    const [transfer] = await transaction
+      .select()
+      .from(ownershipTransfer)
+      .where(eq(ownershipTransfer.id, transferId))
+      .for("update")
+      .limit(1);
+    if (
+      !transfer ||
+      transfer.acceptedAt ||
+      transfer.revokedAt ||
+      transfer.expiresAt <= decidedAt ||
+      transfer.proposedOwnerUserId !== actorUserId
+    ) {
+      throw new OwnershipTransferUnavailableError(
+        "This Ownership Transfer is expired, withdrawn, or belongs to another Organizer.",
+      );
+    }
+    const assignments = await transaction
+      .select({ id: eventStaff.id, userId: eventStaff.userId, role: eventStaff.role })
+      .from(eventStaff)
+      .where(
+        and(
+          eq(eventStaff.eventId, transfer.eventId),
+          inArray(eventStaff.userId, [transfer.proposedByUserId, actorUserId]),
+        ),
+      )
+      .for("update");
+    const currentOwner = assignments.find(
+      (assignment) =>
+        assignment.userId === transfer.proposedByUserId && assignment.role === "owner",
+    );
+    const proposedOwner = assignments.find(
+      (assignment) => assignment.userId === actorUserId && assignment.role === "organizer",
+    );
+    if (!currentOwner || !proposedOwner) {
+      throw new OwnershipTransferUnavailableError(
+        "The Event staffing changed before this Ownership Transfer was accepted.",
+      );
+    }
+
+    await transaction
+      .update(eventStaff)
+      .set({ role: "organizer" })
+      .where(eq(eventStaff.id, currentOwner.id));
+    await transaction
+      .update(eventStaff)
+      .set({ role: "owner" })
+      .where(eq(eventStaff.id, proposedOwner.id));
+    await transaction
+      .update(ownershipTransfer)
+      .set({ acceptedAt: decidedAt })
+      .where(eq(ownershipTransfer.id, transfer.id));
+    await transaction.insert(auditEntry).values({
+      eventId: transfer.eventId,
+      actorUserId,
+      action: "ownership_transfer.accepted",
+      targetType: "ownership_transfer",
+      targetId: transfer.id,
+      metadata: {
+        previousOwnerUserId: transfer.proposedByUserId,
+        newOwnerUserId: actorUserId,
+      },
+    });
+    return { eventId: transfer.eventId };
+  });
+}
+
+export async function withdrawOwnershipTransfer(
+  transferId: string,
+  actorUserId: string,
+  now?: Date,
+) {
+  return db.transaction(async (transaction) => {
+    const [located] = await transaction
+      .select({ eventId: ownershipTransfer.eventId })
+      .from(ownershipTransfer)
+      .where(eq(ownershipTransfer.id, transferId))
+      .limit(1);
+    if (!located) {
+      throw new OwnershipTransferUnavailableError(
+        "This Ownership Transfer is already closed.",
+      );
+    }
+    await lockEventForMutation(transaction, located.eventId);
+    const decidedAt = now ?? new Date();
+    const [transfer] = await transaction
+      .select()
+      .from(ownershipTransfer)
+      .where(eq(ownershipTransfer.id, transferId))
+      .for("update")
+      .limit(1);
+    if (
+      !transfer ||
+      transfer.acceptedAt ||
+      transfer.revokedAt ||
+      transfer.expiresAt <= decidedAt
+    ) {
+      throw new OwnershipTransferUnavailableError(
+        "This Ownership Transfer is already closed.",
+      );
+    }
+    const actorRole = await findActorRole(
+      transaction,
+      transfer.eventId,
+      actorUserId,
+    );
+    if (!isEventOwner(actorRole) || transfer.proposedByUserId !== actorUserId) {
+      throw new StaffingAuthorizationError(
+        "Only the Event Owner who proposed this transfer can withdraw it.",
+      );
+    }
+    await transaction
+      .update(ownershipTransfer)
+      .set({ revokedAt: decidedAt })
+      .where(eq(ownershipTransfer.id, transfer.id));
+    await transaction.insert(auditEntry).values({
+      eventId: transfer.eventId,
+      actorUserId,
+      action: "ownership_transfer.withdrawn",
+      targetType: "ownership_transfer",
+      targetId: transfer.id,
+      metadata: { proposedOwnerUserId: transfer.proposedOwnerUserId },
+    });
+    return { eventId: transfer.eventId };
+  });
+}
+
+export async function getEventStaffing(
+  eventId: string,
+  actorUserId: string,
+  now = new Date(),
+) {
+  const [actorAssignment] = await db
+    .select({
+      role: eventStaff.role,
+      eventName: event.name,
+      eventTimeZone: event.eventTimeZone,
+      suspended: event.suspended,
+    })
+    .from(eventStaff)
+    .innerJoin(event, eq(event.id, eventStaff.eventId))
+    .where(
+      and(eq(eventStaff.eventId, eventId), eq(eventStaff.userId, actorUserId)),
+    )
+    .limit(1);
+  const actorRole = actorAssignment
+    ? parseEventStaffRole(actorAssignment.role)
+    : undefined;
+  if (!actorAssignment || !actorRole || actorRole === "check_in_volunteer") {
+    throw new StaffingAuthorizationError("You cannot manage staffing for this Event.");
+  }
+
+  // One transaction so staff, invitations, and transfers reflect the same
+  // snapshot instead of three independent reads.
+  const { staff, invitations, transfers } = await db.transaction(
+    async (transaction) => {
+      const staff = await transaction
+        .select({
+          assignmentId: eventStaff.id,
+          userId: user.id,
+          name: user.name,
+          email: user.email,
+          role: eventStaff.role,
+          createdAt: eventStaff.createdAt,
+        })
+        .from(eventStaff)
+        .innerJoin(user, eq(user.id, eventStaff.userId))
+        .where(eq(eventStaff.eventId, eventId))
+        .orderBy(asc(eventStaff.createdAt));
+      const invitations = await transaction
+        .select({
+          id: staffInvitation.id,
+          normalizedEmail: staffInvitation.normalizedEmail,
+          role: staffInvitation.role,
+          expiresAt: staffInvitation.expiresAt,
+        })
+        .from(staffInvitation)
+        .where(
+          and(
+            eq(staffInvitation.eventId, eventId),
+            isNull(staffInvitation.consumedAt),
+            isNull(staffInvitation.revokedAt),
+            gt(staffInvitation.expiresAt, now),
+          ),
+        )
+        .orderBy(asc(staffInvitation.createdAt));
+      const transfers = await transaction
+        .select({
+          id: ownershipTransfer.id,
+          proposedByUserId: ownershipTransfer.proposedByUserId,
+          proposedOwnerUserId: ownershipTransfer.proposedOwnerUserId,
+          expiresAt: ownershipTransfer.expiresAt,
+        })
+        .from(ownershipTransfer)
+        .where(
+          and(
+            eq(ownershipTransfer.eventId, eventId),
+            isNull(ownershipTransfer.acceptedAt),
+            isNull(ownershipTransfer.revokedAt),
+            gt(ownershipTransfer.expiresAt, now),
+          ),
+        )
+        .limit(1);
+      return { staff, invitations, transfers };
+    },
+  );
+
+  return {
+    eventId,
+    eventName: actorAssignment.eventName,
+    eventTimeZone: actorAssignment.eventTimeZone,
+    suspended: actorAssignment.suspended,
+    actorRole,
+    staff: staff.map((member) => ({
+      ...member,
+      role: parseEventStaffRole(member.role),
+    })),
+    invitations: invitations.map((invitation) => ({
+      ...invitation,
+      role: parseInviteableStaffRole(invitation.role),
+    })),
+    activeTransfer: transfers[0] ?? null,
+  };
+}
+
+export async function inspectStaffInvitation(token: string, now = new Date()) {
+  const [invitation] = await db
+    .select({
+      eventName: event.name,
+      normalizedEmail: staffInvitation.normalizedEmail,
+      role: staffInvitation.role,
+      expiresAt: staffInvitation.expiresAt,
+      consumedAt: staffInvitation.consumedAt,
+      revokedAt: staffInvitation.revokedAt,
+      suspended: event.suspended,
+    })
+    .from(staffInvitation)
+    .innerJoin(event, eq(event.id, staffInvitation.eventId))
+    .where(eq(staffInvitation.tokenDigest, digestTokenBase64Url(token)))
+    .limit(1);
+
+  if (
+    !invitation ||
+    invitation.consumedAt ||
+    invitation.revokedAt ||
+    invitation.expiresAt <= now
+  ) {
+    return null;
+  }
+  return {
+    eventName: invitation.eventName,
+    normalizedEmail: invitation.normalizedEmail,
+    role: parseInviteableStaffRole(invitation.role),
+    expiresAt: invitation.expiresAt,
+    suspended: invitation.suspended,
+  };
+}

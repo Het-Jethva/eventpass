@@ -1,0 +1,680 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import {
+  IconAlertTriangle,
+  IconArrowRight,
+  IconCircleCheck,
+  IconClock,
+  IconRefresh,
+} from "@tabler/icons-react";
+
+import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
+import { PendingLink } from "@/components/pending-link";
+import type { LiveEventMetricsResult } from "@/features/events/event-metrics-policy";
+import { cn } from "@/lib/utils";
+
+type LiveMetricsDashboardProps = {
+  eventId: string;
+  initialMetrics: LiveEventMetricsResult;
+};
+
+type Tone = "success" | "warning" | "destructive" | "provisional" | "neutral";
+
+const ACTIVE_POLL_INTERVAL_MS = 5_000;
+const QUIET_POLL_INTERVAL_MS = 30_000;
+const MIN_BOUNDARY_DELAY_MS = 250;
+
+function getPollingIntervalMs({
+  opensAt,
+  closesAt,
+}: LiveEventMetricsResult["checkInWindow"]) {
+  const now = Date.now();
+  const opensAtMs = Date.parse(opensAt);
+  const closesAtMs = Date.parse(closesAt);
+
+  return now >= opensAtMs && now < closesAtMs
+    ? ACTIVE_POLL_INTERVAL_MS
+    : QUIET_POLL_INTERVAL_MS;
+}
+
+function getNextPollDelayMs({
+  opensAt,
+  closesAt,
+}: LiveEventMetricsResult["checkInWindow"]) {
+  const now = Date.now();
+  const opensAtMs = Date.parse(opensAt);
+  const closesAtMs = Date.parse(closesAt);
+
+  if (now < opensAtMs) {
+    return Math.min(
+      QUIET_POLL_INTERVAL_MS,
+      Math.max(MIN_BOUNDARY_DELAY_MS, opensAtMs - now),
+    );
+  }
+
+  if (now < closesAtMs) {
+    return Math.min(
+      ACTIVE_POLL_INTERVAL_MS,
+      Math.max(MIN_BOUNDARY_DELAY_MS, closesAtMs - now),
+    );
+  }
+
+  return QUIET_POLL_INTERVAL_MS;
+}
+
+const BAR_TONE: Record<Tone, string> = {
+  success: "bg-success",
+  warning: "bg-warning",
+  destructive: "bg-destructive",
+  provisional: "bg-provisional",
+  neutral: "bg-primary",
+};
+
+const TEXT_TONE: Record<Tone, string> = {
+  success: "text-success-text",
+  warning: "text-warning-text",
+  destructive: "text-destructive-text",
+  provisional: "text-provisional-text",
+  neutral: "text-foreground",
+};
+
+function percentOf(value: number, total: number) {
+  if (total <= 0) return 0;
+  return Math.min(100, Math.round((value / total) * 100));
+}
+
+/**
+ * A count is not judgeable on its own — "7 duplicates" means nothing without
+ * "of 412 attempts". Every figure on this screen carries its denominator and a
+ * proportional bar.
+ */
+function ProportionRow({
+  label,
+  value,
+  total,
+  tone = "neutral",
+  unit = "",
+}: {
+  label: string;
+  value: number;
+  total: number;
+  tone?: Tone;
+  unit?: string;
+}) {
+  const percentage = percentOf(value, total);
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-baseline justify-between gap-3 text-sm">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="font-mono tabular-nums">
+          <span className={cn("font-medium", TEXT_TONE[tone])}>
+            {value.toLocaleString()}
+          </span>
+          <span className="text-muted-foreground">
+            {" "}
+            / {total.toLocaleString()}
+            {unit} · {percentage}%
+          </span>
+        </span>
+      </div>
+      {/* The line above already reads "Accepted 12 / 40 · 30%". Giving the bar
+          `role="img"` and the same sentence again made every row announce
+          twice. */}
+      <div
+        aria-hidden="true"
+        className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
+      >
+        <div
+          className={cn("h-full transition-all duration-300", BAR_TONE[tone])}
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function Headline({
+  question,
+  value,
+  of,
+  caption,
+  tone = "neutral",
+}: {
+  question: string;
+  value: number;
+  of: number;
+  caption: string;
+  tone?: Tone;
+}) {
+  const percentage = percentOf(value, of);
+  return (
+    <div className="flex flex-col gap-2 p-5">
+      <p className="text-sm text-muted-foreground">{question}</p>
+      <p className="flex items-baseline gap-1.5 font-mono tabular-nums">
+        <span className="text-4xl font-headline">{value.toLocaleString()}</span>
+        <span className="text-lg text-muted-foreground">
+          / {of.toLocaleString()}
+        </span>
+      </p>
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+        <div
+          className={cn("h-full transition-all duration-300", BAR_TONE[tone])}
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+      <p className="text-sm text-muted-foreground">
+        <span className="font-mono tabular-nums">{percentage}%</span> · {caption}
+      </p>
+    </div>
+  );
+}
+
+export function LiveMetricsDashboard({
+  eventId,
+  initialMetrics,
+}: LiveMetricsDashboardProps) {
+  const [metrics, setMetrics] = useState<LiveEventMetricsResult>(initialMetrics);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isPolling, setIsPolling] = useState(true);
+  const [pollingIntervalMs, setPollingIntervalMs] = useState(() =>
+    getPollingIntervalMs(initialMetrics.checkInWindow),
+  );
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date>(
+    new Date(initialMetrics.refreshedAt),
+  );
+
+  const { opensAt, closesAt } = metrics.checkInWindow;
+
+  useEffect(() => {
+    let isMounted = true;
+    let isRunning = false;
+    let pollingGeneration = 0;
+    let controller: AbortController | null = null;
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    const checkInWindow = { opensAt, closesAt };
+
+    async function fetchMetrics() {
+      if (
+        !isMounted ||
+        document.visibilityState === "hidden" ||
+        controller
+      ) {
+        return;
+      }
+
+      const requestController = new AbortController();
+      controller = requestController;
+
+      try {
+        setIsRefreshing(true);
+        const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/live-metrics`, {
+          signal: requestController.signal,
+          cache: "no-store",
+        });
+        if (res.ok) {
+          const data: LiveEventMetricsResult = await res.json();
+          if (isMounted && !requestController.signal.aborted) {
+            setMetrics(data);
+            setLastRefreshedAt(new Date(data.refreshedAt));
+          }
+        }
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        console.error("Failed to refresh live metrics:", err);
+      } finally {
+        if (controller === requestController) {
+          controller = null;
+          if (isMounted) setIsRefreshing(false);
+        }
+      }
+    }
+
+    function scheduleNextPoll(generation: number) {
+      if (
+        !isMounted ||
+        !isRunning ||
+        generation !== pollingGeneration ||
+        document.visibilityState === "hidden"
+      ) {
+        return;
+      }
+
+      const delay = getNextPollDelayMs(checkInWindow);
+      setPollingIntervalMs(getPollingIntervalMs(checkInWindow));
+      timeout = setTimeout(() => {
+        timeout = null;
+        void fetchMetrics().finally(() => scheduleNextPoll(generation));
+      }, delay);
+    }
+
+    function stopPolling() {
+      isRunning = false;
+      pollingGeneration += 1;
+      if (timeout !== null) {
+        clearTimeout(timeout);
+        timeout = null;
+      }
+
+      controller?.abort();
+      controller = null;
+      if (isMounted) {
+        setIsRefreshing(false);
+        setIsPolling(false);
+      }
+    }
+
+    function startPolling() {
+      if (
+        isRunning ||
+        !isMounted ||
+        document.visibilityState === "hidden"
+      ) {
+        return;
+      }
+
+      isRunning = true;
+      const generation = ++pollingGeneration;
+      setIsPolling(true);
+      void fetchMetrics().finally(() => scheduleNextPoll(generation));
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "hidden") {
+        stopPolling();
+        return;
+      }
+
+      startPolling();
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    if (document.visibilityState === "visible") {
+      startPolling();
+    } else {
+      stopPolling();
+    }
+
+    return () => {
+      isMounted = false;
+      stopPolling();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [closesAt, eventId, opensAt]);
+
+  const {
+    overview,
+    scanAttemptStats,
+    checkInConflictStats,
+    offlineScanStats,
+    deliveryOutcomes,
+    checkInsOverTime,
+  } = metrics;
+
+  // "Is anything wrong?" is one of the three questions this screen exists to
+  // answer, so it is computed rather than left for an organizer to infer by
+  // scanning fourteen loose numbers.
+  const attentionCandidates: Array<{
+    label: string;
+    count: number;
+    tone: Tone;
+    href: string;
+  }> = [
+    {
+      label: "Conflicts to resolve",
+      count: checkInConflictStats.unresolved,
+      tone: "destructive",
+      href: `/events/${eventId}/check-in`,
+    },
+    {
+      label: "Tickets that never arrived",
+      count: deliveryOutcomes.permanentFailure,
+      tone: "destructive",
+      href: `/events/${eventId}/registrations`,
+    },
+  ];
+  const attention = attentionCandidates.filter((item) => item.count > 0);
+
+  const maxHourly = Math.max(...checkInsOverTime.map((p) => p.count), 1);
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2.5">
+          <span
+            aria-hidden="true"
+            className={cn(
+              "size-2.5 shrink-0 rounded-full transition-colors",
+              isPolling ? "bg-success" : "bg-muted-foreground",
+            )}
+          />
+          <Badge variant="outline" className="gap-1.5 font-normal">
+            {isRefreshing ? (
+              <IconRefresh aria-hidden="true" className="animate-spin" />
+            ) : (
+              <IconClock aria-hidden="true" />
+            )}
+            {isPolling
+              ? `Live · refreshes every ${pollingIntervalMs / 1000}s`
+              : "Paused"}
+          </Badge>
+          <span className="font-mono text-sm text-muted-foreground tabular-nums">
+            {lastRefreshedAt.toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            })}
+          </span>
+        </div>
+
+        {checkInConflictStats.unresolved > 0 ? (
+          <PendingLink
+            href={`/events/${eventId}/check-in`}
+            className={buttonVariants({ variant: "destructive", size: "sm" })}
+            pendingLabel="Opening conflicts"
+          >
+            <IconAlertTriangle data-icon="inline-start" />
+            Resolve {checkInConflictStats.unresolved} Check-in Conflict
+            {checkInConflictStats.unresolved > 1 ? "s" : ""}
+          </PendingLink>
+        ) : null}
+      </div>
+
+      {/* One grouped region with internal dividers, rather than fourteen numbers
+          spread across four floating cards. */}
+      <section
+        aria-label="Event status at a glance"
+        className="grid divide-y overflow-hidden rounded-lg border bg-card sm:grid-cols-2 sm:divide-y-0 lg:grid-cols-3 lg:divide-x"
+      >
+        <Headline
+          question="How full is it?"
+          value={overview.capacityUtilization.claimed}
+          of={overview.eventCapacity}
+          caption={`${overview.capacityUtilization.remaining.toLocaleString()} places left${
+            overview.waitlistEntries > 0
+              ? ` · ${overview.waitlistEntries.toLocaleString()} waitlisted`
+              : ""
+          }`}
+          tone={overview.capacityUtilization.percentage >= 100 ? "warning" : "neutral"}
+        />
+        <div className="border-t sm:border-t-0 sm:border-l lg:border-l-0">
+          <Headline
+            question="How many have arrived?"
+            value={overview.activeCheckIns}
+            of={overview.confirmedRegistrations}
+            caption="of confirmed registrations checked in"
+            tone="success"
+          />
+        </div>
+        <div className="border-t sm:col-span-2 lg:col-span-1 lg:border-t-0 lg:border-l">
+          <div className="flex h-full flex-col gap-2 p-5">
+            <p className="text-sm text-muted-foreground">Is anything wrong?</p>
+            {attention.length === 0 ? (
+              <div className="flex flex-1 flex-col justify-center gap-1.5">
+                <p className="flex items-center gap-2 text-success-text">
+                  <IconCircleCheck aria-hidden="true" className="size-5" />
+                  <span className="text-lg font-medium">Nothing to resolve</span>
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  No unresolved conflicts or failed deliveries.
+                </p>
+              </div>
+            ) : (
+              <ul className="flex flex-col gap-1.5">
+                {attention.map((item) => (
+                  <li key={item.label}>
+                    <PendingLink
+                      href={item.href}
+                      className="group flex items-baseline justify-between gap-3 rounded-md py-1 text-sm hover:underline"
+                      pendingLabel="Opening"
+                    >
+                      <span className="text-muted-foreground group-hover:text-foreground">
+                        {item.label}
+                      </span>
+                      <span
+                        className={cn(
+                          "font-mono font-medium tabular-nums",
+                          TEXT_TONE[item.tone],
+                        )}
+                      >
+                        {item.count.toLocaleString()}
+                      </span>
+                    </PendingLink>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section
+        aria-labelledby="arrivals-heading"
+        className="flex flex-col gap-4 rounded-lg border bg-card p-5"
+      >
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="arrivals-heading" className="font-medium">
+            Arrivals by hour
+          </h2>
+          <p className="font-mono text-sm text-muted-foreground tabular-nums">
+            {overview.activeCheckIns.toLocaleString()} total · peak{" "}
+            {maxHourly.toLocaleString()}/hr
+          </p>
+        </div>
+
+        {checkInsOverTime.length > 0 ? (
+          /*
+            Values are always rendered rather than revealed on hover. Hover
+            does not exist on a phone, which is where an organizer actually
+            watches a door, so the chart previously had no numbers at all
+            there — and state must never hide behind hover.
+
+            `<table>` rather than divs so the series is readable by a screen
+            reader and keyboard as an ordinary two-column table; the bars are
+            presentational decoration layered on the same cells.
+
+            Two corrections to that intent. The roles are stated explicitly
+            because `display: flex` on `tbody` and `tr` — which is what stands
+            the bars up — drops the implicit table semantics the markup was
+            chosen for. And the row header now comes first in the markup: with
+            the hour label last, the columns declared above lined up against
+            the wrong cells, so the count was announced as the hour. Reading
+            order belongs to the markup, stacking order to `order-*`.
+          */
+          <table className="w-full" role="table">
+            <caption className="sr-only">
+              Arrivals per hour, in the event time zone
+            </caption>
+            <thead className="sr-only" role="rowgroup">
+              <tr role="row">
+                <th scope="col" role="columnheader">
+                  Hour
+                </th>
+                <th scope="col" role="columnheader">
+                  Arrivals
+                </th>
+              </tr>
+            </thead>
+            <tbody
+              role="rowgroup"
+              className="flex h-36 items-end gap-2 border-b pt-4 pb-2"
+            >
+              {checkInsOverTime.map((point) => (
+                <tr
+                  key={point.hourIso}
+                  role="row"
+                  className="flex h-full flex-1 flex-col items-center justify-end gap-1.5"
+                >
+                  <th
+                    scope="row"
+                    role="rowheader"
+                    className="order-3 w-full truncate text-center font-mono text-xs font-normal text-muted-foreground"
+                  >
+                    {point.label}
+                  </th>
+                  <td
+                    role="cell"
+                    className="order-1 font-mono text-xs font-medium tabular-nums"
+                  >
+                    {point.count}
+                  </td>
+                  <td
+                    aria-hidden="true"
+                    className="order-2 w-full max-w-12 rounded-t-sm bg-primary/85"
+                    style={{
+                      height: `${Math.max(8, Math.round((point.count / maxHourly) * 100))}%`,
+                    }}
+                  />
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+            Nobody has been checked in yet.
+          </p>
+        )}
+      </section>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section
+          aria-labelledby="scan-outcomes-heading"
+          className="flex flex-col gap-4 rounded-lg border bg-card p-5"
+        >
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 id="scan-outcomes-heading" className="font-medium">
+              Scan outcomes
+            </h2>
+            <PendingLink
+              href={`/events/${eventId}/audit`}
+              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground hover:underline"
+              pendingLabel="Opening"
+            >
+              Audit log
+              <IconArrowRight aria-hidden="true" className="size-3.5" />
+            </PendingLink>
+          </div>
+          <p className="font-mono text-sm text-muted-foreground tabular-nums">
+            {scanAttemptStats.total.toLocaleString()} attempts ·{" "}
+            {offlineScanStats.received.toLocaleString()} Offline scans received
+            {offlineScanStats.lowConfidenceReceived > 0
+              ? ` · ${offlineScanStats.lowConfidenceReceived.toLocaleString()} low-confidence timestamps retained for reconciliation history`
+              : ""}
+          </p>
+          <div className="flex flex-col gap-3">
+            <ProportionRow
+              label="Accepted"
+              value={scanAttemptStats.accepted}
+              total={scanAttemptStats.total}
+              tone="success"
+            />
+            <ProportionRow
+              label="Already checked in"
+              value={scanAttemptStats.duplicate}
+              total={scanAttemptStats.total}
+              tone="warning"
+            />
+            <ProportionRow
+              label="Turned away"
+              value={
+                scanAttemptStats.invalid +
+                scanAttemptStats.unknown +
+                scanAttemptStats.canceled +
+                scanAttemptStats.replaced +
+                scanAttemptStats.expired +
+                scanAttemptStats.outsideWindow
+              }
+              total={scanAttemptStats.total}
+              tone="destructive"
+            />
+            {scanAttemptStats.notCheckedIn > 0 ? (
+              <ProportionRow
+                label="No active check-in"
+                value={scanAttemptStats.notCheckedIn}
+                total={scanAttemptStats.total}
+              />
+            ) : null}
+            <ProportionRow
+              label="Raised a conflict"
+              value={scanAttemptStats.conflict}
+              total={scanAttemptStats.total}
+              tone="provisional"
+            />
+          </div>
+        </section>
+
+        <section
+          aria-labelledby="delivery-heading"
+          className="flex flex-col gap-4 rounded-lg border bg-card p-5"
+        >
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 id="delivery-heading" className="font-medium">
+              Ticket delivery
+            </h2>
+            <PendingLink
+              href={`/events/${eventId}/registrations`}
+              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground hover:underline"
+              pendingLabel="Opening"
+            >
+              Registrations
+              <IconArrowRight aria-hidden="true" className="size-3.5" />
+            </PendingLink>
+          </div>
+          {deliveryOutcomes.total === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No ticket emails have been sent yet. They go out when attendees
+              confirm a Registration or when an Organizer completes a CSV import.
+            </p>
+          ) : (
+            <>
+              <p className="font-mono text-sm text-muted-foreground tabular-nums">
+                {deliveryOutcomes.total.toLocaleString()}{" "}
+                {deliveryOutcomes.total === 1 ? "message" : "messages"}
+              </p>
+              <div className="flex flex-col gap-3">
+                <ProportionRow
+                  label="Delivered"
+                  value={deliveryOutcomes.delivered + deliveryOutcomes.sent}
+                  total={deliveryOutcomes.total}
+                  tone="success"
+                />
+                <ProportionRow
+                  label="In flight"
+                  value={deliveryOutcomes.pending + deliveryOutcomes.submitted}
+                  total={deliveryOutcomes.total}
+                  tone="neutral"
+                />
+                <ProportionRow
+                  label="Retrying"
+                  value={deliveryOutcomes.transientFailure}
+                  total={deliveryOutcomes.total}
+                  tone="warning"
+                />
+                <ProportionRow
+                  label="Permanently failed"
+                  value={deliveryOutcomes.permanentFailure}
+                  total={deliveryOutcomes.total}
+                  tone="destructive"
+                />
+              </div>
+            </>
+          )}
+        </section>
+      </div>
+
+      {/* Only when there is something to report. A line reading "0 resolved
+          automatically, 0 by an organizer, of 0 total" floated unanchored under
+          two panels and told an organizer nothing at all. */}
+      {checkInConflictStats.total > 0 ? (
+        <p className="text-sm text-muted-foreground">
+          Of {checkInConflictStats.total.toLocaleString()} conflicts,{" "}
+          {checkInConflictStats.resolvedAuto.toLocaleString()} were resolved
+          automatically by timestamp and{" "}
+          {checkInConflictStats.resolvedManual.toLocaleString()} by an organizer.
+        </p>
+      ) : null}
+    </div>
+  );
+}

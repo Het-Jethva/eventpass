@@ -1,0 +1,986 @@
+import { sql } from "drizzle-orm";
+import {
+  pgTable,
+  text,
+  bigint,
+  timestamp,
+  boolean,
+  integer,
+  jsonb,
+  uuid,
+  index,
+  uniqueIndex,
+  check,
+} from "drizzle-orm/pg-core";
+
+export const user = pgTable("user", {
+  id: uuid("id")
+    .default(sql`pg_catalog.gen_random_uuid()`)
+    .primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  emailVerified: boolean("email_verified").default(false).notNull(),
+  image: text("image"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => /* @__PURE__ */ new Date())
+    .notNull(),
+  suspended: boolean("suspended").default(false).notNull(),
+  isPlatformAdmin: boolean("is_platform_admin").default(false).notNull(),
+});
+
+export const session = pgTable(
+  "session",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    token: text("token").notNull().unique(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+  },
+  (table) => [index("session_userId_idx").on(table.userId)],
+);
+
+export const account = pgTable(
+  "account",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", {
+      withTimezone: true,
+    }),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", {
+      withTimezone: true,
+    }),
+    scope: text("scope"),
+    password: text("password"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [index("account_userId_idx").on(table.userId)],
+);
+
+export const verification = pgTable(
+  "verification",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    identifier: text("identifier").notNull(),
+    value: text("value").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [index("verification_identifier_idx").on(table.identifier)],
+);
+
+export const rateLimit = pgTable("rate_limit", {
+  id: uuid("id")
+    .default(sql`pg_catalog.gen_random_uuid()`)
+    .primaryKey(),
+  key: text("key").notNull().unique(),
+  count: integer("count").notNull(),
+  lastRequest: bigint("last_request", { mode: "number" }).notNull(),
+});
+
+export const authenticationAttempt = pgTable(
+  "authentication_attempt",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    emailKey: text("email_key").notNull(),
+    ipKey: text("ip_key").notNull(),
+    attemptedAt: timestamp("attempted_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("authentication_attempt_email_key_attempted_at_idx").on(
+      table.emailKey,
+      table.attemptedAt,
+    ),
+    index("authentication_attempt_ip_key_attempted_at_idx").on(
+      table.ipKey,
+      table.attemptedAt,
+    ),
+    index("authentication_attempt_attempted_at_idx").on(table.attemptedAt),
+  ],
+);
+
+export const emailDelivery = pgTable(
+  "email_delivery",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    template: text("template").notNull(),
+    recipient: text("recipient").notNull(),
+    provider: text("provider").notNull(),
+    eventId: uuid("event_id").references(() => event.id, { onDelete: "restrict" }),
+    providerMessageId: text("provider_message_id").unique(),
+    outcome: text("outcome").notNull(),
+    failureKind: text("failure_kind"),
+    attemptCount: integer("attempt_count").default(0).notNull(),
+    metadata: jsonb("metadata").default({}).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("email_delivery_event_outcome_idx").on(table.eventId, table.outcome),
+    check(
+      "email_delivery_outcome_check",
+      sql`${table.outcome} in ('pending', 'submitted', 'sent', 'delivered', 'transient_failure', 'permanent_failure')`,
+    ),
+    check(
+      "email_delivery_failure_kind_check",
+      sql`${table.failureKind} is null or ${table.failureKind} in ('transient', 'permanent')`,
+    ),
+    check(
+      "email_delivery_provider_check",
+      sql`${table.provider} in ('resend')`,
+    ),
+  ],
+);
+
+export const event = pgTable(
+  "event",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    name: text("name").notNull(),
+    description: text("description").notNull(),
+    slug: text("slug").notNull(),
+    status: text("status").default("draft").notNull(),
+    eventTimeZone: text("event_time_zone").notNull(),
+    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+    endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+    venueName: text("venue_name").notNull(),
+    venueAddress: text("venue_address").notNull(),
+    venueMapUrl: text("venue_map_url"),
+    capacity: integer("capacity").notNull(),
+    registrationOpensAt: timestamp("registration_opens_at", {
+      withTimezone: true,
+    }).notNull(),
+    registrationClosesAt: timestamp("registration_closes_at", {
+      withTimezone: true,
+    }).notNull(),
+    checkInOpensAt: timestamp("check_in_opens_at", {
+      withTimezone: true,
+    }).notNull(),
+    checkInClosesAt: timestamp("check_in_closes_at", {
+      withTimezone: true,
+    }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    canceledAt: timestamp("canceled_at", { withTimezone: true }),
+    cancellationReason: text("cancellation_reason"),
+    suspended: boolean("suspended").default(false).notNull(),
+    suspendedAt: timestamp("suspended_at", { withTimezone: true }),
+    suspensionReason: text("suspension_reason"),
+  },
+  (table) => [
+    check(
+      "event_status_check",
+      sql`${table.status} in ('draft', 'published', 'canceled')`,
+    ),
+    check("event_name_not_blank_check", sql`length(btrim(${table.name})) > 0`),
+    check(
+      "event_description_not_blank_check",
+      sql`length(btrim(${table.description})) > 0`,
+    ),
+    check(
+      "event_slug_format_check",
+      sql`${table.slug} ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$'`,
+    ),
+    check(
+      "event_publication_timestamp_check",
+      sql`${table.status} = 'draft' or ${table.publishedAt} is not null`,
+    ),
+    check(
+      "event_cancellation_check",
+      sql`(${table.status} = 'canceled' and ${table.canceledAt} is not null and length(btrim(${table.cancellationReason})) > 0) or (${table.status} <> 'canceled' and ${table.canceledAt} is null and ${table.cancellationReason} is null)`,
+    ),
+    check(
+      "event_suspension_check",
+      sql`(${table.suspended} = true and ${table.suspendedAt} is not null and length(btrim(${table.suspensionReason})) > 0) or (${table.suspended} = false and ${table.suspendedAt} is null and ${table.suspensionReason} is null)`,
+    ),
+    check("event_capacity_positive_check", sql`${table.capacity} > 0`),
+    check("event_schedule_check", sql`${table.startsAt} < ${table.endsAt}`),
+    check(
+      "event_registration_window_check",
+      sql`${table.registrationOpensAt} < ${table.registrationClosesAt}`,
+    ),
+    check(
+      "event_check_in_window_check",
+      sql`${table.checkInOpensAt} < ${table.checkInClosesAt}`,
+    ),
+    index("event_starts_at_idx").on(table.startsAt),
+    uniqueIndex("event_slug_unique").on(table.slug),
+  ],
+);
+
+export const registrationAttempt = pgTable(
+  "registration_attempt",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => event.id, { onDelete: "cascade" }),
+    emailDigest: text("email_digest").notNull(),
+    ipDigest: text("ip_digest").notNull(),
+    attemptedAt: timestamp("attempted_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("registration_attempt_event_email_attempted_at_idx").on(
+      table.eventId,
+      table.emailDigest,
+      table.attemptedAt,
+    ),
+    index("registration_attempt_event_ip_attempted_at_idx").on(
+      table.eventId,
+      table.ipDigest,
+      table.attemptedAt,
+    ),
+    index("registration_attempt_attempted_at_idx").on(table.attemptedAt),
+  ],
+);
+
+export const eventStaff = pgTable(
+  "event_staff",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => event.id, { onDelete: "restrict" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    role: text("role").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "event_staff_role_check",
+      sql`${table.role} in ('owner', 'organizer', 'check_in_volunteer')`,
+    ),
+    uniqueIndex("event_staff_event_user_unique").on(
+      table.eventId,
+      table.userId,
+    ),
+    uniqueIndex("event_staff_single_owner_unique")
+      .on(table.eventId)
+      .where(sql`${table.role} = 'owner'`),
+    index("event_staff_user_id_idx").on(table.userId),
+  ],
+);
+
+export const staffInvitation = pgTable(
+  "staff_invitation",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => event.id, { onDelete: "restrict" }),
+    invitedByUserId: uuid("invited_by_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    normalizedEmail: text("normalized_email").notNull(),
+    role: text("role").notNull(),
+    tokenDigest: text("token_digest").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "staff_invitation_role_check",
+      sql`${table.role} in ('organizer', 'check_in_volunteer')`,
+    ),
+    check(
+      "staff_invitation_email_normalized_check",
+      sql`${table.normalizedEmail} = lower(btrim(${table.normalizedEmail}))`,
+    ),
+    check(
+      "staff_invitation_terminal_state_check",
+      sql`not (${table.consumedAt} is not null and ${table.revokedAt} is not null)`,
+    ),
+    uniqueIndex("staff_invitation_token_digest_unique").on(table.tokenDigest),
+    uniqueIndex("staff_invitation_active_event_email_unique")
+      .on(table.eventId, table.normalizedEmail)
+      .where(sql`${table.consumedAt} is null and ${table.revokedAt} is null`),
+    index("staff_invitation_event_idx").on(table.eventId, table.createdAt),
+  ],
+);
+
+export const ownershipTransfer = pgTable(
+  "ownership_transfer",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => event.id, { onDelete: "restrict" }),
+    proposedByUserId: uuid("proposed_by_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    proposedOwnerUserId: uuid("proposed_owner_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "ownership_transfer_terminal_state_check",
+      sql`not (${table.acceptedAt} is not null and ${table.revokedAt} is not null)`,
+    ),
+    uniqueIndex("ownership_transfer_active_event_unique")
+      .on(table.eventId)
+      .where(sql`${table.acceptedAt} is null and ${table.revokedAt} is null`),
+    index("ownership_transfer_target_idx").on(
+      table.proposedOwnerUserId,
+      table.expiresAt,
+    ),
+  ],
+);
+
+export const auditEntry = pgTable(
+  "audit_entry",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    eventId: uuid("event_id")
+      .references(() => event.id, { onDelete: "restrict" }),
+    actorUserId: uuid("actor_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    action: text("action").notNull(),
+    targetType: text("target_type").notNull(),
+    targetId: uuid("target_id").notNull(),
+    reason: text("reason"),
+    metadata: jsonb("metadata").default({}).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "audit_entry_action_not_blank_check",
+      sql`length(btrim(${table.action})) > 0`,
+    ),
+    check(
+      "audit_entry_target_type_not_blank_check",
+      sql`length(btrim(${table.targetType})) > 0`,
+    ),
+    index("audit_entry_event_created_at_idx").on(
+      table.eventId,
+      table.createdAt,
+    ),
+  ],
+);
+
+export const registrationImport = pgTable(
+  "registration_import",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => event.id, { onDelete: "restrict" }),
+    actorUserId: uuid("actor_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    status: text("status").default("preview").notNull(),
+    payload: jsonb("payload").notNull(),
+    rowCount: integer("row_count").notNull(),
+    importedCount: integer("imported_count"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "registration_import_status_check",
+      sql`${table.status} in ('preview', 'completed')`,
+    ),
+    check(
+      "registration_import_row_count_check",
+      sql`${table.rowCount} > 0 and ${table.rowCount} <= 500`,
+    ),
+    check(
+      "registration_import_completion_check",
+      sql`(${table.status} = 'preview' and ${table.completedAt} is null and ${table.importedCount} is null) or (${table.status} = 'completed' and ${table.completedAt} is not null and ${table.importedCount} is not null)`,
+    ),
+    index("registration_import_event_created_at_idx").on(
+      table.eventId,
+      table.createdAt,
+    ),
+    index("registration_import_expiry_idx").on(table.expiresAt),
+  ],
+);
+
+export const registrationField = pgTable(
+  "registration_field",
+  {
+    id: uuid("id").primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => event.id, { onDelete: "restrict" }),
+    answerType: text("answer_type").notNull(),
+    label: text("label").notNull(),
+    helpText: text("help_text"),
+    required: boolean("required").default(false).notNull(),
+    archived: boolean("archived").default(false).notNull(),
+    position: integer("position").notNull(),
+    responseCount: integer("response_count").default(0).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "registration_field_answer_type_check",
+      sql`${table.answerType} in ('short_text', 'long_text', 'single_choice', 'multiple_choice', 'acknowledgment')`,
+    ),
+    check(
+      "registration_field_label_not_blank_check",
+      sql`length(btrim(${table.label})) > 0`,
+    ),
+    check(
+      "registration_field_position_nonnegative_check",
+      sql`${table.position} >= 0`,
+    ),
+    check(
+      "registration_field_response_count_nonnegative_check",
+      sql`${table.responseCount} >= 0`,
+    ),
+    index("registration_field_event_position_idx").on(
+      table.eventId,
+      table.position,
+      table.id,
+    ),
+  ],
+);
+
+export const registrationFieldChoice = pgTable(
+  "registration_field_choice",
+  {
+    id: uuid("id").primaryKey(),
+    fieldId: uuid("field_id")
+      .notNull()
+      .references(() => registrationField.id, { onDelete: "restrict" }),
+    label: text("label").notNull(),
+    position: integer("position").notNull(),
+    archived: boolean("archived").default(false).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "registration_field_choice_label_not_blank_check",
+      sql`length(btrim(${table.label})) > 0`,
+    ),
+    check(
+      "registration_field_choice_position_nonnegative_check",
+      sql`${table.position} >= 0`,
+    ),
+    index("registration_field_choice_field_position_idx").on(
+      table.fieldId,
+      table.position,
+      table.id,
+    ),
+  ],
+);
+
+export const registration = pgTable(
+  "registration",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => event.id, { onDelete: "restrict" }),
+    attendeeName: text("attendee_name").notNull(),
+    email: text("email").notNull(),
+    normalizedEmail: text("normalized_email").notNull(),
+    status: text("status").default("unconfirmed").notNull(),
+    capacityOutcome: text("capacity_outcome").notNull(),
+    source: text("source").default("attendee").notNull(),
+    managementTokenDigest: text("management_token_digest"),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "registration_status_check",
+      sql`${table.status} in ('unconfirmed', 'confirmed', 'waitlisted', 'expired', 'canceled')`,
+    ),
+    check(
+      "registration_capacity_outcome_check",
+      sql`${table.capacityOutcome} in ('capacity_hold', 'waitlist')`,
+    ),
+    check(
+      "registration_source_check",
+      sql`${table.source} in ('attendee', 'imported')`,
+    ),
+    check(
+      "registration_attendee_name_not_blank_check",
+      sql`length(btrim(${table.attendeeName})) > 0`,
+    ),
+    check(
+      "registration_normalized_email_check",
+      sql`${table.normalizedEmail} = lower(btrim(${table.normalizedEmail}))`,
+    ),
+    uniqueIndex("registration_active_event_email_unique")
+      .on(table.eventId, table.normalizedEmail)
+      .where(
+        sql`${table.status} in ('unconfirmed', 'confirmed', 'waitlisted')`,
+      ),
+    uniqueIndex("registration_management_token_digest_unique")
+      .on(table.managementTokenDigest)
+      .where(sql`${table.managementTokenDigest} is not null`),
+    index("registration_event_status_idx").on(table.eventId, table.status),
+  ],
+);
+
+export const ticket = pgTable(
+  "ticket",
+  {
+    id: uuid("id").primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => event.id, { onDelete: "restrict" }),
+    registrationId: uuid("registration_id")
+      .notNull()
+      .references(() => registration.id, { onDelete: "restrict" }),
+    code: text("code").notNull(),
+    signedPayload: text("signed_payload").notNull(),
+    signingKeyId: text("signing_key_id").notNull(),
+    status: text("status").default("active").notNull(),
+    invalidatedAt: timestamp("invalidated_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "ticket_code_format_check",
+      sql`${table.code} ~ '^[0-9A-HJKMNP-TV-Z]{10}$'`,
+    ),
+    check(
+      "ticket_status_check",
+      sql`${table.status} in ('active', 'replaced', 'canceled')`,
+    ),
+    check(
+      "ticket_invalidation_check",
+      sql`(${table.status} = 'active' and ${table.invalidatedAt} is null) or (${table.status} <> 'active' and ${table.invalidatedAt} is not null)`,
+    ),
+    uniqueIndex("ticket_event_code_unique").on(table.eventId, table.code),
+    uniqueIndex("ticket_active_registration_unique")
+      .on(table.registrationId)
+      .where(sql`${table.status} = 'active'`),
+    index("ticket_event_status_idx").on(table.eventId, table.status),
+  ],
+);
+
+export const checkIn = pgTable(
+  "check_in",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => event.id, { onDelete: "restrict" }),
+    ticketId: uuid("ticket_id")
+      .notNull()
+      .references(() => ticket.id, { onDelete: "restrict" }),
+    actorUserId: uuid("actor_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    checkedInAt: timestamp("checked_in_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    invalidatedAt: timestamp("invalidated_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("check_in_active_ticket_unique")
+      .on(table.ticketId)
+      .where(sql`${table.invalidatedAt} is null`),
+    index("check_in_event_checked_in_at_idx").on(
+      table.eventId,
+      table.checkedInAt,
+    ),
+  ],
+);
+
+export const checkInReversal = pgTable(
+  "check_in_reversal",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => event.id, { onDelete: "restrict" }),
+    checkInId: uuid("check_in_id")
+      .notNull()
+      .references(() => checkIn.id, { onDelete: "restrict" }),
+    actorUserId: uuid("actor_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    kind: text("kind").notNull(),
+    reason: text("reason").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "check_in_reversal_kind_check",
+      sql`${table.kind} in ('quick', 'organizer')`,
+    ),
+    check(
+      "check_in_reversal_reason_not_blank_check",
+      sql`length(btrim(${table.reason})) > 0`,
+    ),
+    uniqueIndex("check_in_reversal_check_in_unique").on(table.checkInId),
+    index("check_in_reversal_event_created_at_idx").on(
+      table.eventId,
+      table.createdAt,
+    ),
+  ],
+);
+
+export const scanAttempt = pgTable(
+  "scan_attempt",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => event.id, { onDelete: "restrict" }),
+    ticketId: uuid("ticket_id").references(() => ticket.id, {
+      onDelete: "restrict",
+    }),
+    checkInId: uuid("check_in_id").references(() => checkIn.id, {
+      onDelete: "restrict",
+    }),
+    actorUserId: uuid("actor_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    scannerDeviceId: uuid("scanner_device_id"),
+    inputDigest: text("input_digest").notNull(),
+    inputMethod: text("input_method").notNull(),
+    source: text("source").default("online").notNull(),
+    outcome: text("outcome").notNull(),
+    attemptedAt: timestamp("attempted_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    rawDeviceTime: timestamp("raw_device_time", { withTimezone: true }),
+    serverTimeAnchor: timestamp("server_time_anchor", { withTimezone: true }),
+    monotonicElapsedMs: bigint("monotonic_elapsed_ms", { mode: "number" }),
+    timestampConfidence: text("timestamp_confidence"),
+  },
+  (table) => [
+    check(
+      "scan_attempt_input_method_check",
+      sql`${table.inputMethod} in ('camera', 'manual')`,
+    ),
+    check(
+      "scan_attempt_source_check",
+      sql`${table.source} in ('online', 'offline')`,
+    ),
+    check(
+      "scan_attempt_outcome_check",
+      sql`${table.outcome} in ('accepted', 'duplicate', 'invalid', 'unknown', 'canceled', 'replaced', 'expired', 'outside_window', 'conflict', 'not_checked_in')`,
+    ),
+    check(
+      "scan_attempt_check_in_outcome_check",
+      sql`(${table.outcome} = 'accepted' and ${table.checkInId} is not null) or (${table.outcome} <> 'accepted' and ${table.checkInId} is null)`,
+    ),
+    check(
+      "scan_attempt_offline_timing_check",
+      sql`(${table.source} = 'online' and ${table.scannerDeviceId} is null and ${table.rawDeviceTime} is null and ${table.serverTimeAnchor} is null and ${table.monotonicElapsedMs} is null and ${table.timestampConfidence} is null) or (${table.source} = 'offline' and ${table.scannerDeviceId} is not null and ${table.rawDeviceTime} is not null and ${table.serverTimeAnchor} is not null and ${table.monotonicElapsedMs} >= 0 and ${table.timestampConfidence} in ('high', 'low'))`,
+    ),
+    index("scan_attempt_event_attempted_at_idx").on(
+      table.eventId,
+      table.attemptedAt,
+    ),
+    index("scan_attempt_ticket_idx").on(table.ticketId),
+  ],
+);
+
+export const checkInConflict = pgTable(
+  "check_in_conflict",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => event.id, { onDelete: "restrict" }),
+    ticketId: uuid("ticket_id")
+      .notNull()
+      .references(() => ticket.id, { onDelete: "restrict" }),
+    status: text("status").default("unresolved").notNull(),
+    authoritativeScanAttemptId: uuid("authoritative_scan_attempt_id").references(
+      () => scanAttempt.id,
+      { onDelete: "restrict" },
+    ),
+    resolvedByUserId: uuid("resolved_by_user_id").references(() => user.id, {
+      onDelete: "restrict",
+    }),
+    resolutionReason: text("resolution_reason"),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "check_in_conflict_status_check",
+      sql`${table.status} in ('unresolved', 'resolved_auto', 'resolved_manual')`,
+    ),
+    check(
+      "check_in_conflict_resolution_check",
+      sql`(${table.status} = 'unresolved' and ${table.authoritativeScanAttemptId} is null and ${table.resolvedByUserId} is null and ${table.resolutionReason} is null and ${table.resolvedAt} is null) or (${table.status} = 'resolved_auto' and ${table.authoritativeScanAttemptId} is not null and ${table.resolvedByUserId} is null and ${table.resolutionReason} is null and ${table.resolvedAt} is not null) or (${table.status} = 'resolved_manual' and ${table.authoritativeScanAttemptId} is not null and ${table.resolvedByUserId} is not null and length(btrim(${table.resolutionReason})) > 0 and ${table.resolvedAt} is not null)`,
+    ),
+    uniqueIndex("check_in_conflict_unresolved_ticket_unique")
+      .on(table.ticketId)
+      .where(sql`${table.status} = 'unresolved'`),
+    index("check_in_conflict_event_status_idx").on(
+      table.eventId,
+      table.status,
+      table.createdAt,
+    ),
+  ],
+);
+
+export const registrationAnswer = pgTable(
+  "registration_answer",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    registrationId: uuid("registration_id")
+      .notNull()
+      .references(() => registration.id, { onDelete: "restrict" }),
+    fieldId: uuid("field_id")
+      .notNull()
+      .references(() => registrationField.id, { onDelete: "restrict" }),
+    value: jsonb("value").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("registration_answer_registration_field_unique").on(
+      table.registrationId,
+      table.fieldId,
+    ),
+    index("registration_answer_field_idx").on(table.fieldId),
+  ],
+);
+
+export const capacityHold = pgTable(
+  "capacity_hold",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    registrationId: uuid("registration_id")
+      .notNull()
+      .references(() => registration.id, { onDelete: "restrict" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("capacity_hold_registration_unique").on(table.registrationId),
+    index("capacity_hold_active_idx").on(table.expiresAt, table.claimedAt),
+  ],
+);
+
+export const admissionOffer = pgTable(
+  "admission_offer",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    registrationId: uuid("registration_id")
+      .notNull()
+      .references(() => registration.id, { onDelete: "restrict" }),
+    tokenDigest: text("token_digest").notNull(),
+    status: text("status").default("active").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "admission_offer_status_check",
+      sql`${table.status} in ('active', 'claimed', 'expired')`,
+    ),
+    uniqueIndex("admission_offer_active_registration_unique")
+      .on(table.registrationId)
+      .where(sql`${table.status} = 'active'`),
+    uniqueIndex("admission_offer_token_digest_unique").on(table.tokenDigest),
+    index("admission_offer_active_idx").on(table.status, table.expiresAt),
+    check(
+      "admission_offer_claimed_at_check",
+      sql`(${table.status} = 'claimed' and ${table.claimedAt} is not null) or (${table.status} <> 'claimed' and ${table.claimedAt} is null)`,
+    ),
+  ],
+);
+
+export const registrationVerification = pgTable(
+  "registration_verification",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    registrationId: uuid("registration_id")
+      .notNull()
+      .references(() => registration.id, { onDelete: "restrict" }),
+    tokenDigest: text("token_digest").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("registration_verification_token_digest_unique").on(
+      table.tokenDigest,
+    ),
+    index("registration_verification_registration_idx").on(
+      table.registrationId,
+    ),
+  ],
+);
+
+export const supportAccess = pgTable(
+  "support_access",
+  {
+    id: uuid("id")
+      .default(sql`pg_catalog.gen_random_uuid()`)
+      .primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => event.id, { onDelete: "restrict" }),
+    adminUserId: uuid("admin_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    reason: text("reason").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (table) => [
+    check(
+      "support_access_reason_not_blank_check",
+      sql`length(btrim(${table.reason})) > 0`,
+    ),
+    index("support_access_event_admin_idx").on(
+      table.eventId,
+      table.adminUserId,
+    ),
+    index("support_access_expires_at_idx").on(table.expiresAt),
+  ],
+);

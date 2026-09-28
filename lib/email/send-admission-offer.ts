@@ -55,40 +55,52 @@ export async function sendAdmissionOffer({
   if (!delivery) throw new Error("Could not create the Email Delivery record.");
 
   const resend = new Resend(apiKey);
-  let response;
-  try {
-    response = await resend.emails.send(
-      {
-        from: process.env.RESEND_FROM_EMAIL ?? "EventPass <tickets@mail.hetjethva.tech>",
-        to: email,
-        subject: `A place is available for ${eventName}`,
-        html: `<div style="${EMAIL_BODY_STYLE}"><h1 style="font-size:24px">A place is available</h1><p>${escapeHtml(attendeeName)}, you reached the front of the waitlist for ${escapeHtml(eventName)}.</p><p><a href="${escapeHtml(claimUrl.toString())}">Review and claim your place</a> by ${escapeHtml(deadline)}. The offer expires automatically and cannot be restored.</p><p>Keep this claim link to yourself.</p></div>`,
-        text: `${attendeeName}, you reached the front of the waitlist for ${eventName}.\n\nClaim your place by ${deadline}: ${claimUrl.toString()}\n\nKeep this claim link to yourself.`,
-      },
-      { idempotencyKey: `email-delivery/${delivery.id}` },
-    );
-  } catch {
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    let failureKind: "transient" | "permanent" = "transient";
+    let acceptedMessageId: string | null = null;
+    try {
+      const response = await resend.emails.send(
+        {
+          from: process.env.RESEND_FROM_EMAIL ?? "EventPass <tickets@mail.hetjethva.tech>",
+          to: email,
+          subject: `A place is available for ${eventName}`,
+          html: `<div style="${EMAIL_BODY_STYLE}"><h1 style="font-size:24px">A place is available</h1><p>${escapeHtml(attendeeName)}, you reached the front of the waitlist for ${escapeHtml(eventName)}.</p><p><a href="${escapeHtml(claimUrl.toString())}">Review and claim your place</a> by ${escapeHtml(deadline)}. The offer expires automatically and cannot be restored.</p><p>Keep this claim link to yourself.</p></div>`,
+          text: `${attendeeName}, you reached the front of the waitlist for ${eventName}.\n\nClaim your place by ${deadline}: ${claimUrl.toString()}\n\nKeep this claim link to yourself.`,
+        },
+        { idempotencyKey: `email-delivery/${delivery.id}` },
+      );
+      if (!response.error) {
+        acceptedMessageId = response.data.id;
+      } else {
+        failureKind = isTransientDeliveryStatusCode(response.error.statusCode)
+          ? "transient"
+          : "permanent";
+      }
+    } catch {
+      failureKind = "transient";
+    }
+    if (acceptedMessageId) {
+      try {
+        await db
+          .update(emailDelivery)
+          .set({ attemptCount: attempt, outcome: "submitted", providerMessageId: acceptedMessageId })
+          .where(eq(emailDelivery.id, delivery.id));
+      } catch {
+        console.error("Admission offer was accepted but delivery tracking failed", {
+          deliveryId: delivery.id,
+        });
+      }
+      return;
+    }
     await db
       .update(emailDelivery)
-      .set({ attemptCount: 1, failureKind: "transient", outcome: "transient_failure" })
+      .set({
+        attemptCount: attempt,
+        failureKind,
+        outcome: failureKind === "transient" ? "transient_failure" : "permanent_failure",
+      })
       .where(eq(emailDelivery.id, delivery.id));
-    throw new Error("The Admission Offer email could not be sent.");
+    if (failureKind === "permanent") break;
   }
-  if (!response.error) {
-    await db
-      .update(emailDelivery)
-      .set({ attemptCount: 1, outcome: "submitted", providerMessageId: response.data.id })
-      .where(eq(emailDelivery.id, delivery.id));
-    return;
-  }
-  const transient = isTransientDeliveryStatusCode(response.error.statusCode);
-  await db
-    .update(emailDelivery)
-    .set({
-      attemptCount: 1,
-      failureKind: transient ? "transient" : "permanent",
-      outcome: transient ? "transient_failure" : "permanent_failure",
-    })
-    .where(eq(emailDelivery.id, delivery.id));
   throw new Error("The Admission Offer email could not be sent.");
 }

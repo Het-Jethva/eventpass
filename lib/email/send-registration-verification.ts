@@ -88,14 +88,20 @@ export async function sendRegistrationVerification({
 
   const firstAttempt = await sendAttempt(token, 1);
   if (firstAttempt.kind === "submitted") {
-    await db
-      .update(emailDelivery)
-      .set({
-        attemptCount: 1,
-        outcome: "submitted",
-        providerMessageId: firstAttempt.id,
-      })
-      .where(eq(emailDelivery.id, delivery.id));
+    try {
+      await db
+        .update(emailDelivery)
+        .set({
+          attemptCount: 1,
+          outcome: "submitted",
+          providerMessageId: firstAttempt.id,
+        })
+        .where(eq(emailDelivery.id, delivery.id));
+    } catch {
+      console.error("Verification email was accepted but delivery tracking failed", {
+        deliveryId: delivery.id,
+      });
+    }
     return;
   }
   await recordFailure(1, firstAttempt.kind);
@@ -105,15 +111,21 @@ export async function sendRegistrationVerification({
 
   const retry = await sendAttempt(token, 2);
   if (retry.kind === "submitted") {
-    await db
-      .update(emailDelivery)
-      .set({
-        attemptCount: 2,
-        failureKind: null,
-        outcome: "submitted",
-        providerMessageId: retry.id,
-      })
-      .where(eq(emailDelivery.id, delivery.id));
+    try {
+      await db
+        .update(emailDelivery)
+        .set({
+          attemptCount: 2,
+          failureKind: null,
+          outcome: "submitted",
+          providerMessageId: retry.id,
+        })
+        .where(eq(emailDelivery.id, delivery.id));
+    } catch {
+      console.error("Verification email was accepted but delivery tracking failed", {
+        deliveryId: delivery.id,
+      });
+    }
     return;
   }
   await recordFailure(2, retry.kind);

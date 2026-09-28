@@ -134,6 +134,9 @@ export function createRegistrationApplicationService({
     }
     const submittedAt = now();
     let emailMessage: VerificationEmail | null = null;
+    const deliveryState: {
+      replacementVerification: { previousId: string; newId: string } | null;
+    } = { replacementVerification: null };
     let offerMessages: AdmissionOfferMessage[] = [];
 
     let result: RegistrationSubmissionResult;
@@ -305,24 +308,20 @@ export function createRegistrationApplicationService({
             };
           }
 
-          await transaction
-            .update(registrationVerification)
-            .set({ consumedAt: submittedAt })
-            .where(
-              and(
-                eq(
-                  registrationVerification.registrationId,
-                  existing.registrationId,
-                ),
-                isNull(registrationVerification.consumedAt),
-              ),
-            );
           const token = createToken();
-          await transaction.insert(registrationVerification).values({
-            registrationId: existing.registrationId,
-            tokenDigest: digestToken(token),
-            expiresAt: activeVerification.expiresAt,
-          });
+          const [newVerification] = await transaction
+            .insert(registrationVerification)
+            .values({
+              registrationId: existing.registrationId,
+              tokenDigest: digestToken(token),
+              expiresAt: activeVerification.expiresAt,
+            })
+            .returning({ id: registrationVerification.id });
+          if (!newVerification) throw new Error("Could not create the verification link.");
+          deliveryState.replacementVerification = {
+            previousId: activeVerification.id,
+            newId: newVerification.id,
+          };
           emailMessage = {
             email: validation.data.email,
             eventId: publishedEvent.id,
@@ -429,10 +428,22 @@ export function createRegistrationApplicationService({
     if (!emailMessage || !("deliveryStatus" in result)) return result;
     try {
       await sendVerificationEmail(emailMessage);
-      return result;
     } catch {
+      if (deliveryState.replacementVerification) {
+        await database
+          .update(registrationVerification)
+          .set({ consumedAt: submittedAt })
+          .where(eq(registrationVerification.id, deliveryState.replacementVerification.newId));
+      }
       return { ...result, deliveryStatus: "failed" };
     }
+    if (deliveryState.replacementVerification) {
+      await database
+        .update(registrationVerification)
+        .set({ consumedAt: submittedAt })
+        .where(eq(registrationVerification.id, deliveryState.replacementVerification.previousId));
+    }
+    return result;
   }
 
   return { submit, findActiveRegistration };

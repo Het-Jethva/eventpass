@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { IconMailCheck } from "@tabler/icons-react";
 
-import { FormSubmitButton } from "@/components/form-submit-button";
 import { PublicAuthShell } from "@/components/public-auth-shell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { STAFF_MAGIC_LINK_CONSUME_PARAM } from "@/features/staff-identity/magic-link-policy";
 
-import { confirmStaffMagicLinkAction } from "./actions";
 
 export const metadata: Metadata = {
   title: "Confirm sign-in",
@@ -47,10 +47,18 @@ export default async function ConfirmStaffMagicLinkPage({
             If you did not request this sign-in link, close this page.
           </AlertDescription>
         </Alert>
-        <form action={confirmStaffMagicLinkAction.bind(null, token, callbackURL)}>
-          <FormSubmitButton size="lg" className="h-11 w-full" pendingLabel="Signing in">
+        <form action="/api/auth/magic-link/verify" method="get">
+          <input type="hidden" name="token" value={token} />
+          <input type="hidden" name="callbackURL" value={callbackURL} />
+          <input
+            type="hidden"
+            name="errorCallbackURL"
+            value="/sign-in?error=invalid-link"
+          />
+          <input type="hidden" name={STAFF_MAGIC_LINK_CONSUME_PARAM} value="1" />
+          <Button type="submit" size="lg" className="h-11 w-full">
             Sign in to EventPass
-          </FormSubmitButton>
+          </Button>
         </form>
       </div>
     </PublicAuthShell>

@@ -25,16 +25,3 @@ export function staffMagicLinkConfirmPath(token: string, callbackURL?: string) {
   if (callbackURL) path.searchParams.set("callbackURL", callbackURL);
   return `${path.pathname}?${path.searchParams.toString()}`;
 }
-
-export function staffMagicLinkConsumePath(
-  token: string,
-  callbackURL: string,
-  errorCallbackURL: string,
-) {
-  const path = new URL("/api/auth/magic-link/verify", "https://eventpass.invalid");
-  path.searchParams.set("token", token);
-  path.searchParams.set("callbackURL", callbackURL);
-  path.searchParams.set("errorCallbackURL", errorCallbackURL);
-  path.searchParams.set(STAFF_MAGIC_LINK_CONSUME_PARAM, "1");
-  return `${path.pathname}?${path.searchParams.toString()}`;
-}

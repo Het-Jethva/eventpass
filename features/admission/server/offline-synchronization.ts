@@ -9,6 +9,7 @@ import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import {
   checkIn,
   checkInConflict,
+  checkInReversal,
   event,
   eventStaff,
   registration,
@@ -171,7 +172,10 @@ function reconciledStoredOutcome(
   existing: Pick<StoredAttemptState, "id" | "ticketId" | "outcome">,
   latestConflictsByTicket: Map<string, StoredConflictState>,
 ): StoredScanOutcome {
-  if (!existing.ticketId) return parseStoredOutcome(existing.outcome);
+  if (!existing.ticketId ||
+    !["accepted", "conflict", "duplicate"].includes(existing.outcome)) {
+    return parseStoredOutcome(existing.outcome);
+  }
   const conflict = latestConflictsByTicket.get(normalizeId(existing.ticketId));
   if (!conflict) return parseStoredOutcome(existing.outcome);
   if (conflict.status === "unresolved") return "conflict";
@@ -295,6 +299,7 @@ export function createOfflineSynchronizationService({
         .select({ suspended: event.suspended })
         .from(event)
         .where(eq(event.id, payload.eventId))
+        .for("update")
         .limit(1);
       const [staffUser] = await transaction
         .select({ suspended: user.suspended })
@@ -454,6 +459,19 @@ export function createOfflineSynchronizationService({
                 asc(scanAttempt.id),
               )
               .for("update");
+      const reversals = ticketIds.length === 0 ? [] : await transaction
+        .select({ ticketId: checkIn.ticketId, createdAt: checkInReversal.createdAt })
+        .from(checkInReversal)
+        .innerJoin(checkIn, eq(checkIn.id, checkInReversal.checkInId))
+        .where(inArray(checkIn.ticketId, ticketIds))
+        .orderBy(desc(checkInReversal.createdAt));
+      const latestReversalsByTicket = new Map<string, Date>();
+      for (const reversal of reversals) {
+        const key = normalizeId(reversal.ticketId);
+        if (!latestReversalsByTicket.has(key)) {
+          latestReversalsByTicket.set(key, reversal.createdAt);
+        }
+      }
       const competingAttemptsByTicket = new Map<
         string,
         CompetingAttempt[]
@@ -461,6 +479,8 @@ export function createOfflineSynchronizationService({
       for (const competingAttempt of competingAttemptRows) {
         if (!competingAttempt.ticketId) continue;
         const ticketKey = normalizeId(competingAttempt.ticketId);
+        const reversedAt = latestReversalsByTicket.get(ticketKey);
+        if (reversedAt && competingAttempt.attemptedAt <= reversedAt) continue;
         const attempts = competingAttemptsByTicket.get(ticketKey) ?? [];
         attempts.push(competingAttempt);
         competingAttemptsByTicket.set(ticketKey, attempts);
@@ -490,6 +510,8 @@ export function createOfflineSynchronizationService({
       >();
       for (const conflict of conflictRows) {
         const ticketKey = normalizeId(conflict.ticketId);
+        const reversedAt = latestReversalsByTicket.get(ticketKey);
+        if (reversedAt && conflict.createdAt <= reversedAt) continue;
         if (!latestConflictsByTicket.has(ticketKey)) {
           latestConflictsByTicket.set(ticketKey, conflict);
         }
@@ -571,7 +593,12 @@ export function createOfflineSynchronizationService({
         const attemptKey = normalizeId(attempt.id);
         const existing = existingById.get(attemptKey);
         if (existing) {
-          const outcome = reconciledStoredOutcome(
+          const reversedAt = existing.ticketId
+            ? latestReversalsByTicket.get(normalizeId(existing.ticketId))
+            : undefined;
+          const outcome = reversedAt && existing.attemptedAt <= reversedAt &&
+            (existing.outcome === "accepted" || existing.outcome === "conflict")
+            ? "not_checked_in" : reconciledStoredOutcome(
             existing,
             latestConflictsByTicket,
           );
@@ -629,6 +656,18 @@ export function createOfflineSynchronizationService({
             outcome = attempt.capturedOutcome;
           } else {
             const ticketKey = normalizeId(presentedTicket.id);
+            const reversedAt = latestReversalsByTicket.get(ticketKey);
+            if (reversedAt && attempt.attemptedAt <= reversedAt) {
+              stored = await rememberStoredAttempt({
+                attempt,
+                ticketId: presentedTicket.id,
+                checkInId: null,
+                outcome: "not_checked_in",
+              });
+              results.push({ id: stored.id, ticketId: stored.ticketId,
+                outcome: "not_checked_in", changed: true });
+              continue;
+            }
             const competingAttempts = (
               competingAttemptsByTicket.get(ticketKey) ?? []
             ).filter(

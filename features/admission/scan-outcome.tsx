@@ -93,6 +93,12 @@ export const outcomePresentation: Record<AdmissionOutcome, Presentation> = {
     icon: IconCopyCheck,
     tone: "warning",
   },
+  conflict: {
+    title: "Organizer review needed",
+    description: "Scanners disagree about this ticket. Ask an organizer to resolve it before admitting the guest.",
+    icon: IconAlertTriangle,
+    tone: "warning",
+  },
   invalid: {
     title: "Invalid ticket",
     description:

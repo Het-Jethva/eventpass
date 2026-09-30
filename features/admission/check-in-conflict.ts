@@ -68,6 +68,20 @@ export function arbitrateCheckInConflict(values: {
     (currentConflictStatus === "resolved_auto" ||
       currentConflictStatus === "resolved_manual");
 
+  if (
+    currentConflictStatus === "unresolved" ||
+    (activeCheckIn && currentConflictStatus === "resolved_manual")
+  ) {
+    return {
+      attemptOutcome:
+        currentConflictStatus === "unresolved" ? "conflict" : "duplicate",
+      invalidateActiveCheckIn: false,
+      createCheckInFor: null,
+      linkAttemptToActiveCheckIn: false,
+      ensureConflict: null,
+    };
+  }
+
   if (competing.length === 0) {
     if (activeCheckIn) {
       return {

@@ -9,6 +9,7 @@ import { and, eq, isNull, sql, type SQL } from "drizzle-orm";
 import {
   auditEntry,
   checkIn,
+  checkInConflict,
   event,
   eventStaff,
   registration,
@@ -32,6 +33,7 @@ export type AdmissionOutcome =
   | "accepted"
   | "provisional"
   | "duplicate"
+  | "conflict"
   | "invalid"
   | "unknown"
   | "canceled"
@@ -60,6 +62,7 @@ export type AdmissionInput = {
 const REPLAYABLE_ONLINE_OUTCOMES = [
   "accepted",
   "duplicate",
+  "conflict",
   "invalid",
   "unknown",
   "canceled",
@@ -235,6 +238,7 @@ export function createAdmissionApplicationService({
           ),
         )
         .where(eq(event.id, eventId))
+        .for("update", { of: event })
         .limit(1);
 
       if (!authorizedEvent) return { outcome: "unauthorized" };
@@ -344,6 +348,20 @@ export function createAdmissionApplicationService({
           outcome: rejection,
           attendeeName: presentedTicket.attendeeName,
         };
+      }
+
+      const [unresolvedConflict] = await transaction
+        .select({ id: checkInConflict.id })
+        .from(checkInConflict)
+        .where(and(eq(checkInConflict.ticketId, presentedTicket.id),
+          eq(checkInConflict.status, "unresolved")))
+        .limit(1);
+      if (unresolvedConflict) {
+        await transaction.insert(scanAttempt).values({
+          id: clientAttemptId, eventId, ticketId: presentedTicket.id,
+          actorUserId, inputDigest, inputMethod, outcome: "conflict", attemptedAt,
+        });
+        return { outcome: "conflict", attendeeName: presentedTicket.attendeeName };
       }
 
       const [existingCheckIn] = await transaction

@@ -18,6 +18,8 @@ type CapacityLedgerTransaction = Parameters<
 >[0];
 type CapacityLedgerReader = Pick<CapacityLedgerDatabase, "select">;
 
+export class EventCapacityConflictError extends Error {}
+
 /**
  * Claimed Event Capacity: confirmed Registrations plus unexpired Capacity
  * Holds plus active Admission Offers. Every capacity decision in the product

@@ -24,6 +24,7 @@ import {
   clampActiveOffersToRegistrationWindow,
   decreaseDisplacesClaims,
   getActiveCapacityUsage,
+  EventCapacityConflictError,
 } from "./capacity-ledger";
 import { deliverAdmissionOfferMessages } from "@/lib/email/deliver-admission-offers";
 import { runBoundedTasks } from "@/lib/run-bounded-tasks";
@@ -61,7 +62,6 @@ export const cancelPublishedEventInputSchema = z.object({
 });
 
 export class PublishedEventAuthorizationError extends Error {}
-export class EventCapacityConflictError extends Error {}
 export class EventCancellationError extends Error {}
 
 function iso(value: Date) {

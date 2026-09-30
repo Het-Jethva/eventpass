@@ -11,6 +11,11 @@ import {
 } from "./create-draft-event";
 import { eventScheduleInstants } from "./event-schedule";
 import { lockEventForMutation } from "./event-suspension";
+import {
+  decreaseDisplacesClaims,
+  EventCapacityConflictError,
+  getActiveCapacityUsage,
+} from "./capacity-ledger";
 
 export const updateDraftEventInputSchema = createDraftEventInputSchema;
 export type UpdateDraftEventInput = CreateDraftEventInput;
@@ -63,6 +68,13 @@ export async function updateDraftEvent(
 
     if (slugConflict) {
       throw new EventSlugUnavailableError("That Event Slug is already in use.");
+    }
+
+    const usage = await getActiveCapacityUsage(transaction, eventId, new Date());
+    if (decreaseDisplacesClaims(usage.claimed, input.capacity)) {
+      throw new EventCapacityConflictError(
+        `Event Capacity cannot be lower than the ${usage.claimed} existing claims.`,
+      );
     }
 
     const [updatedEvent] = await transaction

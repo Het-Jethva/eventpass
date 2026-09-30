@@ -23,9 +23,9 @@ import {
   updatePublishedEvent,
 } from "@/features/events/server/published-events";
 import {
-  EventCapacityConflictError,
   PublishedEventChangeError,
 } from "@/features/events/server/published-event-application";
+import { EventCapacityConflictError } from "@/features/events/server/capacity-ledger";
 import { EventSuspendedError } from "@/features/events/server/event-suspension";
 
 function formValue(formData: FormData, name: CreateEventFormField) {

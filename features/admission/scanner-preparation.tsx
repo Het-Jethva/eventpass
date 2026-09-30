@@ -158,6 +158,10 @@ export function ScannerPreparation({
         setError("This event cannot be prepared for offline use.");
         return;
       }
+      if (result.outcome === "expired") {
+        setError("Check-in has closed. This event can no longer be prepared for offline use.");
+        return;
+      }
       try {
         await persistPreparedSnapshot(result.snapshot);
       } catch (cacheError) {

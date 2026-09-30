@@ -37,6 +37,7 @@ export type OfflineEventSnapshot = {
 export type ScannerPreparationResult =
   | { outcome: "prepared"; snapshot: OfflineEventSnapshot }
   | { outcome: "unauthorized" }
+  | { outcome: "expired" }
   | { outcome: "event_unavailable" };
 
 export function getSnapshotReadiness(

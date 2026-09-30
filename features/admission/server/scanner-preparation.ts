@@ -93,6 +93,9 @@ export function createScannerPreparationService({
       ) {
         return { outcome: "event_unavailable" };
       }
+      if (generatedAt >= authorizedEvent.checkInClosesAt) {
+        return { outcome: "expired" };
+      }
 
       const ticketRows = await transaction
         .select({

@@ -277,7 +277,6 @@ export function createOfflineSynchronizationService({
 
     const attemptIds = [...firstAttemptById.keys()];
     return database.transaction(async (transaction) => {
-      await lockAttemptIds(transaction, attemptIds);
 
       // A signed capability proves who held the device offline. It cannot prove
       // that access still stands, and this is the one admission path that never
@@ -325,6 +324,7 @@ export function createOfflineSynchronizationService({
         )
         .limit(1);
       const staffAccessRevoked = !assignment;
+      await lockAttemptIds(transaction, attemptIds);
 
       const existingRows = await transaction
         .select({

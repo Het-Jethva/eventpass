@@ -194,6 +194,17 @@ export async function acceptStaffInvitation(
   const tokenDigest = digestTokenBase64Url(token);
 
   return db.transaction(async (transaction) => {
+    const [located] = await transaction
+      .select({ eventId: staffInvitation.eventId })
+      .from(staffInvitation)
+      .where(eq(staffInvitation.tokenDigest, tokenDigest))
+      .limit(1);
+    if (!located) {
+      throw new StaffInvitationUnavailableError(
+        "This Staff Invitation is expired, revoked, or already used.",
+      );
+    }
+    await lockEventForMutation(transaction, located.eventId);
     const [invitation] = await transaction
       .select()
       .from(staffInvitation)
@@ -206,7 +217,6 @@ export async function acceptStaffInvitation(
         "This Staff Invitation is expired, revoked, or already used.",
       );
     }
-    await lockEventForMutation(transaction, invitation.eventId);
 
     const [actor] = await transaction
       .select({ email: user.email, suspended: user.suspended })
@@ -286,6 +296,15 @@ export async function revokeStaffInvitation(
   now = new Date(),
 ) {
   return db.transaction(async (transaction) => {
+    const [located] = await transaction
+      .select({ eventId: staffInvitation.eventId })
+      .from(staffInvitation)
+      .where(eq(staffInvitation.id, invitationId))
+      .limit(1);
+    if (!located) {
+      throw new StaffInvitationUnavailableError("That Staff Invitation is no longer pending.");
+    }
+    await lockEventForMutation(transaction, located.eventId);
     const [invitation] = await transaction
       .select()
       .from(staffInvitation)
@@ -295,7 +314,6 @@ export async function revokeStaffInvitation(
     if (!invitation || invitation.consumedAt || invitation.revokedAt) {
       throw new StaffInvitationUnavailableError("That Staff Invitation is no longer pending.");
     }
-    await lockEventForMutation(transaction, invitation.eventId);
 
     const actorRole = await findActorRole(
       transaction,
@@ -324,6 +342,15 @@ export async function removeEventStaff(
   actorUserId: string,
 ) {
   return db.transaction(async (transaction) => {
+    const [located] = await transaction
+      .select({ eventId: eventStaff.eventId })
+      .from(eventStaff)
+      .where(eq(eventStaff.id, assignmentId))
+      .limit(1);
+    if (!located) {
+      throw new StaffingAuthorizationError("That staff assignment no longer exists.");
+    }
+    await lockEventForMutation(transaction, located.eventId);
     const [assignment] = await transaction
       .select()
       .from(eventStaff)
@@ -333,7 +360,6 @@ export async function removeEventStaff(
     if (!assignment || assignment.role === "owner") {
       throw new StaffingAuthorizationError("The Event Owner cannot be removed.");
     }
-    await lockEventForMutation(transaction, assignment.eventId);
     const actorRole = await findActorRole(transaction, assignment.eventId, actorUserId);
     assertCanManageRole(actorRole, parseInviteableStaffRole(assignment.role));
     await transaction.delete(eventStaff).where(eq(eventStaff.id, assignment.id));

@@ -141,6 +141,15 @@ export function createCheckInConflictResolutionService({
     }
 
     return database.transaction(async (transaction) => {
+      const [located] = await transaction
+        .select({ eventId: checkInConflict.eventId })
+        .from(checkInConflict)
+        .where(eq(checkInConflict.id, values.conflictId))
+        .limit(1);
+      if (!located) {
+        throw new CheckInConflictError("This Check-in Conflict no longer exists.");
+      }
+      await lockEventForMutation(transaction, located.eventId);
       const [conflict] = await transaction
         .select()
         .from(checkInConflict)
@@ -152,7 +161,6 @@ export function createCheckInConflictResolutionService({
           "This Check-in Conflict is no longer unresolved.",
         );
       }
-      await lockEventForMutation(transaction, conflict.eventId);
       const [assignment] = await transaction
         .select({ role: eventStaff.role })
         .from(eventStaff)

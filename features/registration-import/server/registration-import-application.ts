@@ -454,6 +454,7 @@ export function createRegistrationImportService({
     let offerMessages: AdmissionOfferMessage[] = [];
     let ticketMessages: ImportTicketEmail[] = [];
     const result = await database.transaction(async (transaction) => {
+      await lockEvent(transaction, eventId);
       const [authorizedEvent] = await transaction
         .select({
           id: event.id,
@@ -476,7 +477,6 @@ export function createRegistrationImportService({
             inArray(eventStaff.role, ["owner", "organizer"]),
           ),
         )
-        .for("update")
         .limit(1);
       if (
         !authorizedEvent ||

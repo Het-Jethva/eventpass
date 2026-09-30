@@ -20,7 +20,7 @@ import { classifyTicketCredential } from "../../tickets/ticket-credential";
 import { digestBearerToken as digestInput } from "@/lib/bearer-token-digest";
 import { isUniqueViolation } from "@/lib/is-unique-violation";
 import { verifyTicket } from "../../tickets/ticket-crypto";
-import { isEventSuspended } from "../../events/server/event-suspension";
+import { isEventSuspended, lockEvent } from "../../events/server/event-suspension";
 import { isOrganizerOrOwner } from "../../staffing/staffing-policy";
 import { decideTicketValidity } from "../check-in-validity";
 
@@ -224,6 +224,7 @@ export function createAdmissionApplicationService({
 
     try {
       return await database.transaction(async (transaction) => {
+      await lockEvent(transaction, eventId);
       const [authorizedEvent] = await transaction
         .select({
           id: event.id,
@@ -242,7 +243,6 @@ export function createAdmissionApplicationService({
           ),
         )
         .where(eq(event.id, eventId))
-        .for("update", { of: event })
         .limit(1);
 
       if (!authorizedEvent) return { outcome: "unauthorized" };

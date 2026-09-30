@@ -31,6 +31,7 @@ import {
   user,
 } from "@/lib/db/schema";
 import { escapeLikePattern } from "@/lib/like-pattern";
+import { lockEvent } from "@/features/events/server/event-suspension";
 
 export async function assertPlatformAdmin(
   actorUserId: string,
@@ -383,6 +384,12 @@ export async function revokeSupportAccess({
 
   return db.transaction(async (tx) => {
     await assertPlatformAdmin(actorUserId, tx);
+    const [located] = await tx.select({ eventId: supportAccess.eventId })
+      .from(supportAccess).where(eq(supportAccess.id, supportAccessId)).limit(1);
+    if (!located) {
+      throw new SupportAccessRequiredError("That Support Access grant is already closed.");
+    }
+    await lockEvent(tx, located.eventId);
 
     const [activeAccess] = await tx
       .select()

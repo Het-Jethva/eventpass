@@ -6,6 +6,7 @@ import { and, eq, isNull } from "drizzle-orm";
 
 import {
   checkIn,
+  checkInConflict,
   event,
   eventStaff,
   registration,
@@ -101,6 +102,7 @@ export function createScannerPreparationService({
           ticketStatus: ticket.status,
           registrationStatus: registration.status,
           checkInId: checkIn.id,
+          conflictId: checkInConflict.id,
         })
         .from(ticket)
         .innerJoin(registration, eq(registration.id, ticket.registrationId))
@@ -108,6 +110,10 @@ export function createScannerPreparationService({
           checkIn,
           and(eq(checkIn.ticketId, ticket.id), isNull(checkIn.invalidatedAt)),
         )
+        .leftJoin(checkInConflict, and(
+          eq(checkInConflict.ticketId, ticket.id),
+          eq(checkInConflict.status, "unresolved"),
+        ))
         .where(eq(ticket.eventId, eventId));
 
       const authorization = signScannerAuthorization(
@@ -158,7 +164,9 @@ export function createScannerPreparationService({
                 ticketCode: row.ticketCode,
                 displayName: row.displayName,
                 validityState,
-                existingCheckInState: row.checkInId
+                existingCheckInState: row.conflictId
+                  ? ("conflict" as const)
+                  : row.checkInId
                   ? ("checked_in" as const)
                   : ("not_checked_in" as const),
               },

@@ -38,9 +38,11 @@ export async function synchronizePendingAttempts(eventId: string): Promise<{
       if (!response.ok || result.outcome !== "acknowledged") {
         throw new Error("Synchronization was not acknowledged.");
       }
-      await offlineScannerStore.acknowledgeScanAttempts(
+      await offlineScannerStore.applyAdmissionResults(
         eventId,
         result.results,
+        result.results.filter((item) => item.outcome !== "conflict")
+          .map((item) => item.id),
       );
       acknowledged += result.results.length;
       changed += result.results.filter((item) => item.changed).length;

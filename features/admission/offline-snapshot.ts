@@ -30,7 +30,7 @@ export type OfflineEventSnapshot = {
     ticketCode: string;
     displayName: string;
     validityState: OfflineTicketValidityState;
-    existingCheckInState: "checked_in" | "not_checked_in";
+    existingCheckInState: "checked_in" | "not_checked_in" | "conflict";
   }>;
 };
 
@@ -55,9 +55,3 @@ export function getSnapshotReadiness(
   return "ready";
 }
 
-export function staleSnapshotBlocksOfflineScan(
-  snapshot: OfflineEventSnapshot,
-  now: Date,
-) {
-  return getSnapshotReadiness(snapshot, now) === "refresh_required";
-}

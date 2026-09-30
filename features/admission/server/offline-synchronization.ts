@@ -351,15 +351,15 @@ export function createOfflineSynchronizationService({
         const submitted = firstAttemptById.get(normalizeId(existing.id));
         if (
           existing.eventId !== payload.eventId ||
+          !submitted ||
+          existing.actorUserId !== payload.volunteerUserId ||
+          existing.inputDigest !== submitted.inputDigest ||
+          existing.inputMethod !== submitted.inputMethod ||
           (existing.source === "offline" &&
-            (!submitted ||
-              existing.actorUserId !== payload.volunteerUserId ||
-              existing.scannerDeviceId !== payload.scannerDeviceId ||
+            (existing.scannerDeviceId !== payload.scannerDeviceId ||
               !existing.serverTimeAnchor ||
               existing.serverTimeAnchor.getTime() !==
-                authorizationIssuedAt.getTime() ||
-              existing.inputDigest !== submitted.inputDigest ||
-              existing.inputMethod !== submitted.inputMethod))
+                authorizationIssuedAt.getTime()))
         ) {
           return { outcome: "unauthorized", results: [] };
         }

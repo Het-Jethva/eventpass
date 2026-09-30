@@ -39,7 +39,7 @@ import type {
 } from "@/features/admission/server/admission-application";
 import { cn } from "@/lib/utils";
 import { admitOffline } from "./offline-scan";
-import { staleSnapshotBlocksOfflineScan } from "./offline-snapshot";
+import { admitWithOfflineFallback } from "./scanner-admission";
 import { offlineScannerStore } from "./offline-snapshot-store";
 import { synchronizePendingAttempts } from "./offline-synchronization-client";
 import { ScannerPreparation } from "./scanner-preparation";
@@ -261,36 +261,33 @@ export function ScannerWorkspace({
     setActionError(null);
     setResult(null);
     try {
-      let nextResult: AdmissionResult;
-      if (navigator.onLine) {
-        nextResult = await scanTicketAction({
+      const admission = await admitWithOfflineFallback(
+        {
           eventId,
           clientAttemptId: crypto.randomUUID(),
           input,
           inputMethod,
           overrideReason,
-        });
-      } else {
-        if (overrideReason) throw new Error("Online access is required for an override.");
-        const snapshot = await offlineScannerStore.getCachedSnapshot();
-        const timing =
-          snapshot && snapshot.event.id === eventId
-            ? await offlineScannerStore.captureAttemptTiming(eventId)
-            : null;
-        if (snapshot && snapshot.event.id === eventId && timing) {
-          const estimatedServerTime = new Date(
-            new Date(timing.serverTimeAnchor).getTime() + timing.monotonicElapsedMs,
-          );
-          if (staleSnapshotBlocksOfflineScan(snapshot, estimatedServerTime)) {
-            setActionError(
-              "Refresh this phone's snapshot before scanning. The cached ticket list is out of date.",
-            );
-            return null;
-          }
-        }
-        nextResult = await admitOffline({ eventId, input, inputMethod });
-      }
+        },
+        {
+          online: navigator.onLine,
+          admitOnline: scanTicketAction,
+          admitOffline,
+        },
+      );
+      const nextResult = admission.result;
       setResult(nextResult);
+      if (admission.source === "online" && nextResult.ticketId) {
+        try {
+          await offlineScannerStore.applyAdmissionResults(eventId, [
+            { ticketId: nextResult.ticketId, outcome: nextResult.outcome },
+          ]);
+        } catch {
+          setActionError(
+            "The server recorded this scan, but this phone could not update its offline ticket list. Refresh the snapshot before going offline.",
+          );
+        }
+      }
       setLastInput({ value: input, method: inputMethod });
       announceFeedback(nextResult.outcome, feedbackEnabled);
       await refreshPendingCount();
@@ -512,6 +509,14 @@ export function ScannerWorkspace({
                     checkInId={result.checkInId}
                     actorRole={actorRole}
                     onCompleted={() => {
+                      if (result.ticketId) {
+                        void offlineScannerStore.applyAdmissionResults(eventId, [{
+                          ticketId: result.ticketId,
+                          outcome: "not_checked_in",
+                        }]).catch(() => {
+                          setActionError("Check-in reversed on the server. Refresh this phone's snapshot before going offline.");
+                        });
+                      }
                       setResult(null);
                       setSyncMessage(
                         "Check-in reversed. The ticket can be admitted again.",

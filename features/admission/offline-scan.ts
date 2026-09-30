@@ -6,7 +6,7 @@ import type {
   AdmissionOutcome,
   AdmissionResult,
 } from "./server/admission-application";
-import { staleSnapshotBlocksOfflineScan } from "./offline-snapshot";
+import { getSnapshotReadiness } from "./offline-snapshot";
 import { refuseOfflineCredential } from "./offline-presentation";
 import { decideSnapshotTicketOutcome, parseStoredSnapshotValidity } from "./check-in-validity";
 import {
@@ -47,6 +47,7 @@ export async function admitOffline(
     eventId: string;
     input: string;
     inputMethod: "camera" | "manual";
+    clientAttemptId?: string;
   },
   store: OfflineScannerLookup = offlineScannerStore,
 ): Promise<AdmissionResult> {
@@ -60,8 +61,8 @@ export async function admitOffline(
   const estimatedServerTime = new Date(
     new Date(timing.serverTimeAnchor).getTime() + timing.monotonicElapsedMs,
   );
-  if (staleSnapshotBlocksOfflineScan(snapshot, estimatedServerTime)) {
-    return resultFor("event_unavailable");
+  if (getSnapshotReadiness(snapshot, estimatedServerTime) === "refresh_required") {
+    return resultFor("snapshot_stale");
   }
   const credential = classifyTicketCredential(values.input);
   const ticketCode = credential.kind === "code" ? credential.code : null;
@@ -98,6 +99,8 @@ export async function admitOffline(
           });
     if (snapshotOutcome) {
       outcome = snapshotOutcome;
+    } else if (ticket.existingCheckInState === "conflict") {
+      return resultFor("conflict", ticket.displayName);
     } else if (
       ticket.existingCheckInState === "checked_in" ||
       (await store.hasLocallyAcceptedTicket(values.eventId, ticket.ticketId))
@@ -109,7 +112,7 @@ export async function admitOffline(
   }
 
   const attempt: PendingScanAttemptRecord = {
-    id: crypto.randomUUID(),
+    id: values.clientAttemptId ?? crypto.randomUUID(),
     eventId: values.eventId,
     ticketId: ticket?.ticketId ?? null,
     inputDigest: await digestInput(ticketCode ?? values.input),

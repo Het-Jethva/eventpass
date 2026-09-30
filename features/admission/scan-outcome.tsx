@@ -155,6 +155,12 @@ export const outcomePresentation: Record<AdmissionOutcome, Presentation> = {
     icon: IconLock,
     tone: "warning",
   },
+  snapshot_stale: {
+    title: "Refresh this phone",
+    description: "The cached ticket list is out of date. Connect to the server and refresh the snapshot before scanning.",
+    icon: IconRefresh,
+    tone: "warning",
+  },
 };
 
 export function ScanOutcome({

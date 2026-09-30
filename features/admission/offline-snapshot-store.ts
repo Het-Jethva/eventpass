@@ -310,14 +310,18 @@ export function createOfflineScannerStore(
       .sortBy("deviceRecordedAt");
   }
 
-  async function acknowledgeScanAttempts(
+  async function applyAdmissionResults(
     eventId: string,
     results: Array<{
-      id: string;
       ticketId: string | null;
       outcome: string;
     }>,
+    acknowledgedAttemptIds: string[] = [],
   ) {
+    const conflictedTicketIds = new Set(
+      results.filter((result) => result.outcome === "conflict")
+        .map((result) => result.ticketId),
+    );
     const checkedInTicketIds = new Set(
       results
         .filter(
@@ -362,6 +366,7 @@ export function createOfflineScannerStore(
           if (stored) {
             if (
               checkedInTicketIds.size > 0 ||
+              conflictedTicketIds.size > 0 ||
               notCheckedInTicketIds.size > 0 ||
               validityStateByTicketId.size > 0
             ) {
@@ -374,7 +379,9 @@ export function createOfflineScannerStore(
                   if (validityState) {
                     next = { ...next, validityState };
                   }
-                  if (checkedInTicketIds.has(ticket.ticketId)) {
+                  if (conflictedTicketIds.has(ticket.ticketId)) {
+                    next = { ...next, existingCheckInState: "conflict" };
+                  } else if (checkedInTicketIds.has(ticket.ticketId)) {
                     next = { ...next, existingCheckInState: "checked_in" };
                   } else if (notCheckedInTicketIds.has(ticket.ticketId)) {
                     next = {
@@ -388,11 +395,7 @@ export function createOfflineScannerStore(
               await database.snapshots.put(stored);
             }
           }
-          await database.pendingScanAttempts.bulkDelete(
-            results
-              .filter((result) => result.outcome !== "conflict")
-              .map((result) => result.id),
-          );
+          await database.pendingScanAttempts.bulkDelete(acknowledgedAttemptIds);
           return {
             stored,
             locallyAcceptedTicketIds: await readLocallyAcceptedTicketIds(
@@ -404,33 +407,10 @@ export function createOfflineScannerStore(
 
       const cached = snapshotCache;
       if (acknowledgment.stored && cached?.stored.eventId === eventId) {
-        cached.stored.snapshot.tickets = cached.stored.snapshot.tickets.map(
-          (ticket) => {
-            let updatedTicket = ticket;
-            const validityState = validityStateByTicketId.get(ticket.ticketId);
-            if (validityState) {
-              updatedTicket = { ...updatedTicket, validityState };
-            }
-            if (checkedInTicketIds.has(ticket.ticketId)) {
-              updatedTicket = {
-                ...updatedTicket,
-                existingCheckInState: "checked_in" as const,
-              };
-            } else if (notCheckedInTicketIds.has(ticket.ticketId)) {
-              updatedTicket = {
-                ...updatedTicket,
-                existingCheckInState: "not_checked_in" as const,
-              };
-            }
-            if (updatedTicket !== ticket) {
-              cached.ticketsById.set(ticket.ticketId, updatedTicket);
-              cached.ticketsByCode.set(ticket.ticketCode, updatedTicket);
-            }
-            return updatedTicket;
-          },
+        snapshotCache = createSnapshotCache(
+          acknowledgment.stored,
+          acknowledgment.locallyAcceptedTicketIds,
         );
-        cached.locallyAcceptedTicketIds =
-          acknowledgment.locallyAcceptedTicketIds;
       }
     });
   }
@@ -491,9 +471,10 @@ export function createOfflineScannerStore(
     savePendingScanAttempt,
     hasLocallyAcceptedTicket,
     listPendingScanAttempts,
-    acknowledgeScanAttempts,
+    applyAdmissionResults,
     close,
   };
 }
 
 export const offlineScannerStore = createOfflineScannerStore();
+

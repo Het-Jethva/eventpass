@@ -41,10 +41,12 @@ export type AdmissionOutcome =
   | "expired"
   | "outside_window"
   | "event_unavailable"
+  | "snapshot_stale"
   | "unauthorized";
 
 export type AdmissionResult = {
   outcome: AdmissionOutcome;
+  ticketId?: string;
   attendeeName?: string;
   checkedInAt?: Date;
   checkInId?: string;
@@ -178,6 +180,7 @@ async function replayStoredOnlineAttempt(
 
   return {
     outcome,
+    ticketId: existing.ticketId ?? undefined,
     attendeeName,
     checkInId: existing.checkInId ?? undefined,
     checkedInAt,
@@ -209,7 +212,8 @@ export function createAdmissionApplicationService({
       return { outcome: "invalid" };
     }
     const attemptedAt = now();
-    const inputDigest = digestInput(input);
+    const credential = classifyTicketCredential(input);
+    const inputDigest = digestInput(credential.kind === "code" ? credential.code : input);
     const replayKey = {
       clientAttemptId,
       eventId,
@@ -250,7 +254,6 @@ export function createAdmissionApplicationService({
       const replayed = await replayStoredOnlineAttempt(transaction, replayKey);
       if (replayed) return replayed;
 
-      const credential = classifyTicketCredential(input);
       const verificationKeys = getVerificationKeys();
       let ticketCondition: SQL | undefined;
       if (credential.kind === "code") {
@@ -346,6 +349,7 @@ export function createAdmissionApplicationService({
         });
         return {
           outcome: rejection,
+          ticketId: presentedTicket.id,
           attendeeName: presentedTicket.attendeeName,
         };
       }
@@ -361,7 +365,8 @@ export function createAdmissionApplicationService({
           id: clientAttemptId, eventId, ticketId: presentedTicket.id,
           actorUserId, inputDigest, inputMethod, outcome: "conflict", attemptedAt,
         });
-        return { outcome: "conflict", attendeeName: presentedTicket.attendeeName };
+        return { outcome: "conflict", ticketId: presentedTicket.id,
+          attendeeName: presentedTicket.attendeeName };
       }
 
       const [existingCheckIn] = await transaction
@@ -387,6 +392,7 @@ export function createAdmissionApplicationService({
         });
         return {
           outcome: "duplicate",
+          ticketId: presentedTicket.id,
           attendeeName: presentedTicket.attendeeName,
           checkedInAt: existingCheckIn.checkedInAt,
         };
@@ -426,6 +432,7 @@ export function createAdmissionApplicationService({
       }
       return {
         outcome: "accepted",
+        ticketId: presentedTicket.id,
         attendeeName: presentedTicket.attendeeName,
         checkInId: createdCheckIn.id,
         checkedInAt: createdCheckIn.checkedInAt,

@@ -33,7 +33,7 @@ export async function POST(
       result.outcome === "expired"
         ? "This preview expired. Upload the CSV again."
         : result.outcome === "stale"
-          ? "Registrations or capacity changed. Create a fresh preview."
+          ? "The form, registrations, or capacity changed. Create a fresh preview."
           : result.outcome === "forbidden"
             ? "Organizer access is required."
             : "This preview cannot be confirmed.";

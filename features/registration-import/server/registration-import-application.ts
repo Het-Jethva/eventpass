@@ -390,6 +390,7 @@ export function createRegistrationImportService({
       }
     }
     const payload = registrationImportPreviewPayloadSchema.parse({
+      formDigest: digestToken(JSON.stringify(fields)),
       mappings,
       rows,
       projectedCapacity: {
@@ -516,7 +517,20 @@ export function createRegistrationImportService({
       }
 
       const payload = parsedPayload.data;
-      const normalizedEmails = payload.rows.map((row) => row.normalizedEmail);
+      const fields = await getFields(transaction, eventId);
+      if (payload.formDigest !== digestToken(JSON.stringify(fields))) {
+        return { outcome: "stale" } as const;
+      }
+      const rows: ValidatedRegistrationSubmission[] = [];
+      for (const row of payload.rows) {
+        const validation = validateRegistrationSubmission(
+          { name: row.name, email: row.email, answers: row.answers ?? {} },
+          fields,
+        );
+        if (!validation.success) return { outcome: "stale" } as const;
+        rows.push(validation.data);
+      }
+      const normalizedEmails = rows.map((row) => row.normalizedEmail);
       const existing = await transaction
         .select({ id: registration.id })
         .from(registration)
@@ -546,12 +560,12 @@ export function createRegistrationImportService({
         return { outcome: "stale" } as const;
       }
       const signingKey = getSigningKey();
-      const managementTokens = payload.rows.map(() => createManagementToken());
+      const managementTokens = rows.map(() => createManagementToken());
 
       const insertedRegistrations = await transaction
         .insert(registration)
         .values(
-          payload.rows.map((row, index) => {
+          rows.map((row, index) => {
             const managementToken = managementTokens[index];
             if (!managementToken) throw new Error("Could not import Registration.");
             return {
@@ -571,7 +585,7 @@ export function createRegistrationImportService({
       if (insertedRegistrations.length !== payload.rows.length) {
         throw new Error("Could not import Registration.");
       }
-      const createdRegistrations = payload.rows.map((row, index) => {
+      const createdRegistrations = rows.map((row, index) => {
         const createdRegistration = insertedRegistrations[index];
         if (!createdRegistration) throw new Error("Could not import Registration.");
         return {
@@ -631,19 +645,15 @@ export function createRegistrationImportService({
         };
       });
 
-      const fieldIds = payload.mappings.flatMap((mapping) =>
-        mapping.kind === "field" && mapping.fieldId ? [mapping.fieldId] : [],
-      );
+      const fieldIds = fields.map((field) => field.id);
       if (fieldIds.length > 0) {
         await transaction.insert(registrationAnswer).values(
           createdRegistrations.flatMap(({ registrationId, row }) =>
             fieldIds.map((fieldId) => {
-              const answers = row.answers;
-              if (!answers) throw new Error("Could not import Registration.");
               return {
                 registrationId,
                 fieldId,
-                value: answers[fieldId] ?? null,
+                value: row.answers[fieldId] ?? null,
               };
             }),
           ),

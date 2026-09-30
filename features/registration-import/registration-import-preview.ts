@@ -8,6 +8,7 @@ const answerSchema = z.union([
 ]);
 
 export const registrationImportPreviewPayloadSchema = z.object({
+  formDigest: z.string().regex(/^[0-9a-f]{64}$/),
   mappings: z.array(
     z.object({
       header: z.string(),

@@ -7,7 +7,10 @@ import type {
   CreateEventFormField,
   CreateEventFormState,
 } from "@/app/(workspace)/events/new/actions";
-import { deleteDraftEvent } from "@/features/events/server/delete-draft-event";
+import {
+  deleteDraftEvent,
+  DraftEventCannotBeDeletedError,
+} from "@/features/events/server/delete-draft-event";
 import { publishEvent } from "@/features/events/server/publish-event";
 import {
   EventSlugUnavailableError,
@@ -140,6 +143,9 @@ export async function deleteEventAction(eventId: string) {
   try {
     await deleteDraftEvent(eventId, staffSession.user.id);
   } catch (error) {
+    if (error instanceof DraftEventCannotBeDeletedError) {
+      redirect(`/events/${eventId}?error=${encodeURIComponent(error.message)}`);
+    }
     if (error instanceof EventSuspendedError) {
       redirect(`/events/${eventId}?error=unavailable`);
     }

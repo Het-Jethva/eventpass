@@ -92,6 +92,12 @@ export default async function EventOverviewPage({
             paused; operational history remains available.
           </AlertDescription>
         </Alert>
+      ) : query.error ? (
+        <Alert variant="warning">
+          <IconClockQuestion aria-hidden="true" />
+          <AlertTitle>Event not deleted</AlertTitle>
+          <AlertDescription>{query.error}</AlertDescription>
+        </Alert>
       ) : null}
 
       {isCanceled ? (

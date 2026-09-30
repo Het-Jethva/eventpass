@@ -155,6 +155,13 @@
       "when": 1790495065148,
       "tag": "0021_scan_attempt_not_checked_in",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1790782519516,
+      "tag": "0022_allow-empty-draft-form-deletion",
+      "breakpoints": true
     }
   ]
 }

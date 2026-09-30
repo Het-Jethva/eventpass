@@ -63,11 +63,6 @@ export function arbitrateCheckInConflict(values: {
   currentConflictStatus?: string;
 }): ArbitrationDirective {
   const { attempt, competing, activeCheckIn, currentConflictStatus } = values;
-  const settled =
-    Boolean(activeCheckIn) &&
-    (currentConflictStatus === "resolved_auto" ||
-      currentConflictStatus === "resolved_manual");
-
   if (
     currentConflictStatus === "unresolved" ||
     (activeCheckIn && currentConflictStatus === "resolved_manual")
@@ -109,7 +104,9 @@ export function arbitrateCheckInConflict(values: {
     competing.some(
       (candidate) => candidate.timestampConfidence === "low",
     );
-  if (hasLowConfidence && settled) {
+  if (
+    hasLowConfidence && activeCheckIn && currentConflictStatus === "resolved_auto"
+  ) {
     return {
       attemptOutcome: "duplicate",
       invalidateActiveCheckIn: false,
@@ -131,9 +128,11 @@ export function arbitrateCheckInConflict(values: {
     };
   }
 
-  const ranked = [...competing, attempt].sort(earliestFirst);
-  const winner = ranked[0];
-  if (!winner) throw new Error("Check-in arbitration had no attempts.");
+  const winner = competing.reduce(
+    (earliest, candidate) =>
+      earliestFirst(candidate, earliest) < 0 ? candidate : earliest,
+    attempt,
+  );
   const winnerIsAttempt = sameAttemptId(winner.id, attempt.id);
   const adoptActiveCheckIn =
     activeCheckIn != null &&

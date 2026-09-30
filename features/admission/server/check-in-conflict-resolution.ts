@@ -17,6 +17,7 @@ import {
 } from "../../../lib/db/schema";
 import { lockEventForMutation } from "../../events/server/event-suspension";
 import { decideTicketValidity } from "../check-in-validity";
+import { getLatestCheckInReversals } from "./check-in-history";
 
 type ConflictResolutionDatabase = DatabaseClient;
 
@@ -84,6 +85,10 @@ export function createCheckInConflictResolutionService({
       .orderBy(asc(checkInConflict.createdAt));
 
     if (conflicts.length === 0) return [];
+    const latestReversals = await getLatestCheckInReversals(
+      database,
+      conflicts.map((conflict) => conflict.ticketId),
+    );
 
     const attempts = await database
       .select({
@@ -115,6 +120,8 @@ export function createCheckInConflictResolutionService({
     >();
     for (const { ticketId, ...attempt } of attempts) {
       if (!ticketId) continue;
+      const reversedAt = latestReversals.get(ticketId);
+      if (reversedAt && attempt.attemptedAt <= reversedAt) continue;
       const groupedAttempts = attemptsByTicket.get(ticketId);
       if (groupedAttempts) {
         groupedAttempts.push(attempt);
@@ -194,7 +201,14 @@ export function createCheckInConflictResolutionService({
           ),
         )
         .limit(1);
-      if (!selectedAttempt) {
+      const latestReversals = await getLatestCheckInReversals(transaction, [
+        conflict.ticketId,
+      ]);
+      const reversedAt = latestReversals.get(conflict.ticketId);
+      if (
+        !selectedAttempt ||
+        (reversedAt && selectedAttempt.attemptedAt <= reversedAt)
+      ) {
         throw new CheckInConflictError(
           "Select a Scan Attempt from this Check-in Conflict.",
         );

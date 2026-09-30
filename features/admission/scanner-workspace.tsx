@@ -510,11 +510,12 @@ export function ScannerWorkspace({
                     actorRole={actorRole}
                     onCompleted={() => {
                       if (result.ticketId) {
-                        void offlineScannerStore.applyAdmissionResults(eventId, [{
-                          ticketId: result.ticketId,
-                          outcome: "not_checked_in",
-                        }]).catch(() => {
-                          setActionError("Check-in reversed on the server. Refresh this phone's snapshot before going offline.");
+                        void offlineScannerStore.applyAdmissionResults(eventId, [
+                          { ticketId: result.ticketId, outcome: "not_checked_in" },
+                        ]).catch(() => {
+                          setActionError(
+                            "Check-in reversed on the server. Refresh this phone's snapshot before going offline.",
+                          );
                         });
                       }
                       setResult(null);

@@ -9,7 +9,6 @@ import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import {
   checkIn,
   checkInConflict,
-  checkInReversal,
   event,
   eventStaff,
   registration,
@@ -24,7 +23,7 @@ import { verifyScannerAuthorization } from "../scanner-authorization";
 import { arbitrateCheckInConflict } from "../check-in-conflict";
 import { decideTicketValidity } from "../check-in-validity";
 import { STORED_SCAN_OUTCOMES, type StoredScanOutcome } from "../scan-outcomes";
-import { createCheckInConflictResolutionService } from "./check-in-conflict-resolution";
+import { getLatestCheckInReversals } from "./check-in-history";
 
 type SynchronizationDatabase = DatabaseClient;
 type SynchronizationTransaction = Parameters<
@@ -106,7 +105,6 @@ type CompetingAttempt = {
   attemptedAt: Date;
   timestampConfidence: string | null;
   scannerDeviceId: string | null;
-  checkInId: string | null;
 };
 
 type ActiveCheckIn = {
@@ -172,8 +170,10 @@ function reconciledStoredOutcome(
   existing: Pick<StoredAttemptState, "id" | "ticketId" | "outcome">,
   latestConflictsByTicket: Map<string, StoredConflictState>,
 ): StoredScanOutcome {
-  if (!existing.ticketId ||
-    !["accepted", "conflict", "duplicate"].includes(existing.outcome)) {
+  if (
+    !existing.ticketId ||
+    !["accepted", "conflict", "duplicate"].includes(existing.outcome)
+  ) {
     return parseStoredOutcome(existing.outcome);
   }
   const conflict = latestConflictsByTicket.get(normalizeId(existing.ticketId));
@@ -277,7 +277,6 @@ export function createOfflineSynchronizationService({
 
     const attemptIds = [...firstAttemptById.keys()];
     return database.transaction(async (transaction) => {
-
       // A signed capability proves who held the device offline. It cannot prove
       // that access still stands, and this is the one admission path that never
       // asked: `admitOnline` and `prepareOfflineScanner` both check the staff
@@ -443,7 +442,6 @@ export function createOfflineSynchronizationService({
                 attemptedAt: scanAttempt.attemptedAt,
                 timestampConfidence: scanAttempt.timestampConfidence,
                 scannerDeviceId: scanAttempt.scannerDeviceId,
-                checkInId: scanAttempt.checkInId,
               })
               .from(scanAttempt)
               .where(
@@ -459,19 +457,10 @@ export function createOfflineSynchronizationService({
                 asc(scanAttempt.id),
               )
               .for("update");
-      const reversals = ticketIds.length === 0 ? [] : await transaction
-        .select({ ticketId: checkIn.ticketId, createdAt: checkInReversal.createdAt })
-        .from(checkInReversal)
-        .innerJoin(checkIn, eq(checkIn.id, checkInReversal.checkInId))
-        .where(inArray(checkIn.ticketId, ticketIds))
-        .orderBy(desc(checkInReversal.createdAt));
-      const latestReversalsByTicket = new Map<string, Date>();
-      for (const reversal of reversals) {
-        const key = normalizeId(reversal.ticketId);
-        if (!latestReversalsByTicket.has(key)) {
-          latestReversalsByTicket.set(key, reversal.createdAt);
-        }
-      }
+      const latestReversalsByTicket = await getLatestCheckInReversals(
+        transaction,
+        ticketIds,
+      );
       const competingAttemptsByTicket = new Map<
         string,
         CompetingAttempt[]
@@ -519,6 +508,16 @@ export function createOfflineSynchronizationService({
 
       const reconciliationNow = now();
       const results: OfflineSynchronizationResult[] = [];
+      const currentAdmissionOutcome = (
+        ticketKey: string,
+      ): "conflict" | "duplicate" | "not_checked_in" => {
+        if (latestConflictsByTicket.get(ticketKey)?.status === "unresolved") {
+          return "conflict";
+        }
+        return activeCheckInsByTicket.has(ticketKey)
+          ? "duplicate"
+          : "not_checked_in";
+      };
 
       const rememberCompetingAttempt = (stored: StoredAttemptState) => {
         if (
@@ -528,6 +527,8 @@ export function createOfflineSynchronizationService({
           return;
         }
         const ticketKey = normalizeId(stored.ticketId);
+        const reversedAt = latestReversalsByTicket.get(ticketKey);
+        if (reversedAt && stored.attemptedAt <= reversedAt) return;
         const attempts = competingAttemptsByTicket.get(ticketKey) ?? [];
         attempts.push({
           id: stored.id,
@@ -535,7 +536,6 @@ export function createOfflineSynchronizationService({
           attemptedAt: stored.attemptedAt,
           timestampConfidence: stored.timestampConfidence,
           scannerDeviceId: stored.scannerDeviceId,
-          checkInId: stored.checkInId,
         });
         competingAttemptsByTicket.set(ticketKey, attempts);
       };
@@ -596,12 +596,14 @@ export function createOfflineSynchronizationService({
           const reversedAt = existing.ticketId
             ? latestReversalsByTicket.get(normalizeId(existing.ticketId))
             : undefined;
-          const outcome = reversedAt && existing.attemptedAt <= reversedAt &&
-            (existing.outcome === "accepted" || existing.outcome === "conflict")
-            ? "not_checked_in" : reconciledStoredOutcome(
-            existing,
-            latestConflictsByTicket,
-          );
+          const predatesReversal =
+            reversedAt && existing.attemptedAt <= reversedAt &&
+            ["accepted", "duplicate", "conflict", "not_checked_in"].includes(
+              existing.outcome,
+            );
+          const outcome = predatesReversal
+            ? currentAdmissionOutcome(normalizeId(existing.ticketId ?? ""))
+            : reconciledStoredOutcome(existing, latestConflictsByTicket);
           results.push({
             id: existing.id,
             ticketId: existing.ticketId,
@@ -645,8 +647,17 @@ export function createOfflineSynchronizationService({
             checkInClosesAt: presentedTicket.checkInClosesAt,
             canOverrideWindow: false,
           });
+          const reversedAt = latestReversalsByTicket.get(
+            normalizeId(presentedTicket.id),
+          );
           if (decision.verdict === "refuse") {
             outcome = decision.reason;
+          } else if (
+            attempt.capturedOutcome === "provisional" &&
+            reversedAt &&
+            attempt.attemptedAt <= reversedAt
+          ) {
+            outcome = currentAdmissionOutcome(normalizeId(presentedTicket.id));
           } else if (attempt.capturedOutcome === "duplicate") {
             const ticketKey = normalizeId(presentedTicket.id);
             outcome = activeCheckInsByTicket.has(ticketKey)
@@ -656,18 +667,6 @@ export function createOfflineSynchronizationService({
             outcome = attempt.capturedOutcome;
           } else {
             const ticketKey = normalizeId(presentedTicket.id);
-            const reversedAt = latestReversalsByTicket.get(ticketKey);
-            if (reversedAt && attempt.attemptedAt <= reversedAt) {
-              stored = await rememberStoredAttempt({
-                attempt,
-                ticketId: presentedTicket.id,
-                checkInId: null,
-                outcome: "not_checked_in",
-              });
-              results.push({ id: stored.id, ticketId: stored.ticketId,
-                outcome: "not_checked_in", changed: true });
-              continue;
-            }
             const competingAttempts = (
               competingAttemptsByTicket.get(ticketKey) ?? []
             ).filter(
@@ -757,6 +756,7 @@ export function createOfflineSynchronizationService({
                 .values({
                   eventId: attempt.eventId,
                   ticketId: presentedTicket.id,
+                  createdAt: reconciliationNow,
                 })
                 .returning({
                   id: checkInConflict.id,
@@ -801,6 +801,7 @@ export function createOfflineSynchronizationService({
                     status: "resolved_auto",
                     authoritativeScanAttemptId,
                     resolvedAt: reconciliationNow,
+                    createdAt: reconciliationNow,
                   })
                   .returning({
                     id: checkInConflict.id,
@@ -844,14 +845,5 @@ export function createOfflineSynchronizationService({
     });
   }
 
-  const conflictResolution = createCheckInConflictResolutionService({
-    database,
-    now,
-  });
-
-  return {
-    synchronizeOfflineAttempts,
-    listCheckInConflicts: conflictResolution.listCheckInConflicts,
-    resolveCheckInConflict: conflictResolution.resolveCheckInConflict,
-  };
+  return { synchronizeOfflineAttempts };
 }

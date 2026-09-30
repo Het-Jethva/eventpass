@@ -319,7 +319,8 @@ export function createOfflineScannerStore(
     acknowledgedAttemptIds: string[] = [],
   ) {
     const conflictedTicketIds = new Set(
-      results.filter((result) => result.outcome === "conflict")
+      results
+        .filter((result) => result.outcome === "conflict")
         .map((result) => result.ticketId),
     );
     const checkedInTicketIds = new Set(
@@ -477,4 +478,3 @@ export function createOfflineScannerStore(
 }
 
 export const offlineScannerStore = createOfflineScannerStore();
-

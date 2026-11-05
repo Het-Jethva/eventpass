@@ -89,7 +89,11 @@ function ReverseAcceptedCheckIn({
 }) {
   return (
     <ReasonedCheckInAction
-      label={actorRole === "check_in_volunteer" ? "Quick Reversal" : "Reverse check-in"}
+      label={
+        actorRole === "check_in_volunteer"
+          ? "Quick Reversal"
+          : "Reverse check-in"
+      }
       title="Make this ticket admissible again?"
       description="The check-in is undone and both it and the scan are kept on record. The ticket can be admitted again."
       reasonDescription="The correction, and your reason for it, are kept permanently."
@@ -209,10 +213,11 @@ export function ScannerWorkspace({
       await refreshPendingCount();
       const cached = await offlineScannerStore.getCachedSnapshot();
       if (cached && cached.event.id === eventId) {
-        const purged = await offlineScannerStore.purgeEventIfClosedAndAcknowledged(
-          eventId,
-          cached.event.checkInClosesAt,
-        );
+        const purged =
+          await offlineScannerStore.purgeEventIfClosedAndAcknowledged(
+            eventId,
+            cached.event.checkInClosesAt,
+          );
         if (purged) {
           setSyncMessage(
             "Check-in closed and all attempts acknowledged: cached event data purged.",
@@ -383,11 +388,10 @@ export function ScannerWorkspace({
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <section className="flex flex-wrap items-start justify-between gap-4 border-b pb-5">
-        <div>
+        <div className="min-w-0 flex-1">
           <h1 className="text-xl font-headline text-balance">Scan tickets</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Decisions are settled while this phone is online. Check-in runs{" "}
-            {checkInWindow}.
+            Check-in runs {checkInWindow}.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -408,6 +412,7 @@ export function ScannerWorkspace({
             className="size-11"
             onClick={() => setFeedbackEnabled((enabled) => !enabled)}
             aria-label={`${feedbackEnabled ? "Disable" : "Enable"} sound and vibration feedback`}
+            title={`${feedbackEnabled ? "Disable" : "Enable"} sound and vibration feedback`}
             aria-pressed={feedbackEnabled}
           >
             {feedbackEnabled ? <IconVolume /> : <IconVolumeOff />}
@@ -426,10 +431,6 @@ export function ScannerWorkspace({
           </AlertDescription>
         </Alert>
       ) : null}
-
-      <PwaUpdateManager />
-
-      <ScannerPreparation eventId={eventId} eventSuspended={eventSuspended} />
 
       {pendingAttemptCount > 0 || syncMessage ? (
         <section
@@ -462,7 +463,10 @@ export function ScannerWorkspace({
             </Button>
           ) : null}
           {pendingAttemptCount > 0 && syncMessage ? (
-            <p className="w-full text-sm text-muted-foreground" aria-live="polite">
+            <p
+              className="w-full text-sm text-muted-foreground"
+              aria-live="polite"
+            >
               {syncMessage}
             </p>
           ) : null}
@@ -510,13 +514,18 @@ export function ScannerWorkspace({
                     actorRole={actorRole}
                     onCompleted={() => {
                       if (result.ticketId) {
-                        void offlineScannerStore.applyAdmissionResults(eventId, [
-                          { ticketId: result.ticketId, outcome: "not_checked_in" },
-                        ]).catch(() => {
-                          setActionError(
-                            "Check-in reversed on the server. Refresh this phone's snapshot before going offline.",
-                          );
-                        });
+                        void offlineScannerStore
+                          .applyAdmissionResults(eventId, [
+                            {
+                              ticketId: result.ticketId,
+                              outcome: "not_checked_in",
+                            },
+                          ])
+                          .catch(() => {
+                            setActionError(
+                              "Check-in reversed on the server. Refresh this phone's snapshot before going offline.",
+                            );
+                          });
                       }
                       setResult(null);
                       setSyncMessage(
@@ -570,7 +579,7 @@ export function ScannerWorkspace({
       ) : null}
 
       <section aria-labelledby="camera-heading" className="flex flex-col gap-4">
-        <div>
+        <div className="sr-only">
           <h2 id="camera-heading" className="font-medium">
             Camera
           </h2>
@@ -578,7 +587,12 @@ export function ScannerWorkspace({
             Point the rear camera at the ticket QR code.
           </p>
         </div>
-        <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border bg-muted">
+        <div
+          className={cn(
+            "relative aspect-[4/3] overflow-hidden rounded-2xl border bg-muted",
+            !cameraActive && !cameraStarting && "hidden",
+          )}
+        >
           <video
             ref={videoRef}
             muted
@@ -596,7 +610,7 @@ export function ScannerWorkspace({
                 className="size-10 text-muted-foreground"
               />
               <p className="max-w-sm text-sm text-muted-foreground">
-                Camera access starts only when you choose Start camera.
+                Opening your camera…
               </p>
             </div>
           ) : null}
@@ -628,6 +642,11 @@ export function ScannerWorkspace({
             </Button>
           ) : null}
         </div>
+        {!cameraActive && !cameraStarting ? (
+          <p className="text-sm text-muted-foreground">
+            Camera access starts only when you choose Start camera.
+          </p>
+        ) : null}
         {cameraError ? (
           <Alert variant="destructive">
             <IconAlertTriangle />
@@ -644,55 +663,55 @@ export function ScannerWorkspace({
             className="flex items-center gap-2 font-medium"
           >
             <IconKeyboard aria-hidden="true" className="size-5" />
-            Enter ticket code
+            Or enter a ticket code
           </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Always available when a camera is unsupported, unavailable, or
-            inconvenient.
-          </p>
         </div>
         <form onSubmit={handleManualSubmit} noValidate>
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="ticket-code">Ticket code</FieldLabel>
-              <Input
-                id="ticket-code"
-                name="ticketCode"
-                value={manualCode}
-                onChange={(event) =>
-                  setManualCode(event.target.value.toUpperCase())
-                }
-                // A Ticket Code is Crockford Base32, so it is letters as often
-                // as digits. The all-numeric placeholder it shipped with told a
-                // volunteer squinting at a printout to expect a number, then
-                // rejected the letters they typed as if they had misread.
-                placeholder="7QM4X-K3B9T"
-                autoComplete="off"
-                autoCapitalize="characters"
-                spellCheck={false}
-                maxLength={12}
-                className="min-h-11 font-mono tracking-code"
-              />
-              <FieldDescription>
+              <FieldLabel htmlFor="ticket-code" className="sr-only">
+                Ticket code
+              </FieldLabel>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="ticket-code"
+                  name="ticketCode"
+                  value={manualCode}
+                  onChange={(event) =>
+                    setManualCode(event.target.value.toUpperCase())
+                  }
+                  placeholder="Enter code"
+                  autoComplete="off"
+                  autoCapitalize="characters"
+                  spellCheck={false}
+                  maxLength={12}
+                  aria-describedby="ticket-code-help"
+                  className="min-h-11 min-w-0 flex-1 font-mono tracking-code"
+                />
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="min-h-11 w-28"
+                  aria-label="Check ticket"
+                  disabled={!manualCode.trim() || isPending}
+                >
+                  {isPending ? (
+                    <Spinner data-icon="inline-start" />
+                  ) : (
+                    <IconScan data-icon="inline-start" />
+                  )}
+                  {isPending ? "Checking…" : "Check"}
+                </Button>
+              </div>
+              <FieldDescription id="ticket-code-help">
                 Ten characters. The dash is optional.
               </FieldDescription>
             </Field>
-            <Button
-              type="submit"
-              size="lg"
-              className="min-h-11 sm:self-start"
-              disabled={!manualCode.trim() || isPending}
-            >
-              {isPending ? (
-                <Spinner data-icon="inline-start" />
-              ) : (
-                <IconScan data-icon="inline-start" />
-              )}
-              {isPending ? "Checking…" : "Check ticket"}
-            </Button>
           </FieldGroup>
         </form>
       </section>
+      <ScannerPreparation eventId={eventId} eventSuspended={eventSuspended} />
+      <PwaUpdateManager />
     </div>
   );
 }

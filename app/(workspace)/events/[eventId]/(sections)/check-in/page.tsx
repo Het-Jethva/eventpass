@@ -5,6 +5,7 @@ import {
   IconAlertTriangle,
   IconClockQuestion,
   IconDeviceMobile,
+  IconScan,
 } from "@tabler/icons-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -24,6 +25,8 @@ import { listActiveCheckIns } from "@/features/admission/server/check-in-correct
 import { ReasonedCheckInAction } from "@/features/admission/reasoned-check-in-action";
 import { ActiveCheckInSearch } from "@/features/admission/active-check-in-search";
 import { getActiveStaffSession } from "@/lib/staff-session";
+import { PendingLink } from "@/components/pending-link";
+import { buttonVariants } from "@/components/ui/button";
 
 import {
   resolveCheckInConflictAction,
@@ -75,18 +78,46 @@ export default async function CheckInConflictsPage({
     <>
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-headline">
-            Check-in operations
-          </h1>
+          <h1 className="text-2xl font-headline">Check-in operations</h1>
           <Badge variant={conflicts.length > 0 ? "destructive" : "secondary"}>
             {conflicts.length} unresolved
           </Badge>
         </div>
         <p className="max-w-3xl text-support text-muted-foreground">
-          Two phones that cannot reach each other cannot prevent the same ticket from being
-          accepted at separate entrances. Offline acceptance remains provisional
-          until synchronization compares every scan.
+          Scan tickets at the door, correct a check-in, or review tickets
+          scanned on more than one phone. Offline scans are confirmed after
+          reconnecting.
         </p>
+        {event.status === "published" ? (
+          <div className="mt-2 flex flex-col items-start gap-2">
+            <PendingLink
+              href={`/scanner/${event.id}`}
+              className={buttonVariants({ size: "lg", className: "min-h-11" })}
+            >
+              <IconScan data-icon="inline-start" />
+              Open door scanner
+            </PendingLink>
+            <p className="text-sm text-muted-foreground">
+              On each phone, load the guest list while online before scanning
+              offline.
+            </p>
+          </div>
+        ) : event.status === "draft" ? (
+          <Alert className="mt-3">
+            <IconDeviceMobile aria-hidden="true" />
+            <AlertTitle>Publish before opening the door</AlertTitle>
+            <AlertDescription>
+              The scanner becomes available once this event is published.{" "}
+              <PendingLink
+                href={`/events/${event.id}`}
+                className="underline underline-offset-4"
+              >
+                Review your draft
+              </PendingLink>
+              .
+            </AlertDescription>
+          </Alert>
+        ) : null}
       </div>
 
       {query.error ? (
@@ -111,8 +142,8 @@ export default async function CheckInConflictsPage({
               Active check-ins
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Organizer corrections preserve the original check-in and every
-              scan attempt while making the ticket admissible again.
+              Undo a check-in if a guest needs to scan again. The original scan
+              and the reason for your correction stay in the history.
             </p>
           </div>
         </div>
@@ -126,10 +157,7 @@ export default async function CheckInConflictsPage({
           mounted while the server refetches. Keying on the query shows the
           skeleton for a new search instead of holding previous rows.
         */}
-        <Suspense
-          key={checkInSearch}
-          fallback={<ActiveCheckInsSkeleton />}
-        >
+        <Suspense key={checkInSearch} fallback={<ActiveCheckInsSkeleton />}>
           <ActiveCheckInResults
             eventId={eventId}
             actorUserId={actorUserId}
@@ -141,11 +169,11 @@ export default async function CheckInConflictsPage({
 
       {conflicts.length === 0 ? (
         <section className="border-y bg-background px-5 py-10 text-center sm:px-6">
-          <h2 className="font-medium">No unresolved check-in Conflicts</h2>
+          <h2 className="font-medium">No check-ins need review</h2>
           <p className="mx-auto mt-2 max-w-xl text-support text-muted-foreground">
-            High-confidence cross-device collisions are resolved automatically
-            by the earliest device-recorded attempt. Conflicts appear here only
-            when Timestamp Confidence requires organizer review.
+            If different phones scan the same ticket and the scan times cannot
+            settle which came first, you can review the scans here and choose
+            the correct check-in.
           </p>
         </section>
       ) : (
@@ -159,10 +187,7 @@ export default async function CheckInConflictsPage({
               <div className="border-b p-5 sm:p-6">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <h2
-                      id={`conflict-${conflict.id}`}
-                      className="font-medium"
-                    >
+                    <h2 id={`conflict-${conflict.id}`} className="font-medium">
                       {conflict.attendeeName}
                     </h2>
                     <p className="mt-1 font-mono text-xs text-muted-foreground">
@@ -272,7 +297,6 @@ export default async function CheckInConflictsPage({
           ))}
         </div>
       )}
-
     </>
   );
 }
@@ -302,7 +326,11 @@ async function ActiveCheckInResults({
         Organizer should never be left wondering whether the person they
         searched for was simply below the cut.
       */}
-      <p className="mb-4 text-sm text-muted-foreground" role="status" aria-live="polite">
+      <p
+        className="mb-4 text-sm text-muted-foreground"
+        role="status"
+        aria-live="polite"
+      >
         {searchQuery
           ? `${activeCheckIns.matchingCount.toLocaleString()} of ${activeCheckIns.totalCount.toLocaleString()} active check-ins match`
           : activeCheckIns.matchingCount > activeCheckIns.limit

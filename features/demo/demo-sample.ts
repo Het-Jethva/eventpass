@@ -33,6 +33,10 @@ export type DemoAuditEntry = {
   text: string;
 };
 
+export type DemoScanState =
+  | { kind: "ready" }
+  | { kind: "online" | "offline" | "synced"; repeated: boolean };
+
 const BASE_SCANS: DemoScan[] = [
   {
     id: "amara",
@@ -69,7 +73,7 @@ const BASE_AUDIT: DemoAuditEntry[] = [
   {
     id: "import",
     time: "18:05:12",
-    text: "CSV import added 40 confirmed registrations in one atomic pass.",
+    text: "Organizer imported 40 confirmed registrations.",
   },
 ];
 
@@ -89,60 +93,58 @@ export function getDashboardStats(state: {
 }
 
 export function getRecentScans(state: {
-  registered: boolean;
-  admitted: boolean;
-  offlineShown: boolean;
+  guestName: string;
+  scan: DemoScanState;
 }): DemoScan[] {
   const rows = [...BASE_SCANS];
-  if (state.admitted) {
+  if (state.scan.kind !== "ready") {
     rows.unshift({
-      id: "priya-accepted",
-      name: SAMPLE_EVENT.attendeeName,
+      id: "guest-scan",
+      name: state.guestName,
       code: "7QM4X–K3B9T",
       time: "19:42:18",
-      label: "Checked in",
-      variant: "success",
+      label: state.scan.kind === "offline" ? "Not confirmed" : "Checked in",
+      variant: state.scan.kind === "offline" ? "provisional" : "success",
     });
-  }
-  if (state.offlineShown) {
-    rows.unshift({
-      id: "dev-offline",
-      name: "Dev Patel",
-      code: "2BN6D–T8W4R",
-      time: "19:43:02",
-      label: "Not confirmed",
-      variant: "provisional",
-    });
+    if (state.scan.repeated) {
+      rows.unshift({ id: "guest-repeat", name: state.guestName,
+        code: "7QM4X–K3B9T", time: "19:43:05", label: "Repeat scan", variant: "warning" });
+    }
   }
   return rows.slice(0, 5);
 }
 
 export function getAuditEntries(state: {
+  guestName: string;
   registered: boolean;
-  admitted: boolean;
-  offlineShown: boolean;
+  scan: DemoScanState;
 }): DemoAuditEntry[] {
   const rows = [...BASE_AUDIT];
   if (state.registered) {
     rows.unshift({
       id: "registration",
       time: "19:38:44",
-      text: `${SAMPLE_EVENT.attendeeName} registered and verified by email (skipped in this demo).`,
+      text: `${state.guestName} registered. Email verification is skipped in this demo.`,
     });
   }
-  if (state.admitted) {
+  if (state.scan.kind !== "ready") {
     rows.unshift({
       id: "check-in",
       time: "19:42:18",
-      text: `${SAMPLE_EVENT.attendeeName} checked in at the north entrance.`,
+      text: state.scan.kind === "offline" || state.scan.kind === "synced"
+        ? `${state.guestName}'s check-in saved on this phone while offline.`
+        : `${state.guestName} checked in at the north entrance.`,
     });
   }
-  if (state.offlineShown) {
+  if (state.scan.kind === "synced") {
     rows.unshift({
       id: "provisional",
       time: "19:43:02",
-      text: "Offline scan saved on one phone as provisional; reconciles on reconnect.",
+      text: `${state.guestName}'s offline check-in synced. No conflict found; arrival confirmed.`,
     });
+  }
+  if (state.scan.kind !== "ready" && state.scan.repeated) {
+    rows.unshift({ id: "repeat", time: "19:43:05", text: "Repeat scan blocked. No additional arrival counted." });
   }
   return rows.slice(0, 5);
 }

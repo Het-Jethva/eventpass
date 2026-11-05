@@ -19,15 +19,14 @@ import {
   updateDraftEventInputSchema,
 } from "@/features/events/server/update-draft-event";
 import { getActiveStaffSession } from "@/lib/staff-session";
+import { getDefaultEventWindows } from "@/features/events/event-window-defaults";
 import { returnEventToDraft } from "@/features/events/server/return-event-to-draft";
 import { getOrganizerEvent } from "@/features/events/server/get-event";
 import {
   cancelPublishedEvent,
   updatePublishedEvent,
 } from "@/features/events/server/published-events";
-import {
-  PublishedEventChangeError,
-} from "@/features/events/server/published-event-application";
+import { PublishedEventChangeError } from "@/features/events/server/published-event-application";
 import { EventCapacityConflictError } from "@/features/events/server/capacity-ledger";
 import { EventSuspendedError } from "@/features/events/server/event-suspension";
 
@@ -63,7 +62,8 @@ export async function updateEventAction(
   const staffSession = await getActiveStaffSession();
   if (!staffSession) redirect("/sign-in");
 
-  const values = formValues(formData);
+  const inputValues = formValues(formData);
+  const values = { ...inputValues, ...getDefaultEventWindows(inputValues) };
   const validation = updateDraftEventInputSchema.safeParse(values);
 
   if (!validation.success) {
@@ -71,7 +71,7 @@ export async function updateEventAction(
       status: "error",
       message: "Review the highlighted fields and try again.",
       fieldErrors: validation.error.flatten().fieldErrors,
-      values,
+      values: inputValues,
     };
   }
 
@@ -91,7 +91,7 @@ export async function updateEventAction(
         status: "error",
         message: error.message,
         fieldErrors: { slug: [error.message] },
-        values,
+        values: inputValues,
       };
     }
     if (
@@ -101,14 +101,14 @@ export async function updateEventAction(
       return {
         status: "error",
         message: error.message,
-        values,
+        values: inputValues,
       };
     }
 
     return {
       status: "error",
       message: "The Event could not be saved. It may no longer be editable.",
-      values,
+      values: inputValues,
     };
   }
 

@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 /**
  * The product's one segmented control. A hairlined shell holds mutually
@@ -23,11 +24,24 @@ export function SegmentedFilter({
   size?: "default" | "sm";
 }) {
   return (
-    <div
+    <>
+      <div className={cn("sm:hidden", className)}>
+        <Select items={options} value={value} onValueChange={(next) => { if (next !== null) onSelect(next); }}>
+          <SelectTrigger aria-label={label} className="h-11 w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent align="start" alignItemWithTrigger={false}>
+            <SelectGroup>
+              {options.map((option) => <SelectItem className="min-h-11" key={option.value} value={option.value}>{option.label}</SelectItem>)}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </div>
+      <div
       role="group"
       aria-label={label}
       className={cn(
-        "flex w-fit max-w-full items-center gap-0.5 overflow-x-auto rounded-lg border p-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        "hidden w-fit max-w-full flex-wrap items-center gap-0.5 rounded-lg border p-0.5 sm:flex",
         className,
       )}
     >
@@ -47,6 +61,7 @@ export function SegmentedFilter({
           </Button>
         );
       })}
-    </div>
+      </div>
+    </>
   );
 }

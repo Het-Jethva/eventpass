@@ -405,6 +405,34 @@
 }
 
 @layer base {
+  :root {
+    --duration-quick: 150ms;
+    --duration-fast: 250ms;
+    --duration-medium: 350ms;
+    --duration-slow: 400ms;
+    --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
+    scrollbar-color: var(--border) var(--background);
+  }
+
+  ::selection {
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+
+  input,
+  textarea {
+    caret-color: var(--foreground);
+  }
+
+  [id] {
+    scroll-margin-top: 5rem;
+  }
+
+  a:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 4px;
+  }
+
   * {
     @apply border-border outline-ring/50;
   }
@@ -429,6 +457,17 @@
   time,
   [data-slot="badge"] {
     font-variant-numeric: tabular-nums;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
@@ -532,4 +571,42 @@
 [data-slot="pending-link"]:has([data-pending="true"])
   > [data-slot="pending-link-content"] {
   visibility: hidden;
+}
+
+/* Keep the comparison useful on a phone without repeating two full scanner screens. */
+@media (max-width: 639px) {
+  .scan-comparison [data-slot="scan-outcome"] {
+    min-height: auto;
+    padding-block: 1.5rem;
+    gap: 0.75rem;
+  }
+
+  .scan-comparison [data-slot="scan-outcome"] > svg,
+  .demo-scan-result > svg {
+    width: 3rem;
+    height: 3rem;
+  }
+
+  .scan-comparison [data-slot="scan-outcome"] > span[aria-hidden] {
+    display: none;
+  }
+
+  .scan-comparison [data-slot="scan-outcome"] > .text-4xl,
+  .demo-scan-result > .text-4xl {
+    font-size: 1.75rem;
+    line-height: 1.15;
+  }
+
+  .demo-scan-result {
+    gap: 0.75rem;
+  }
+}
+
+@keyframes demo-step-enter {
+  from { opacity: 0.65; transform: translateX(8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.demo-experience > section {
+  animation: demo-step-enter var(--duration-fast) var(--ease-smooth-out);
 }

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import {
   IconClockHour4,
-  IconDatabase,
+  IconTicket,
   IconShieldCheck,
 } from "@tabler/icons-react";
 
@@ -24,18 +24,18 @@ function HomeMark() {
 const assurances = [
   {
     icon: IconClockHour4,
-    title: "Short-lived access",
-    description: "Every sign-in link expires after 15 minutes.",
+    title: "No password to remember",
+    description: "Open the sign-in link we send to your inbox.",
   },
   {
     icon: IconShieldCheck,
-    title: "Single use by design",
-    description: "A link is consumed the moment it is verified.",
+    title: "A link just for you",
+    description: "It works once and expires after 15 minutes.",
   },
   {
-    icon: IconDatabase,
-    title: "Revocable sessions",
-    description: "Staff access is checked against the database.",
+    icon: IconTicket,
+    title: "Your events in one place",
+    description: "Create an event or open one your team has invited you to.",
   },
 ];
 
@@ -49,11 +49,11 @@ export function PublicAuthShell({ children }: { children: ReactNode }) {
           {/* No label above the heading. The heading and the safeguards below it already say it. */}
           <div className="flex flex-col gap-4">
             <h2 className="text-3xl font-headline text-balance">
-              Calm operations start with trustworthy access.
+              Your next event starts here.
             </h2>
             <p className="max-w-sm text-reading text-muted-foreground text-pretty">
-              EventPass keeps staff identity simple while every session remains
-              durable, scoped, and revocable.
+              Bring your guest list, tickets, and door team together. Sign in
+              with your email and get ready to open the doors.
             </p>
           </div>
 

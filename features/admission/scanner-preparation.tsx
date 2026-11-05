@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   IconCloudCheck,
   IconCloudOff,
   IconDatabase,
-  IconDeviceMobile,
   IconRefresh,
   IconShieldCheck,
 } from "@tabler/icons-react";
@@ -32,6 +31,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { cn } from "@/lib/utils";
 import {
   getSnapshotReadiness,
   type OfflineEventSnapshot,
@@ -75,14 +75,19 @@ export function ScannerPreparation({
   eventSuspended: boolean;
 }) {
   const [deviceId, setDeviceId] = useState("");
+  const [storageStatus, setStorageStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [storageAttempt, setStorageAttempt] = useState(0);
   const [deviceLabel, setDeviceLabel] = useState("");
   const [snapshot, setSnapshot] = useState<OfflineEventSnapshot | null>(null);
   const [online, setOnline] = useState(true);
   const [now, setNow] = useState(() => new Date());
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [replacement, setReplacement] =
-    useState<ReplacementRequest | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const detailsToggleRef = useRef<HTMLButtonElement>(null);
+  const [replacement, setReplacement] = useState<ReplacementRequest | null>(
+    null,
+  );
 
   useEffect(() => {
     let active = true;
@@ -95,18 +100,20 @@ export function ScannerPreparation({
         setDeviceId(device.id);
         setDeviceLabel(device.label);
         setSnapshot(cachedSnapshot);
+        setStorageStatus("ready");
       })
       .catch(() => {
         if (active) {
+          setStorageStatus("error");
           setError(
-            "This browser could not open its offline storage. Check browser storage permissions and try again.",
+            "Offline storage could not be opened. Retry, or use a browser with storage enabled. Online check-in is still available while connected.",
           );
         }
       });
     return () => {
       active = false;
     };
-  }, []);
+  }, [storageAttempt]);
 
   useEffect(() => {
     function updateConnectivity() {
@@ -136,6 +143,8 @@ export function ScannerPreparation({
     await offlineScannerStore.updateScannerDeviceLabel(deviceLabel.trim());
     setSnapshot(preparedSnapshot);
     setReplacement(null);
+    setExpanded(false);
+    requestAnimationFrame(() => detailsToggleRef.current?.focus());
   }
 
   async function prepare() {
@@ -159,7 +168,9 @@ export function ScannerPreparation({
         return;
       }
       if (result.outcome === "expired") {
-        setError("Check-in has closed. This event can no longer be prepared for offline use.");
+        setError(
+          "Check-in has closed. This event can no longer be prepared for offline use.",
+        );
         return;
       }
       try {
@@ -203,24 +214,68 @@ export function ScannerPreparation({
     : null;
 
   return (
-    <section aria-labelledby="offline-preparation-heading" className="border-b pb-6">
+    <section
+      aria-labelledby="offline-preparation-heading"
+      className="border-b pb-6"
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 id="offline-preparation-heading" className="font-medium">
-            Offline preparation
+            {readiness === "ready"
+              ? currentSnapshot?.tickets.length === 0
+                ? "No tickets saved yet"
+                : "Ready to work offline"
+              : "Offline preparation"}
           </h2>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Name this phone, authorize it for this door, and download the
-            minimum ticket data needed for offline admission.
+            {readiness === "ready" && currentSnapshot
+              ? currentSnapshot.tickets.length === 0
+                ? online
+                  ? "Online checks use the server. Refresh this list after guests confirm to check them in offline."
+                  : "No tickets are saved for offline checks. Connect and refresh after guests confirm."
+                : `${deviceLabel} · ${currentSnapshot.tickets.length} tickets on this phone`
+              : "Name this phone and load its guest list before scanning offline."}
           </p>
         </div>
         <Badge variant={online ? "secondary" : "destructive"}>
-          {online ? <IconCloudCheck data-icon="inline-start" /> : <IconCloudOff data-icon="inline-start" />}
+          {online ? (
+            <IconCloudCheck data-icon="inline-start" />
+          ) : (
+            <IconCloudOff data-icon="inline-start" />
+          )}
           {online ? "Online" : "Offline"}
         </Badge>
+        {readiness === "ready" && currentSnapshot?.tickets.length === 0 ? (
+          <Button
+            className="min-h-11"
+            disabled={!online || pending || eventSuspended}
+            onClick={() => void prepare()}
+          >
+            {pending ? "Refreshing…" : "Refresh guest list"}
+          </Button>
+        ) : null}
+        {readiness === "ready" ? (
+          <Button
+            ref={detailsToggleRef}
+            variant="outline"
+            className="min-h-11"
+            aria-expanded={expanded}
+            aria-controls={`preparation-details-${eventId}`}
+            onClick={() => setExpanded(!expanded)}
+          >
+            {expanded ? "Hide details" : "Phone details"}
+          </Button>
+        ) : null}
       </div>
 
-      <div className="mt-5 flex flex-col gap-5">
+      <div
+        id={`preparation-details-${eventId}`}
+        hidden={readiness === "ready" && !expanded}
+        className={cn(
+          "mt-5 flex flex-col gap-5",
+          readiness === "ready" && !expanded && "hidden",
+        )}
+      >
         {eventSuspended ? (
           <Alert variant="warning">
             <IconCloudOff />
@@ -266,10 +321,12 @@ export function ScannerPreparation({
               Snapshot {formatSnapshotAge(currentSnapshot.generatedAt, now)} ·{" "}
               {currentSnapshot.tickets.length} Ticket
               {currentSnapshot.tickets.length === 1 ? "" : "s"} · Authorization
-              expires {formatEventTime(
+              expires{" "}
+              {formatEventTime(
                 currentSnapshot.event.checkInClosesAt,
                 currentSnapshot.event.eventTimeZone,
-              )}.
+              )}
+              .
             </AlertDescription>
           </Alert>
         ) : snapshot ? (
@@ -288,6 +345,16 @@ export function ScannerPreparation({
             <IconCloudOff />
             <AlertTitle>Offline preparation unavailable</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
+            {storageStatus === "error" ? (
+              <Button type="button" variant="outline" onClick={() => {
+                setError(null);
+                setStorageStatus("loading");
+                setStorageAttempt((attempt) => attempt + 1);
+              }}>
+                <IconRefresh data-icon="inline-start" />
+                Retry offline storage
+              </Button>
+            ) : null}
           </Alert>
         ) : null}
 
@@ -306,16 +373,24 @@ export function ScannerPreparation({
               disabled={!deviceId || pending}
             />
             <FieldDescription>
-              Use a label volunteers can recognize. EventPass uses a random
-              browser UUID, never device fingerprinting.
+              Choose a name your team can recognize, such as “North entrance”.
             </FieldDescription>
           </Field>
-          {deviceId ? (
-            <p className="flex items-center gap-2 text-xs text-muted-foreground">
-              <IconDeviceMobile aria-hidden="true" className="size-4" />
-              <span className="font-mono">{deviceId}</span>
-            </p>
-          ) : null}
+          <p
+            id="scanner-preparation-help"
+            className="text-sm text-muted-foreground"
+            aria-live="polite"
+          >
+            {!online
+              ? "Connect to the internet to load the guest list."
+              : storageStatus === "error"
+                ? "Offline setup is paused. Retry storage above to continue."
+              : storageStatus === "loading"
+                ? "Opening this browser’s offline storage…"
+                : deviceLabel.trim().length < 2
+                  ? "Enter a phone name with at least 2 characters to continue."
+                  : "Load the guest list now so this phone can scan without a signal."}
+          </p>
           <Button
             type="button"
             variant={currentSnapshot ? "outline" : "default"}
@@ -328,6 +403,7 @@ export function ScannerPreparation({
               pending
             }
             onClick={() => void prepare()}
+            aria-describedby="scanner-preparation-help"
           >
             {pending ? (
               <Spinner data-icon="inline-start" />
@@ -354,12 +430,16 @@ export function ScannerPreparation({
             <AlertDialogTitle>Replace the cached event?</AlertDialogTitle>
             <AlertDialogDescription>
               This browser currently has {replacement?.currentEventName} cached.
-              Its guest list will be replaced. {replacement?.pendingAttemptCount ?? 0} unsynced scan
-              {(replacement?.pendingAttemptCount ?? 0) === 1 ? "" : "s"} will be preserved for later synchronization.
+              Its guest list will be replaced.{" "}
+              {replacement?.pendingAttemptCount ?? 0} unsynced scan
+              {(replacement?.pendingAttemptCount ?? 0) === 1 ? "" : "s"} will be
+              preserved for later synchronization.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={pending}>Keep current event</AlertDialogCancel>
+            <AlertDialogCancel disabled={pending}>
+              Keep current event
+            </AlertDialogCancel>
             <AlertDialogAction
               disabled={pending}
               onClick={() => void confirmReplacement()}

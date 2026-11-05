@@ -24,7 +24,7 @@ const SAMPLE = {
 
 export function ScanOutcomeShowcase() {
   return (
-    <figure className="flex flex-col gap-3">
+    <figure className="scan-comparison flex flex-col gap-3">
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="overflow-hidden rounded-xl border">
           <div className="flex items-center justify-between gap-3 border-b bg-background px-4 py-3">

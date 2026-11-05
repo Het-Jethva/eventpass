@@ -172,15 +172,18 @@ export function createOfflineScannerStore(
   }
 
   async function getOrCreateScannerDevice() {
-    const existing = await database.scannerProfile.get("current");
-    if (existing) return { id: existing.id, label: existing.label };
-    const created: ScannerProfileRecord = {
-      key: "current",
-      id: globalThis.crypto.randomUUID(),
-      label: "",
-    };
-    await database.scannerProfile.add(created);
-    return { id: created.id, label: created.label };
+    await database.open();
+    return database.transaction("rw", database.scannerProfile, async () => {
+      const existing = await database.scannerProfile.get("current");
+      if (existing) return { id: existing.id, label: existing.label };
+      const created: ScannerProfileRecord = {
+        key: "current",
+        id: globalThis.crypto.randomUUID(),
+        label: "",
+      };
+      await database.scannerProfile.add(created);
+      return { id: created.id, label: created.label };
+    });
   }
 
   async function updateScannerDeviceLabel(label: string) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import {
   IconArchive,
   IconArrowDown,
@@ -9,6 +9,8 @@ import {
   IconPlus,
   IconRestore,
   IconTrash,
+  IconEye,
+  IconPencil,
 } from "@tabler/icons-react";
 
 import { saveRegistrationFormAction } from "@/app/(workspace)/events/[eventId]/(sections)/form/actions";
@@ -37,6 +39,7 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import {
   parseRegistrationFieldAnswerType,
   registrationFieldAnswerTypeLabels,
@@ -447,6 +450,13 @@ export function RegistrationFormBuilder({
   initialFields: OrganizerRegistrationField[];
 }) {
   const [fields, setFields] = useState(initialFields);
+  const [mobileView, setMobileView] = useState<"edit" | "preview">("edit");
+  const mobileToolbar = useRef<HTMLDivElement>(null);
+
+  function switchMobileView() {
+    setMobileView(mobileView === "edit" ? "preview" : "edit");
+    requestAnimationFrame(() => mobileToolbar.current?.scrollIntoView({ block: "start" }));
+  }
   const [state, formAction, isPending] = useActionState(
     saveRegistrationFormAction.bind(null, eventId),
     initialSaveRegistrationFormState,
@@ -483,7 +493,17 @@ export function RegistrationFormBuilder({
 
   return (
     <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1.25fr)_minmax(20rem,0.75fr)]">
-      <form action={formAction} className="flex min-w-0 flex-col gap-5">
+      <div ref={mobileToolbar} className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b bg-background py-3 lg:hidden">
+        <Button type="button" variant="outline" aria-controls="registration-form-editor registration-form-preview" aria-expanded={mobileView === "preview"} onClick={switchMobileView}>
+          {mobileView === "edit" ? <IconEye data-icon="inline-start" /> : <IconPencil data-icon="inline-start" />}
+          {mobileView === "edit" ? "Preview form" : "Edit questions"}
+        </Button>
+        <Button type="submit" form="registration-form-editor" disabled={isPending} onClick={() => setMobileView("edit")}>
+          {isPending ? <Spinner data-icon="inline-start" /> : null}
+          {isPending ? "Saving…" : "Save form"}
+        </Button>
+      </div>
+      <form id="registration-form-editor" action={formAction} className={cn("min-w-0 flex-col gap-5 lg:flex", mobileView === "edit" ? "flex" : "hidden")}>
         <input type="hidden" name="definition" value={JSON.stringify(definition)} />
         {state.status !== "idle" ? (
           <Alert variant={state.status === "error" ? "destructive" : "default"}>
@@ -529,7 +549,7 @@ export function RegistrationFormBuilder({
           </Button>
         </div>
 
-        <div className="sticky bottom-0 flex items-center justify-end border-t bg-background/95 py-4 backdrop-blur-sm">
+        <div className="hidden items-center justify-end border-t py-4 lg:flex">
           <Button type="submit" size="lg" disabled={isPending}>
             {isPending ? <Spinner data-icon="inline-start" /> : null}
             {isPending ? "Saving…" : "Save form"}
@@ -537,7 +557,9 @@ export function RegistrationFormBuilder({
         </div>
       </form>
 
-      <RegistrationFormPreview fields={fields} />
+      <div id="registration-form-preview" className={cn("min-w-0 lg:sticky lg:top-6 lg:block", mobileView === "preview" ? "block" : "hidden")}>
+        <RegistrationFormPreview fields={fields} />
+      </div>
     </div>
   );
 }

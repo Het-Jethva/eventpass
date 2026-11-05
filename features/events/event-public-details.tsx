@@ -8,6 +8,7 @@ import {
 } from "@tabler/icons-react";
 
 import { EventPassMark } from "@/components/eventpass-mark";
+import { buttonVariants } from "@/components/ui/button";
 
 export type PublicEventDetails = {
   name: string;
@@ -32,9 +33,11 @@ function formatRange(startsAt: Date, endsAt: Date, timeZone: string) {
   }).formatRange(startsAt, endsAt);
 }
 
-function formatMoment(moment: Date, timeZone: string) {
-  // Components spelled out because `dateStyle`/`timeStyle` cannot be combined
-  // with `timeZoneName`; the mix throws "Invalid option : option".
+function formatRegistrationWindow(
+  startsAt: Date,
+  endsAt: Date,
+  timeZone: string,
+) {
   return new Intl.DateTimeFormat("en", {
     year: "numeric",
     month: "short",
@@ -42,8 +45,7 @@ function formatMoment(moment: Date, timeZone: string) {
     hour: "numeric",
     minute: "2-digit",
     timeZone,
-    timeZoneName: "short",
-  }).format(moment);
+  }).formatRange(startsAt, endsAt);
 }
 
 export function EventPublicDetails({
@@ -71,6 +73,15 @@ export function EventPublicDetails({
           <p className="mt-6 max-w-2xl whitespace-pre-wrap text-reading text-muted-foreground">
             {event.description}
           </p>
+          <a
+            href="#registration"
+            className={buttonVariants({
+              size: "lg",
+              className: "mt-6 min-h-11 lg:hidden",
+            })}
+          >
+            View registration
+          </a>
 
           {/* The icons belong inside the `dt`. As siblings of `dt` and `dd`
               they were stray elements in a `dl`, which allows only those two
@@ -95,7 +106,10 @@ export function EventPublicDetails({
             </div>
             <div className="grid gap-2 py-5 sm:grid-cols-[11rem_1fr] sm:items-start">
               <dt className="flex items-start gap-2 font-medium">
-                <IconMapPin aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+                <IconMapPin
+                  aria-hidden="true"
+                  className="mt-0.5 size-5 shrink-0"
+                />
                 Venue
               </dt>
               <dd className="text-muted-foreground">
@@ -117,7 +131,10 @@ export function EventPublicDetails({
           </dl>
         </div>
 
-        <aside className="h-fit rounded-2xl border bg-background p-5 sm:p-6">
+        <aside
+          id="registration"
+          className="h-fit rounded-2xl border bg-background p-5 sm:p-6"
+        >
           {event.suspended ? (
             <>
               <h2 className="text-xl font-medium">Currently unavailable</h2>
@@ -129,19 +146,31 @@ export function EventPublicDetails({
           ) : (
             <>
               <h2 className="text-xl font-medium">Register</h2>
+              {registration ? <div className="mt-6">{registration}</div> : null}
               <div className="mt-5 flex gap-3">
-                <IconClock aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+                <IconClock
+                  aria-hidden="true"
+                  className="mt-0.5 size-5 shrink-0"
+                />
                 <div>
                   <p className="text-sm font-medium">Registration window</p>
                   <p className="mt-1 text-support text-muted-foreground">
-                    {formatMoment(event.registrationOpensAt, event.eventTimeZone)}
-                    <br />
-                    through {formatMoment(event.registrationClosesAt, event.eventTimeZone)}
+                    {formatRegistrationWindow(
+                      event.registrationOpensAt,
+                      event.registrationClosesAt,
+                      event.eventTimeZone,
+                    )}
+                    <span className="mt-1 block text-xs">
+                      {event.eventTimeZone}
+                    </span>
                   </p>
                 </div>
               </div>
               <div className="mt-5 flex gap-3 border-t pt-5">
-                <IconUsers aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+                <IconUsers
+                  aria-hidden="true"
+                  className="mt-0.5 size-5 shrink-0"
+                />
                 <div>
                   <p className="text-sm font-medium">Capacity</p>
                   <p className="mt-1 text-sm text-muted-foreground">
@@ -149,7 +178,6 @@ export function EventPublicDetails({
                   </p>
                 </div>
               </div>
-              {registration ? <div className="mt-6 border-t pt-6">{registration}</div> : null}
             </>
           )}
         </aside>

@@ -91,12 +91,12 @@ export default async function RegistrationsPage(props: {
 
       <Separator />
 
-      <div>
-        <h3 className="font-medium">Import registrations</h3>
+      <div id="import-guests">
+        <h2 className="font-medium">Import guests</h2>
         <p className="mt-1 max-w-2xl text-support text-muted-foreground">
-          Preview a bounded CSV before creating organizer-attested
-          Registrations. Imports are all-or-nothing and stay within the event
-          Capacity.
+          Add guests from a spreadsheet. Review them first; confirming creates
+          registrations and emails each guest a ticket. If any row has a problem
+          or the event is full, nothing is imported.
         </p>
         <div className="mt-5">
           <RegistrationImportWorkspace eventId={currentEvent.id} />

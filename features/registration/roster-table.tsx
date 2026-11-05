@@ -15,6 +15,7 @@ import { buttonVariants } from "@/components/ui/button";
 import {
   Empty,
   EmptyDescription,
+  EmptyContent,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
@@ -95,7 +96,7 @@ export function RosterTable({
     return (
       <div className="flex flex-col gap-4">
         <RosterCount roster={roster} />
-        <Empty className="min-h-64 border bg-background">
+        <Empty className="border bg-background">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <IconUsers aria-hidden="true" />
@@ -111,6 +112,11 @@ export function RosterTable({
                 : "Registrations appear here once attendees register, or once you import them from a CSV below."}
             </EmptyDescription>
           </EmptyHeader>
+          {!hasActiveSearch ? (
+            <EmptyContent>
+              <a href="#import-guests" className={buttonVariants({ variant: "outline" })}>Import guests from CSV</a>
+            </EmptyContent>
+          ) : null}
         </Empty>
       </div>
     );

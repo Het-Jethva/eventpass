@@ -2,7 +2,13 @@
 
 import { useSyncExternalStore } from "react";
 import { IconMoon, IconSun, IconSunMoon } from "@tabler/icons-react";
-import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select";
 
 type ThemeMode = "light" | "system" | "dark";
 
@@ -45,6 +51,9 @@ const OPTIONS = [
 
 export function ThemeSwitcher() {
   const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const activeOption =
+    OPTIONS.find((option) => option.mode === theme) ?? OPTIONS[1];
+  const ActiveIcon = activeOption.icon;
 
   // Writes the preference and hands off. The root layout script owns the class,
   // the `theme-color` meta tags and the OS change listener.
@@ -60,27 +69,36 @@ export function ThemeSwitcher() {
   }
 
   return (
-    <div
-      role="group"
-      aria-label="Theme selection"
-      className="flex items-center gap-0.5 rounded-lg border p-0.5"
+    <Select
+      value={theme}
+      onValueChange={(mode) => {
+        if (mode === "light" || mode === "system" || mode === "dark")
+          applyTheme(mode);
+      }}
     >
-      {/* Icon only. Labels would make this control wider than the product name. */}
-      {OPTIONS.map(({ icon: Icon, label, mode }) => (
-        <Button
-          key={mode}
-          type="button"
-          variant={theme === mode ? "secondary" : "ghost"}
-          size="icon-sm"
-          className="size-7"
-          onClick={() => applyTheme(mode)}
-          aria-pressed={theme === mode}
-          aria-label={label}
-          title={label}
-        >
-          <Icon className="size-4" />
-        </Button>
-      ))}
-    </div>
+      <SelectTrigger
+        aria-label={`Theme: ${activeOption.label}. Change theme`}
+        title="Change theme"
+        className="size-11 shrink-0 justify-center bg-transparent p-0 [&>svg:last-child]:hidden"
+      >
+        <span>
+          <ActiveIcon aria-hidden="true" className="size-4" />
+        </span>
+      </SelectTrigger>
+      <SelectContent
+        align="end"
+        alignItemWithTrigger={false}
+        className="w-56 rounded-xl data-open:duration-(--duration-fast) data-closed:duration-(--duration-quick) ease-(--ease-smooth-out)"
+      >
+        <SelectGroup>
+          {OPTIONS.map(({ icon: Icon, label, mode }) => (
+            <SelectItem key={mode} value={mode} className="min-h-11 rounded-md">
+              <Icon aria-hidden="true" />
+              {label}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
   );
 }

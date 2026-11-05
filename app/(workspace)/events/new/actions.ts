@@ -8,11 +8,9 @@ import {
   createDraftEventInputSchema,
 } from "@/features/events/server/create-draft-event";
 import { getActiveStaffSession } from "@/lib/staff-session";
+import { getDefaultEventWindows } from "@/features/events/event-window-defaults";
 
-import type {
-  CreateEventFormField,
-  CreateEventFormState,
-} from "./form-state";
+import type { CreateEventFormField, CreateEventFormState } from "./form-state";
 
 export type { CreateEventFormField, CreateEventFormState };
 
@@ -31,7 +29,7 @@ export async function createEventAction(
     redirect("/sign-in");
   }
 
-  const values = {
+  const inputValues = {
     name: formValue(formData, "name"),
     description: formValue(formData, "description"),
     slug: formValue(formData, "slug"),
@@ -42,17 +40,12 @@ export async function createEventAction(
     venueAddress: formValue(formData, "venueAddress"),
     venueMapUrl: formValue(formData, "venueMapUrl"),
     capacity: formValue(formData, "capacity"),
-    registrationOpensAtLocal: formValue(
-      formData,
-      "registrationOpensAtLocal",
-    ),
-    registrationClosesAtLocal: formValue(
-      formData,
-      "registrationClosesAtLocal",
-    ),
+    registrationOpensAtLocal: formValue(formData, "registrationOpensAtLocal"),
+    registrationClosesAtLocal: formValue(formData, "registrationClosesAtLocal"),
     checkInOpensAtLocal: formValue(formData, "checkInOpensAtLocal"),
     checkInClosesAtLocal: formValue(formData, "checkInClosesAtLocal"),
   } satisfies Record<CreateEventFormField, string>;
+  const values = { ...inputValues, ...getDefaultEventWindows(inputValues) };
   const validation = createDraftEventInputSchema.safeParse(values);
 
   if (!validation.success) {
@@ -60,7 +53,7 @@ export async function createEventAction(
       status: "error",
       message: "Review the highlighted fields and try again.",
       fieldErrors: validation.error.flatten().fieldErrors,
-      values,
+      values: inputValues,
     };
   }
 
@@ -70,7 +63,7 @@ export async function createEventAction(
     return {
       status: "error",
       message: "The Draft Event could not be created. Try again.",
-      values,
+      values: inputValues,
     };
   }
 

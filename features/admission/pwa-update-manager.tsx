@@ -12,13 +12,22 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
-function isBeforeInstallPromptEvent(event: Event): event is BeforeInstallPromptEvent {
-  return "prompt" in event && typeof event.prompt === "function" && "userChoice" in event;
+function isBeforeInstallPromptEvent(
+  event: Event,
+): event is BeforeInstallPromptEvent {
+  return (
+    "prompt" in event &&
+    typeof event.prompt === "function" &&
+    "userChoice" in event
+  );
 }
 
 export function PwaUpdateManager() {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [updateWaiting, setUpdateWaiting] = useState<ServiceWorker | null>(null);
+  const [deferredPrompt, setDeferredPrompt] =
+    useState<BeforeInstallPromptEvent | null>(null);
+  const [updateWaiting, setUpdateWaiting] = useState<ServiceWorker | null>(
+    null,
+  );
   const [pendingAttempts, setPendingAttempts] = useState(0);
 
   const [isStandalone] = useState<boolean>(() => {
@@ -77,7 +86,10 @@ export function PwaUpdateManager() {
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
 
     return () => {
-      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener(
+        "beforeinstallprompt",
+        handleBeforeInstallPrompt,
+      );
     };
   }, []);
 
@@ -100,7 +112,9 @@ export function PwaUpdateManager() {
     };
   }, []);
 
-  const updateBlocked = shouldDeferUpdate({ pendingAttemptCount: pendingAttempts });
+  const updateBlocked = shouldDeferUpdate({
+    pendingAttemptCount: pendingAttempts,
+  });
 
   // Apply deferred update if 0 pending attempts remain
   useEffect(() => {
@@ -123,6 +137,8 @@ export function PwaUpdateManager() {
       updateWaiting.postMessage({ type: "SKIP_WAITING" });
     }
   }
+
+  if (!updateWaiting && (isStandalone || !deferredPrompt)) return null;
 
   return (
     <div className="flex flex-col gap-3">
@@ -159,7 +175,9 @@ export function PwaUpdateManager() {
           <IconDownload className="size-5 text-foreground" />
           <AlertTitle>Install EventPass</AlertTitle>
           <AlertDescription className="mt-1 text-sm flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <span>Install EventPass as a PWA for fast offline ticket scanning.</span>
+            <span>
+              Install EventPass as a PWA for fast offline ticket scanning.
+            </span>
             <Button
               type="button"
               size="sm"

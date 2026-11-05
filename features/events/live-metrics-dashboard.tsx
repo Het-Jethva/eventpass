@@ -7,16 +7,27 @@ import {
   IconCircleCheck,
   IconClock,
   IconRefresh,
+  IconCopy,
+  IconCheck,
 } from "@tabler/icons-react";
 
 import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { PendingLink } from "@/components/pending-link";
 import type { LiveEventMetricsResult } from "@/features/events/event-metrics-policy";
 import { cn } from "@/lib/utils";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyContent,
+} from "@/components/ui/empty";
 
 type LiveMetricsDashboardProps = {
   eventId: string;
+  eventSlug: string;
   initialMetrics: LiveEventMetricsResult;
 };
 
@@ -112,11 +123,13 @@ function ProportionRow({
           <span className={cn("font-medium", TEXT_TONE[tone])}>
             {value.toLocaleString()}
           </span>
-          <span className="text-muted-foreground">
-            {" "}
-            / {total.toLocaleString()}
-            {unit} · {percentage}%
-          </span>
+          {total > 0 ? (
+            <span className="text-muted-foreground">
+              {" "}
+              / {total.toLocaleString()}
+              {unit} · {percentage}%
+            </span>
+          ) : null}
         </span>
       </div>
       {/* The line above already reads "Accepted 12 / 40 · 30%". Giving the bar
@@ -154,9 +167,11 @@ function Headline({
       <p className="text-sm text-muted-foreground">{question}</p>
       <p className="flex items-baseline gap-1.5 font-mono tabular-nums">
         <span className="text-4xl font-headline">{value.toLocaleString()}</span>
-        <span className="text-lg text-muted-foreground">
-          / {of.toLocaleString()}
-        </span>
+        {of > 0 ? (
+          <span className="text-lg text-muted-foreground">
+            / {of.toLocaleString()}
+          </span>
+        ) : null}
       </p>
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
         <div
@@ -165,7 +180,14 @@ function Headline({
         />
       </div>
       <p className="text-sm text-muted-foreground">
-        <span className="font-mono tabular-nums">{percentage}%</span> · {caption}
+        {of > 0 ? (
+          <>
+            <span className="font-mono tabular-nums">{percentage}%</span> ·{" "}
+            {caption}
+          </>
+        ) : (
+          "No confirmed registrations yet."
+        )}
       </p>
     </div>
   );
@@ -173,11 +195,28 @@ function Headline({
 
 export function LiveMetricsDashboard({
   eventId,
+  eventSlug,
   initialMetrics,
 }: LiveMetricsDashboardProps) {
-  const [metrics, setMetrics] = useState<LiveEventMetricsResult>(initialMetrics);
+  const [metrics, setMetrics] =
+    useState<LiveEventMetricsResult>(initialMetrics);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isPolling, setIsPolling] = useState(true);
+  const [refreshFailed, setRefreshFailed] = useState(false);
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">(
+    "idle",
+  );
+
+  async function copyRegistrationLink() {
+    try {
+      await navigator.clipboard.writeText(
+        new URL(`/e/${eventSlug}`, window.location.origin).href,
+      );
+      setCopyState("copied");
+    } catch {
+      setCopyState("failed");
+    }
+  }
   const [pollingIntervalMs, setPollingIntervalMs] = useState(() =>
     getPollingIntervalMs(initialMetrics.checkInWindow),
   );
@@ -196,11 +235,7 @@ export function LiveMetricsDashboard({
     const checkInWindow = { opensAt, closesAt };
 
     async function fetchMetrics() {
-      if (
-        !isMounted ||
-        document.visibilityState === "hidden" ||
-        controller
-      ) {
+      if (!isMounted || document.visibilityState === "hidden" || controller) {
         return;
       }
 
@@ -209,20 +244,26 @@ export function LiveMetricsDashboard({
 
       try {
         setIsRefreshing(true);
-        const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/live-metrics`, {
-          signal: requestController.signal,
-          cache: "no-store",
-        });
+        const res = await fetch(
+          `/api/events/${encodeURIComponent(eventId)}/live-metrics`,
+          {
+            signal: requestController.signal,
+            cache: "no-store",
+          },
+        );
         if (res.ok) {
           const data: LiveEventMetricsResult = await res.json();
           if (isMounted && !requestController.signal.aborted) {
             setMetrics(data);
             setLastRefreshedAt(new Date(data.refreshedAt));
+            setRefreshFailed(false);
           }
+        } else if (isMounted) {
+          setRefreshFailed(true);
         }
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") return;
-        console.error("Failed to refresh live metrics:", err);
+        if (isMounted) setRefreshFailed(true);
       } finally {
         if (controller === requestController) {
           controller = null;
@@ -266,11 +307,7 @@ export function LiveMetricsDashboard({
     }
 
     function startPolling() {
-      if (
-        isRunning ||
-        !isMounted ||
-        document.visibilityState === "hidden"
-      ) {
+      if (isRunning || !isMounted || document.visibilityState === "hidden") {
         return;
       }
 
@@ -337,7 +374,7 @@ export function LiveMetricsDashboard({
   ];
   const attention = attentionCandidates.filter((item) => item.count > 0);
 
-  const maxHourly = Math.max(...checkInsOverTime.map((p) => p.count), 1);
+  const maxHourly = Math.max(...checkInsOverTime.map((p) => p.count), 0);
 
   return (
     <div className="flex flex-col gap-6">
@@ -347,7 +384,11 @@ export function LiveMetricsDashboard({
             aria-hidden="true"
             className={cn(
               "size-2.5 shrink-0 rounded-full transition-colors",
-              isPolling ? "bg-success" : "bg-muted-foreground",
+              refreshFailed
+                ? "bg-warning"
+                : isPolling
+                  ? "bg-success"
+                  : "bg-muted-foreground",
             )}
           />
           <Badge variant="outline" className="gap-1.5 font-normal">
@@ -356,17 +397,18 @@ export function LiveMetricsDashboard({
             ) : (
               <IconClock aria-hidden="true" />
             )}
-            {isPolling
-              ? `Live · refreshes every ${pollingIntervalMs / 1000}s`
-              : "Paused"}
+            {refreshFailed
+              ? "Reconnecting…"
+              : isPolling
+                ? `Live · refreshes every ${pollingIntervalMs / 1000}s`
+                : "Paused"}
           </Badge>
-          <span className="font-mono text-sm text-muted-foreground tabular-nums">
-            {lastRefreshedAt.toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-              second: "2-digit",
-            })}
-          </span>
+          <time
+            dateTime={lastRefreshedAt.toISOString()}
+            className="font-mono text-sm text-muted-foreground tabular-nums"
+          >
+            {lastRefreshedAt.toISOString().slice(11, 19)} UTC
+          </time>
         </div>
 
         {checkInConflictStats.unresolved > 0 ? (
@@ -381,6 +423,69 @@ export function LiveMetricsDashboard({
           </PendingLink>
         ) : null}
       </div>
+
+      {refreshFailed ? (
+        <Alert variant="warning">
+          <IconAlertTriangle aria-hidden="true" />
+          <AlertTitle>Counts may be out of date</AlertTitle>
+          <AlertDescription>
+            The latest update could not be loaded. Showing the last successful
+            counts and retrying automatically.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      {overview.confirmedRegistrations === 0 ? (
+        <Empty className="border bg-card p-6 sm:p-8">
+          <EmptyHeader>
+            <EmptyTitle>Welcome your first confirmed guest</EmptyTitle>
+            <EmptyDescription>
+              Share your registration page with guests. Confirmed registrations
+              and arrivals will appear here as they happen.
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Button
+              className="min-h-11"
+              onClick={() => void copyRegistrationLink()}
+              aria-label="Copy registration link"
+            >
+              {copyState === "copied" ? (
+                <IconCheck data-icon="inline-start" />
+              ) : (
+                <IconCopy data-icon="inline-start" />
+              )}
+              {copyState === "copied"
+                ? "Link copied"
+                : "Copy registration link"}
+            </Button>
+            <PendingLink
+              href={`/e/${eventSlug}`}
+              target="_blank"
+              className={buttonVariants({
+                variant: "outline",
+                className: "min-h-11",
+              })}
+            >
+              Open registration page
+            </PendingLink>
+            <p
+              role="status"
+              className={
+                copyState === "failed"
+                  ? "text-sm text-destructive-text"
+                  : "sr-only"
+              }
+            >
+              {copyState === "failed"
+                ? "Could not copy the link. Open the registration page and copy its address."
+                : copyState === "copied"
+                  ? "Registration link copied."
+                  : ""}
+            </p>
+          </EmptyContent>
+        </Empty>
+      ) : null}
 
       {/* One grouped region with internal dividers, rather than fourteen numbers
           spread across four floating cards. */}
@@ -397,7 +502,11 @@ export function LiveMetricsDashboard({
               ? ` · ${overview.waitlistEntries.toLocaleString()} waitlisted`
               : ""
           }`}
-          tone={overview.capacityUtilization.percentage >= 100 ? "warning" : "neutral"}
+          tone={
+            overview.capacityUtilization.percentage >= 100
+              ? "warning"
+              : "neutral"
+          }
         />
         <div className="border-t sm:border-t-0 sm:border-l lg:border-l-0">
           <Headline
@@ -415,10 +524,12 @@ export function LiveMetricsDashboard({
               <div className="flex flex-1 flex-col justify-center gap-1.5">
                 <p className="flex items-center gap-2 text-success-text">
                   <IconCircleCheck aria-hidden="true" className="size-5" />
-                  <span className="text-lg font-medium">Nothing to resolve</span>
+                  <span className="text-lg font-medium">
+                    No conflicts to resolve
+                  </span>
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  No unresolved conflicts or failed deliveries.
+                  No undeliverable ticket emails.
                 </p>
               </div>
             ) : (
@@ -524,7 +635,7 @@ export function LiveMetricsDashboard({
                     aria-hidden="true"
                     className="order-2 w-full max-w-12 rounded-t-sm bg-primary/85"
                     style={{
-                      height: `${Math.max(8, Math.round((point.count / maxHourly) * 100))}%`,
+                      height: `${maxHourly > 0 ? Math.max(8, Math.round((point.count / maxHourly) * 100)) : 0}%`,
                     }}
                   />
                 </tr>
@@ -625,7 +736,8 @@ export function LiveMetricsDashboard({
           {deliveryOutcomes.total === 0 ? (
             <p className="text-sm text-muted-foreground">
               No ticket emails have been sent yet. They go out when attendees
-              confirm a Registration or when an Organizer completes a CSV import.
+              confirm a Registration or when an Organizer completes a CSV
+              import.
             </p>
           ) : (
             <>
@@ -672,7 +784,8 @@ export function LiveMetricsDashboard({
           Of {checkInConflictStats.total.toLocaleString()} conflicts,{" "}
           {checkInConflictStats.resolvedAuto.toLocaleString()} were resolved
           automatically by timestamp and{" "}
-          {checkInConflictStats.resolvedManual.toLocaleString()} by an organizer.
+          {checkInConflictStats.resolvedManual.toLocaleString()} by an
+          organizer.
         </p>
       ) : null}
     </div>

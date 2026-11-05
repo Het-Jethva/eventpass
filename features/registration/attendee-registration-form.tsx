@@ -96,7 +96,9 @@ function ChoiceAnswer({
         {field.label}
         {field.required ? <span aria-hidden="true"> *</span> : null}
       </FieldLegend>
-      {field.helpText ? <FieldDescription>{field.helpText}</FieldDescription> : null}
+      {field.helpText ? (
+        <FieldDescription>{field.helpText}</FieldDescription>
+      ) : null}
       <div className="grid gap-3">
         {field.choices.map((choice) => {
           const id = `answer-${field.id}-${choice.id}`;
@@ -108,11 +110,15 @@ function ChoiceAnswer({
             >
               <input
                 id={id}
-                type={field.answerType === "single_choice" ? "radio" : "checkbox"}
+                type={
+                  field.answerType === "single_choice" ? "radio" : "checkbox"
+                }
                 name={`answer.${field.id}`}
                 value={choice.id}
                 defaultChecked={selected.has(choice.id)}
-                required={field.required && field.answerType === "single_choice"}
+                required={
+                  field.required && field.answerType === "single_choice"
+                }
                 disabled={pending}
                 aria-invalid={Boolean(errors?.length)}
                 className="size-4 accent-foreground"
@@ -160,7 +166,9 @@ function AcknowledgmentAnswer({
         <span>
           <span className="font-medium">{field.label}</span>
           {field.helpText ? (
-            <span className="mt-1 block text-muted-foreground">{field.helpText}</span>
+            <span className="mt-1 block text-muted-foreground">
+              {field.helpText}
+            </span>
           ) : null}
         </span>
       </label>
@@ -243,7 +251,8 @@ export function AttendeeRegistrationForm({
             aria-invalid={Boolean(state.fieldErrors?.email)}
           />
           <FieldDescription>
-            We’ll send a single-use verification link that expires in 15 minutes.
+            We’ll send a single-use verification link that expires in 15
+            minutes.
           </FieldDescription>
           <FieldError
             errors={state.fieldErrors?.email?.map((message) => ({ message }))}
@@ -251,14 +260,31 @@ export function AttendeeRegistrationForm({
         </Field>
 
         {fields.map((field) => {
-          if (field.answerType === "short_text" || field.answerType === "long_text") {
-            return <TextAnswer key={field.id} field={field} state={state} pending={pending} />;
+          if (
+            field.answerType === "short_text" ||
+            field.answerType === "long_text"
+          ) {
+            return (
+              <TextAnswer
+                key={field.id}
+                field={field}
+                state={state}
+                pending={pending}
+              />
+            );
           }
           if (
             field.answerType === "single_choice" ||
             field.answerType === "multiple_choice"
           ) {
-            return <ChoiceAnswer key={field.id} field={field} state={state} pending={pending} />;
+            return (
+              <ChoiceAnswer
+                key={field.id}
+                field={field}
+                state={state}
+                pending={pending}
+              />
+            );
           }
           return (
             <AcknowledgmentAnswer
@@ -280,23 +306,23 @@ export function AttendeeRegistrationForm({
         aria-hidden="true"
       />
 
+      <p className="text-support text-muted-foreground">
+        Submitting does not confirm your place. Check your email for the next
+        step.
+      </p>
       <Button type="submit" size="lg" className="w-full" disabled={pending}>
         {pending ? (
           <>
             <Spinner data-icon="inline-start" />
-            Registering…
+            Sending verification link…
           </>
         ) : (
           <>
             <IconMailForward data-icon="inline-start" />
-            Register
+            Send verification link
           </>
         )}
       </Button>
-      <p className="text-support text-muted-foreground">
-        Submitting does not confirm your place. The next screen will explain what
-        to do next.
-      </p>
       <p className="sr-only" aria-live="polite">
         {pending ? "Submitting your registration." : ""}
       </p>

@@ -28,12 +28,12 @@ function PendingLinkState({ label }: { label: string }) {
           : undefined
       }
       className={cn(
-        "pointer-events-none absolute inset-0 z-10 inline-flex items-center justify-center gap-1.5 rounded-[inherit]",
+        "pointer-events-none absolute inset-0 z-10 inline-flex min-w-0 items-center justify-center gap-1.5 overflow-hidden rounded-[inherit]",
         pending ? "visible pointer-events-auto cursor-wait" : "invisible",
       )}
     >
       <Spinner aria-hidden="true" />
-      {label ? <span>{label}</span> : null}
+      {label ? <span className="sr-only">{label}</span> : null}
     </span>
   );
 }
@@ -50,7 +50,11 @@ function PendingLink({
   ...props
 }: PendingLinkProps) {
   return (
-    <Link data-slot="pending-link" className={cn("relative", className)} {...props}>
+    <Link
+      data-slot="pending-link"
+      className={cn("relative", className)}
+      {...props}
+    >
       <span data-slot="pending-link-content" className="contents">
         {children}
       </span>

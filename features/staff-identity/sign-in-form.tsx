@@ -43,7 +43,11 @@ function messageForError(error: unknown) {
   return "We could not send a sign-in link. Check the address and try again.";
 }
 
-export function SignInForm({ callbackURL = "/events" }: { callbackURL?: string }) {
+export function SignInForm({
+  callbackURL = "/events",
+}: {
+  callbackURL?: string;
+}) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [website, setWebsite] = useState("");
@@ -88,7 +92,7 @@ export function SignInForm({ callbackURL = "/events" }: { callbackURL?: string }
 
       <FieldGroup>
         <Field data-invalid={Boolean(error)}>
-          <FieldLabel htmlFor="email">Work email</FieldLabel>
+          <FieldLabel htmlFor="email">Email address</FieldLabel>
           <Input
             className="h-11"
             id="email"
@@ -98,7 +102,7 @@ export function SignInForm({ callbackURL = "/events" }: { callbackURL?: string }
             autoComplete="email"
             autoCapitalize="none"
             spellCheck={false}
-            placeholder="you@university.edu"
+            placeholder="you@example.com"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             aria-invalid={Boolean(error)}
@@ -112,7 +116,12 @@ export function SignInForm({ callbackURL = "/events" }: { callbackURL?: string }
         </Field>
       </FieldGroup>
 
-      <Button className="h-11 w-full" size="lg" type="submit" disabled={isPending}>
+      <Button
+        className="h-11 w-full"
+        size="lg"
+        type="submit"
+        disabled={isPending}
+      >
         {isPending ? (
           <>
             <Spinner data-icon="inline-start" />

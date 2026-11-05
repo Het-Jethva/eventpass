@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { IconAlertCircle, IconArrowLeft, IconPlus } from "@tabler/icons-react";
 
 import { createEventAction } from "@/app/(workspace)/events/new/actions";
@@ -26,19 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-
-const TIME_ZONE_SUGGESTIONS = [
-  "UTC",
-  "Asia/Kolkata",
-  "Asia/Singapore",
-  "Asia/Tokyo",
-  "Australia/Sydney",
-  "Europe/Berlin",
-  "Europe/London",
-  "America/Chicago",
-  "America/Los_Angeles",
-  "America/New_York",
-];
+import timeZones from "@/lib/time-zones.json";
 
 function EventField({
   children,
@@ -69,31 +57,6 @@ function value(state: CreateEventFormState, field: CreateEventFormField) {
   return state.values?.[field];
 }
 
-function subtractLocalMinutes(value: string, minutes: number) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
-  if (!match) return "";
-
-  const date = new Date(
-    Date.UTC(
-      Number(match[1]),
-      Number(match[2]) - 1,
-      Number(match[3]),
-      Number(match[4]),
-      Number(match[5]) - minutes,
-    ),
-  );
-  return date.toISOString().slice(0, 16);
-}
-
-function setEmptyFormValue(
-  form: HTMLFormElement,
-  field: CreateEventFormField,
-  nextValue: string,
-) {
-  const input = form.elements.namedItem(field);
-  if (input instanceof HTMLInputElement && !input.value) input.value = nextValue;
-}
-
 export function CreateEventForm({
   eventId,
   initialValues,
@@ -115,9 +78,18 @@ export function CreateEventForm({
       : initialCreateEventFormState,
   );
   const isEditing = Boolean(eventId);
+  const [slug, setSlug] = useState(initialValues?.slug ?? "");
+  const selectedTimeZone = value(state, "eventTimeZone") ?? "Asia/Kolkata";
+  const availableTimeZones = timeZones.includes(selectedTimeZone)
+    ? timeZones
+    : [selectedTimeZone, ...timeZones];
 
   return (
     <form action={formAction} className="flex flex-col gap-8">
+      <p className="text-sm text-muted-foreground">
+        All fields are required unless marked optional. Registration and
+        check-in times default to your event schedule when you save.
+      </p>
       {state.status === "error" ? (
         <Alert variant="destructive">
           <IconAlertCircle aria-hidden="true" />
@@ -150,13 +122,14 @@ export function CreateEventForm({
               field="slug"
               label="Web address"
               state={state}
-              description="Used in the public link. You can change it until publication."
+              description={slugImmutable ? "This address is fixed because the event has been published." : "You can change this address until you publish the event."}
             >
               <Input
                 id="slug"
                 name="slug"
                 autoComplete="off"
-                defaultValue={value(state, "slug")}
+                value={slug}
+                onChange={(event) => setSlug(event.target.value)}
                 aria-invalid={Boolean(state.fieldErrors?.slug)}
                 placeholder="annual-engineering-showcase"
                 minLength={3}
@@ -166,6 +139,9 @@ export function CreateEventForm({
                 readOnly={slugImmutable}
                 disabled={isPending}
               />
+              <p className="break-all text-sm text-muted-foreground">
+                Public link: <span className="font-mono">{process.env.NEXT_PUBLIC_APP_URL}/e/{slug || "your-event"}</span>
+              </p>
             </EventField>
             <EventField field="description" label="Description" state={state}>
               <Textarea
@@ -185,23 +161,33 @@ export function CreateEventForm({
               field="eventTimeZone"
               label="Time zone"
               state={state}
-              description="Use an IANA time zone such as Asia/Kolkata."
+              description="Choose the event’s city or region. All schedule times use this zone. Type a city name while the list is open to jump to it."
             >
-              <Input
+              <select
+                className="h-11 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:opacity-50"
                 id="eventTimeZone"
                 name="eventTimeZone"
-                list="event-time-zones"
-                autoComplete="off"
-                defaultValue={value(state, "eventTimeZone") ?? "Asia/Kolkata"}
+                defaultValue={selectedTimeZone}
                 aria-invalid={Boolean(state.fieldErrors?.eventTimeZone)}
                 required
                 disabled={isPending}
-              />
-              <datalist id="event-time-zones">
-                {TIME_ZONE_SUGGESTIONS.map((timeZone) => (
-                  <option key={timeZone} value={timeZone} />
-                ))}
-              </datalist>
+              >
+                {[...availableTimeZones]
+                  .sort((a, b) =>
+                    (a.split("/").at(-1) ?? a).localeCompare(
+                      b.split("/").at(-1) ?? b,
+                    ),
+                  )
+                  .map((timeZone) => (
+                    <option key={timeZone} value={timeZone}>
+                      {timeZone
+                        .split("/")
+                        .reverse()
+                        .join(", ")
+                        .replaceAll("_", " ")}
+                    </option>
+                  ))}
+              </select>
             </EventField>
             <EventField field="startsAtLocal" label="Starts" state={state}>
               <Input
@@ -212,20 +198,6 @@ export function CreateEventForm({
                 aria-invalid={Boolean(state.fieldErrors?.startsAtLocal)}
                 required
                 disabled={isPending}
-                onChange={(changeEvent) => {
-                  const form = changeEvent.currentTarget.form;
-                  if (!form) return;
-                  setEmptyFormValue(
-                    form,
-                    "registrationClosesAtLocal",
-                    changeEvent.currentTarget.value,
-                  );
-                  setEmptyFormValue(
-                    form,
-                    "checkInOpensAtLocal",
-                    subtractLocalMinutes(changeEvent.currentTarget.value, 60),
-                  );
-                }}
               />
             </EventField>
             <EventField field="endsAtLocal" label="Ends" state={state}>
@@ -237,16 +209,6 @@ export function CreateEventForm({
                 aria-invalid={Boolean(state.fieldErrors?.endsAtLocal)}
                 required
                 disabled={isPending}
-                onChange={(changeEvent) => {
-                  const form = changeEvent.currentTarget.form;
-                  if (form) {
-                    setEmptyFormValue(
-                      form,
-                      "checkInClosesAtLocal",
-                      changeEvent.currentTarget.value,
-                    );
-                  }
-                }}
               />
             </EventField>
           </FieldGroup>
@@ -290,7 +252,11 @@ export function CreateEventForm({
                 disabled={isPending}
               />
             </EventField>
-            <EventField field="venueAddress" label="Formatted address" state={state}>
+            <EventField
+              field="venueAddress"
+              label="Formatted address"
+              state={state}
+            >
               <Input
                 id="venueAddress"
                 name="venueAddress"
@@ -322,78 +288,104 @@ export function CreateEventForm({
           </FieldGroup>
         </FieldSet>
 
-        <FieldSet className="rounded-2xl border bg-background p-5 sm:p-6">
-          <FieldLegend>Operational windows</FieldLegend>
-          <FieldDescription>
-            Enter local times in the event Time Zone selected above.
-          </FieldDescription>
-          <FieldGroup className="grid gap-5 sm:grid-cols-2">
-            <EventField
-              field="registrationOpensAtLocal"
-              label="Registration opens"
-              state={state}
-            >
-              <Input
-                id="registrationOpensAtLocal"
-                name="registrationOpensAtLocal"
-                type="datetime-local"
-                defaultValue={value(state, "registrationOpensAtLocal")}
-                aria-invalid={Boolean(
-                  state.fieldErrors?.registrationOpensAtLocal,
-                )}
-                required
-                disabled={isPending}
-              />
-            </EventField>
-            <EventField
-              field="registrationClosesAtLocal"
-              label="Registration closes"
-              state={state}
-            >
-              <Input
-                id="registrationClosesAtLocal"
-                name="registrationClosesAtLocal"
-                type="datetime-local"
-                defaultValue={value(state, "registrationClosesAtLocal")}
-                aria-invalid={Boolean(
-                  state.fieldErrors?.registrationClosesAtLocal,
-                )}
-                required
-                disabled={isPending}
-              />
-            </EventField>
-            <EventField
-              field="checkInOpensAtLocal"
-              label="Check-in opens"
-              state={state}
-            >
-              <Input
-                id="checkInOpensAtLocal"
-                name="checkInOpensAtLocal"
-                type="datetime-local"
-                defaultValue={value(state, "checkInOpensAtLocal")}
-                aria-invalid={Boolean(state.fieldErrors?.checkInOpensAtLocal)}
-                required
-                disabled={isPending}
-              />
-            </EventField>
-            <EventField
-              field="checkInClosesAtLocal"
-              label="Check-in closes"
-              state={state}
-            >
-              <Input
-                id="checkInClosesAtLocal"
-                name="checkInClosesAtLocal"
-                type="datetime-local"
-                defaultValue={value(state, "checkInClosesAtLocal")}
-                aria-invalid={Boolean(state.fieldErrors?.checkInClosesAtLocal)}
-                required
-                disabled={isPending}
-              />
-            </EventField>
-          </FieldGroup>
-        </FieldSet>
+        <details
+          className="rounded-2xl border bg-background p-5 sm:p-6"
+          onInvalidCapture={(event) => {
+            event.currentTarget.open = true;
+          }}
+          open={
+            isEditing ||
+            Boolean(
+              state.fieldErrors?.registrationOpensAtLocal ||
+              state.fieldErrors?.registrationClosesAtLocal ||
+              state.fieldErrors?.checkInOpensAtLocal ||
+              state.fieldErrors?.checkInClosesAtLocal,
+            )
+          }
+        >
+          <summary className="min-h-11 cursor-pointer rounded-md py-2 text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/30">
+            Adjust registration and check-in times{" "}
+            <span className="font-normal text-muted-foreground">
+              (optional)
+            </span>
+          </summary>
+          <FieldSet className="mt-4">
+            <FieldLegend className="sr-only">
+              Registration and check-in times
+            </FieldLegend>
+            <FieldDescription>
+              Leave these adjustments blank to close registration at the event
+              start, open check-in one hour before, and close check-in at the
+              event end. Defaults are applied when you save. All times use your
+              selected time zone.
+            </FieldDescription>
+            <FieldGroup className="grid gap-5 sm:grid-cols-2">
+              <EventField
+                field="registrationOpensAtLocal"
+                label="Registration opens"
+                state={state}
+              >
+                <Input
+                  id="registrationOpensAtLocal"
+                  name="registrationOpensAtLocal"
+                  type="datetime-local"
+                  defaultValue={value(state, "registrationOpensAtLocal")}
+                  aria-invalid={Boolean(
+                    state.fieldErrors?.registrationOpensAtLocal,
+                  )}
+                  required
+                  disabled={isPending}
+                />
+              </EventField>
+              <EventField
+                field="registrationClosesAtLocal"
+                label="Registration closes"
+                state={state}
+              >
+                <Input
+                  id="registrationClosesAtLocal"
+                  name="registrationClosesAtLocal"
+                  type="datetime-local"
+                  defaultValue={value(state, "registrationClosesAtLocal")}
+                  aria-invalid={Boolean(
+                    state.fieldErrors?.registrationClosesAtLocal,
+                  )}
+                  disabled={isPending}
+                />
+              </EventField>
+              <EventField
+                field="checkInOpensAtLocal"
+                label="Check-in opens"
+                state={state}
+              >
+                <Input
+                  id="checkInOpensAtLocal"
+                  name="checkInOpensAtLocal"
+                  type="datetime-local"
+                  defaultValue={value(state, "checkInOpensAtLocal")}
+                  aria-invalid={Boolean(state.fieldErrors?.checkInOpensAtLocal)}
+                  disabled={isPending}
+                />
+              </EventField>
+              <EventField
+                field="checkInClosesAtLocal"
+                label="Check-in closes"
+                state={state}
+              >
+                <Input
+                  id="checkInClosesAtLocal"
+                  name="checkInClosesAtLocal"
+                  type="datetime-local"
+                  defaultValue={value(state, "checkInClosesAtLocal")}
+                  aria-invalid={Boolean(
+                    state.fieldErrors?.checkInClosesAtLocal,
+                  )}
+                  disabled={isPending}
+                />
+              </EventField>
+            </FieldGroup>
+          </FieldSet>
+        </details>
       </FieldGroup>
 
       <div className="flex flex-col-reverse gap-3 border-t pt-6 sm:flex-row sm:items-center sm:justify-end">

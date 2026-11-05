@@ -13,7 +13,9 @@ type SignInPageProps = {
 
 export default async function SignInPage({ searchParams }: SignInPageProps) {
   const { error, callbackUrl } = await searchParams;
-  const requestedCallback = Array.isArray(callbackUrl) ? callbackUrl[0] : callbackUrl;
+  const requestedCallback = Array.isArray(callbackUrl)
+    ? callbackUrl[0]
+    : callbackUrl;
   const safeCallback =
     requestedCallback?.startsWith("/") && !requestedCallback.startsWith("//")
       ? requestedCallback
@@ -33,7 +35,8 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
             Sign in to EventPass
           </h1>
           <p className="max-w-sm text-reading text-muted-foreground text-pretty">
-            Enter your email to open the staff workspace. No password needed.
+            Organizing your first event? Use your email to get started.
+            Returning staff can sign in here too. No password needed.
           </p>
         </div>
 

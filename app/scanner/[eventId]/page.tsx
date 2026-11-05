@@ -31,7 +31,9 @@ export default async function ScannerPage({
   // the events list with the queue already forming — the one page in the product
   // where "sign in, then find your way back" is the wrong instruction.
   if (!session) {
-    redirect(`/sign-in?callbackUrl=${encodeURIComponent(`/scanner/${eventId}`)}`);
+    redirect(
+      `/sign-in?callbackUrl=${encodeURIComponent(`/scanner/${eventId}`)}`,
+    );
   }
   const scannerEvent = await getScannerEvent(eventId, session.user.id);
   if (!scannerEvent) notFound();
@@ -50,7 +52,9 @@ export default async function ScannerPage({
           </PendingLink>
           <IconScan aria-hidden="true" className="size-6 shrink-0" />
           <div className="min-w-0">
-            <p className="truncate font-medium">{scannerEvent.name}</p>
+            <p className="font-medium text-balance wrap-anywhere">
+              {scannerEvent.name}
+            </p>
             <p className="text-sm text-muted-foreground">Scanner workspace</p>
           </div>
         </div>

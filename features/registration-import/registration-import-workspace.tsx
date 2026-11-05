@@ -1,23 +1,16 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import {
   IconAlertCircle,
   IconCheck,
-  IconFileSpreadsheet,
   IconUpload,
 } from "@tabler/icons-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
 import {
   Field,
   FieldDescription,
@@ -42,6 +35,7 @@ import {
 type Message = { kind: "error" | "success"; text: string } | null;
 
 export function RegistrationImportWorkspace({ eventId }: { eventId: string }) {
+  const router = useRouter();
   const [preview, setPreview] = useState<RegistrationImportPreviewResponse | null>(null);
   const [message, setMessage] = useState<Message>(null);
   const [pending, setPending] = useState<"preview" | "confirm" | null>(null);
@@ -111,8 +105,9 @@ export function RegistrationImportWorkspace({ eventId }: { eventId: string }) {
           : preview.rows.length;
       setMessage({
         kind: "success",
-        text: `${importedCount.toLocaleString()} Registration${importedCount === 1 ? "" : "s"} and signed ticket${importedCount === 1 ? "" : "s"} imported.`,
+        text: `${importedCount.toLocaleString()} guest${importedCount === 1 ? "" : "s"} imported. Tickets have been created; check each guest’s email delivery status in the roster.`,
       });
+      router.refresh();
     } catch (error) {
       setMessage({
         kind: "error",
@@ -128,7 +123,7 @@ export function RegistrationImportWorkspace({ eventId }: { eventId: string }) {
       <form onSubmit={createPreview} className="rounded-2xl border p-5 sm:p-6">
         <FieldGroup>
           <Field>
-            <FieldLabel htmlFor="registration-import-file">Registration CSV</FieldLabel>
+            <FieldLabel htmlFor="registration-import-file">Guest list CSV</FieldLabel>
             <Input
               id="registration-import-file"
               name="file"
@@ -139,10 +134,13 @@ export function RegistrationImportWorkspace({ eventId }: { eventId: string }) {
             />
             <FieldDescription>
               Up to 500 rows and 512 KB. Include name and email headers; custom
-              columns may use a registration Field label or ID. Separate
-              multiple-choice answers with semicolons.
+              columns should match your registration question labels. Include
+              required questions. Separate multiple-choice answers with semicolons.
             </FieldDescription>
           </Field>
+          <a href="/registration-template.csv" download className="w-fit text-sm underline underline-offset-4">
+            Download CSV template
+          </a>
           <Button type="submit" className="w-fit" disabled={pending !== null}>
             {pending === "preview" ? (
               <Spinner data-icon="inline-start" />
@@ -166,20 +164,7 @@ export function RegistrationImportWorkspace({ eventId }: { eventId: string }) {
         </Alert>
       ) : null}
 
-      {!preview ? (
-        <Empty className="border">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <IconFileSpreadsheet aria-hidden="true" />
-            </EmptyMedia>
-            <EmptyTitle>No import preview</EmptyTitle>
-            <EmptyDescription>
-              Uploading creates a normalized, expiring preview. The original
-              file is not retained.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      ) : (
+      {preview ? (
         <section className="flex flex-col gap-5" aria-labelledby="import-preview-heading">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -201,7 +186,7 @@ export function RegistrationImportWorkspace({ eventId }: { eventId: string }) {
               ) : (
                 <IconCheck data-icon="inline-start" />
               )}
-              Confirm atomic import
+              Import guests and send tickets
             </Button>
           </div>
 
@@ -246,7 +231,7 @@ export function RegistrationImportWorkspace({ eventId }: { eventId: string }) {
             </Table>
           </div>
         </section>
-      )}
+      ) : null}
     </div>
   );
 }

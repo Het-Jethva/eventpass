@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, ViewTransition } from "react";
+import { useState, ViewTransition } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -15,12 +15,17 @@ import {
   IconScan,
   IconSettings,
   IconUserShield,
-  IconX,
 } from "@tabler/icons-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { PendingLink } from "@/components/pending-link";
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
 // Seven sections previously lived in a horizontally scrolling strip with the
@@ -44,13 +49,48 @@ type EventSidebarProps = {
 
 function navItems(eventId: string) {
   return [
-    { label: "Overview", href: `/events/${eventId}`, exact: true, icon: IconLayoutDashboard },
-    { label: "Registrations", href: `/events/${eventId}/registrations`, exact: false, icon: IconFileSpreadsheet },
-    { label: "Form", href: `/events/${eventId}/form`, exact: false, icon: IconForms },
-    { label: "Check-in", href: `/events/${eventId}/check-in`, exact: false, icon: IconClockQuestion },
-    { label: "Staff", href: `/events/${eventId}/staff`, exact: false, icon: IconUserShield },
-    { label: "Audit", href: `/events/${eventId}/audit`, exact: false, icon: IconHistory },
-    { label: "Settings", href: `/events/${eventId}/edit`, exact: false, icon: IconSettings },
+    {
+      label: "Overview",
+      href: `/events/${eventId}`,
+      exact: true,
+      icon: IconLayoutDashboard,
+    },
+    {
+      label: "Registrations",
+      href: `/events/${eventId}/registrations`,
+      exact: false,
+      icon: IconFileSpreadsheet,
+    },
+    {
+      label: "Form",
+      href: `/events/${eventId}/form`,
+      exact: false,
+      icon: IconForms,
+    },
+    {
+      label: "Check-in",
+      href: `/events/${eventId}/check-in`,
+      exact: false,
+      icon: IconClockQuestion,
+    },
+    {
+      label: "Staff",
+      href: `/events/${eventId}/staff`,
+      exact: false,
+      icon: IconUserShield,
+    },
+    {
+      label: "Audit",
+      href: `/events/${eventId}/audit`,
+      exact: false,
+      icon: IconHistory,
+    },
+    {
+      label: "Settings",
+      href: `/events/${eventId}/edit`,
+      exact: false,
+      icon: IconSettings,
+    },
   ];
 }
 
@@ -84,9 +124,7 @@ function SidebarBody({
               elements sharing one view-transition-name is a conflict. */}
           {morph ? (
             <ViewTransition name={`event-${eventId}`}>
-              <p className="text-base font-medium text-balance">
-                {eventName}
-              </p>
+              <p className="text-base font-medium text-balance">{eventName}</p>
             </ViewTransition>
           ) : (
             <p className="text-base font-medium text-balance">{eventName}</p>
@@ -100,7 +138,10 @@ function SidebarBody({
         </div>
       </div>
 
-      <nav aria-label={`${eventName} sections`} className="flex flex-col gap-0.5">
+      <nav
+        aria-label={`${eventName} sections`}
+        className="flex flex-col gap-0.5"
+      >
         {navItems(eventId).map((item) => {
           const isActive = item.exact
             ? pathname === item.href
@@ -114,7 +155,7 @@ function SidebarBody({
               aria-current={isActive ? "page" : undefined}
               pendingLabel="Loading"
               className={cn(
-                "inline-flex min-h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium transition-colors",
+                "inline-flex min-h-11 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium transition-colors",
                 isActive
                   ? "bg-sidebar-accent text-sidebar-accent-foreground"
                   : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
@@ -158,31 +199,21 @@ function SidebarBody({
 export function EventSidebar(props: EventSidebarProps) {
   const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [open]);
-
   return (
-    <>
+    <Sheet open={open} onOpenChange={setOpen}>
       <div className="flex items-center gap-3 border-b bg-sidebar px-4 py-2.5 lg:hidden">
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-sm"
-          onClick={() => setOpen(true)}
+        <SheetTrigger
+          render={
+            <Button variant="outline" size="icon-lg" className="size-11" />
+          }
           aria-label={`Open ${props.eventName} sections`}
-          aria-expanded={open}
         >
           <IconMenu2 />
-        </Button>
-        <span className="min-w-0 truncate text-sm font-medium">
+        </SheetTrigger>
+        <span className="min-w-0 flex-1 truncate text-sm font-medium">
           {props.eventName}
         </span>
+        <Badge variant={props.statusVariant}>{props.statusLabel}</Badge>
       </div>
 
       <aside className="hidden w-64 shrink-0 border-r bg-sidebar text-sidebar-foreground lg:block">
@@ -191,37 +222,13 @@ export function EventSidebar(props: EventSidebarProps) {
         </div>
       </aside>
 
-      {open ? (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <button
-            type="button"
-            aria-label="Close sections"
-            className="absolute inset-0 bg-foreground/40"
-            onClick={() => setOpen(false)}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label={`${props.eventName} sections`}
-            className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col overflow-y-auto border-r bg-sidebar text-sidebar-foreground shadow-xl"
-          >
-            <div className="flex justify-end p-2 pb-0">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => setOpen(false)}
-                aria-label="Close sections"
-              >
-                <IconX />
-              </Button>
-            </div>
-            {/* Navigating from inside the drawer should not leave it hanging
-                open over the page it just loaded. */}
-            <SidebarBody {...props} onNavigate={() => setOpen(false)} />
-          </div>
-        </div>
-      ) : null}
-    </>
+      <SheetContent
+        side="left"
+        className="w-72 max-w-[85vw] overflow-y-auto bg-sidebar pt-10 text-sidebar-foreground"
+      >
+        <SheetTitle className="sr-only">{props.eventName} sections</SheetTitle>
+        <SidebarBody {...props} onNavigate={() => setOpen(false)} />
+      </SheetContent>
+    </Sheet>
   );
 }

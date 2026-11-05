@@ -1,6 +1,10 @@
 import Image from "next/image";
 import type { ReactNode } from "react";
-import { IconCalendarEvent, IconMapPin, IconTicketOff } from "@tabler/icons-react";
+import {
+  IconCalendarEvent,
+  IconMapPin,
+  IconTicketOff,
+} from "@tabler/icons-react";
 
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -14,11 +18,15 @@ import { cn } from "@/lib/utils";
 // Kept as a component so the landing page can render a real ticket rather than
 // a screenshot.
 
-function TicketPerforation({ surroundClassName }: { surroundClassName: string }) {
+function TicketPerforation({
+  surroundClassName,
+}: {
+  surroundClassName: string;
+}) {
   return (
     <div
       aria-hidden="true"
-      className="relative h-6 w-full shrink-0 sm:h-auto sm:w-6 sm:self-stretch"
+      className="relative h-6 w-full shrink-0 @min-[42rem]:h-auto @min-[42rem]:w-6 @min-[42rem]:self-stretch"
     >
       {/* Notches sit half outside the card so the tear line reads as a physical
           cut rather than a divider. They have to carry the colour of whatever
@@ -27,21 +35,21 @@ function TicketPerforation({ surroundClassName }: { surroundClassName: string })
           caller supplies it rather than the component assuming. */}
       <span
         className={cn(
-          "absolute left-0 top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full sm:left-1/2 sm:top-0 print:hidden",
+          "absolute left-0 top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full @min-[42rem]:left-1/2 @min-[42rem]:top-0 print:hidden",
           surroundClassName,
         )}
       />
       <span
         className={cn(
-          "absolute left-full top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full sm:left-1/2 sm:top-full print:hidden",
+          "absolute left-full top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full @min-[42rem]:left-1/2 @min-[42rem]:top-full print:hidden",
           surroundClassName,
         )}
       />
-      {/* Two elements rather than `perforation-x sm:perforation-y`: both
+      {/* Two elements rather than `perforation-x @min-[42rem]:perforation-y`: both
           utilities would apply at sm, and which background-repeat won would
           depend on Tailwind's emit order rather than on the class list. */}
-      <div className="perforation-x absolute inset-x-4 top-1/2 h-0.5 -translate-y-1/2 sm:hidden" />
-      <div className="perforation-y absolute inset-y-4 left-1/2 hidden w-0.5 -translate-x-1/2 sm:block" />
+      <div className="perforation-x absolute inset-x-4 top-1/2 h-0.5 -translate-y-1/2 @min-[42rem]:hidden" />
+      <div className="perforation-y absolute inset-y-4 left-1/2 hidden w-0.5 -translate-x-1/2 @min-[42rem]:block" />
     </div>
   );
 }
@@ -85,44 +93,54 @@ export function TicketStub({
   return (
     <article
       className={cn(
-        "overflow-hidden rounded-lg border bg-background print:rounded-none print:border-2",
+        "@container overflow-hidden rounded-lg border bg-background print:rounded-none print:border-2",
         className,
       )}
     >
       {/* Reversed on mobile so the stub renders first on a phone while the DOM
           keeps the event name ahead of the QR for screen readers. */}
-      <div className="flex flex-col-reverse sm:flex-row">
+      <div className="flex flex-col-reverse @min-[42rem]:flex-row">
         {/* Centred against the stub rather than stretched to its height. The
             details are shorter than the QR chamber, and pinning the schedule to
             the bottom with `mt-auto` opened a dead band across the middle of
             the ticket wherever the event name ran to one line. */}
-        <div className="flex flex-1 flex-col justify-center gap-5 p-6 sm:p-8">
+        <div className="flex min-w-0 flex-1 flex-col justify-center gap-5 p-6 @min-[42rem]:p-8">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={status.variant}>{status.label}</Badge>
-            {action ? <div className="ml-auto print:hidden">{action}</div> : null}
+            {action ? (
+              <div className="ml-auto print:hidden">{action}</div>
+            ) : null}
           </div>
 
           <div className="flex flex-col gap-1">
-            <Title className="text-3xl font-headline text-balance sm:text-4xl">
+            <Title className="text-3xl font-headline text-balance wrap-anywhere @min-[42rem]:text-4xl">
               {eventName}
             </Title>
             <p className="text-base text-muted-foreground">
               Ticket for{" "}
-              <span className="font-medium text-foreground">{attendeeName}</span>
+              <span className="font-medium text-foreground wrap-anywhere">
+                {attendeeName}
+              </span>
             </p>
           </div>
 
           <dl className="flex flex-col gap-2 text-sm">
             <div className="flex items-start gap-2">
               <dt className="shrink-0">
-                <IconCalendarEvent aria-hidden="true" className="size-4 translate-y-0.5" />
+                <IconCalendarEvent
+                  aria-hidden="true"
+                  className="size-4 translate-y-0.5"
+                />
                 <span className="sr-only">Schedule</span>
               </dt>
               <dd className="text-muted-foreground">{scheduleLabel}</dd>
             </div>
             <div className="flex items-start gap-2">
               <dt className="shrink-0">
-                <IconMapPin aria-hidden="true" className="size-4 translate-y-0.5" />
+                <IconMapPin
+                  aria-hidden="true"
+                  className="size-4 translate-y-0.5"
+                />
                 <span className="sr-only">Venue</span>
               </dt>
               <dd className="text-muted-foreground">{venueName}</dd>
@@ -132,7 +150,7 @@ export function TicketStub({
 
         <TicketPerforation surroundClassName={surroundClassName} />
 
-        <div className="flex shrink-0 flex-col items-center gap-4 p-6 text-center sm:w-72 sm:p-8">
+        <div className="flex shrink-0 flex-col items-center gap-4 p-6 text-center @min-[42rem]:w-72 @min-[42rem]:p-8">
           {qrDataUrl && formattedCode ? (
             <>
               {/* Fixed white chamber in both themes. A theme-inverted QR does
@@ -145,7 +163,7 @@ export function TicketStub({
                   height={320}
                   unoptimized
                   priority
-                  className="size-40 sm:size-48"
+                  className="size-40 @min-[42rem]:size-48"
                 />
               </div>
               <div className="flex flex-col gap-1">
@@ -163,7 +181,10 @@ export function TicketStub({
             </>
           ) : (
             <div className="flex flex-col items-center gap-3 py-8">
-              <IconTicketOff aria-hidden="true" className="size-10 text-muted-foreground" />
+              <IconTicketOff
+                aria-hidden="true"
+                className="size-10 text-muted-foreground"
+              />
               <p className="text-sm font-medium">No active ticket</p>
               <p className="max-w-xs text-xs text-muted-foreground">
                 This ticket was replaced. Only the current one will be admitted

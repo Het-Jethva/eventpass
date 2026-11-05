@@ -25,15 +25,25 @@ export function WorkspaceHeader({
 }) {
   const pathname = usePathname();
   const links = [
-    { href: "/events", label: "Events", active: pathname.startsWith("/events") },
+    {
+      href: "/events",
+      label: "Events",
+      active: pathname.startsWith("/events"),
+    },
     ...(showAdmin
-      ? [{ href: "/admin", label: "Admin", active: pathname.startsWith("/admin") }]
+      ? [
+          {
+            href: "/admin",
+            label: "Admin",
+            active: pathname.startsWith("/admin"),
+          },
+        ]
       : []),
   ];
 
   return (
     <header className="border-b bg-background">
-      <div className="mx-auto flex h-16 w-full max-w-7xl items-center gap-6 px-4 sm:px-6">
+      <div className="mx-auto flex h-16 w-full max-w-7xl items-center gap-3 px-4 sm:gap-6 sm:px-6">
         <Link
           href="/events"
           aria-label="EventPass home"

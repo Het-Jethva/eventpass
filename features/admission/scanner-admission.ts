@@ -1,7 +1,4 @@
-import type {
-  AdmissionInput,
-  AdmissionResult,
-} from "./server/admission-application";
+import type { AdmissionInput, AdmissionResult } from "./admission";
 
 type ScannerAdmissionInput = Omit<AdmissionInput, "actorUserId">;
 

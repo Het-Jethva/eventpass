@@ -34,7 +34,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-import type { RegistrationManagementView } from "@/features/tickets/server/ticket-application";
+import type { RegistrationManagementView } from "@/features/tickets/server/registration-management";
 import {
   cancelRegistrationAction,
   replaceTicketAction,
@@ -53,7 +53,9 @@ function Feedback({ state }: { state: ManagementActionState }) {
   return (
     <Alert variant={state.status === "error" ? "destructive" : "default"}>
       <IconAlertCircle aria-hidden="true" />
-      <AlertTitle>{state.status === "success" ? "Done" : "Action not completed"}</AlertTitle>
+      <AlertTitle>
+        {state.status === "success" ? "Done" : "Action not completed"}
+      </AlertTitle>
       <AlertDescription>{state.message}</AlertDescription>
     </Alert>
   );
@@ -83,9 +85,12 @@ function EditableAnswer({
     return (
       <Field data-invalid={Boolean(errors?.length)}>
         <FieldLabel htmlFor={`answer-${field.id}`}>
-          {field.label}{field.required ? " *" : ""}
+          {field.label}
+          {field.required ? " *" : ""}
         </FieldLabel>
-        {field.helpText ? <FieldDescription>{field.helpText}</FieldDescription> : null}
+        {field.helpText ? (
+          <FieldDescription>{field.helpText}</FieldDescription>
+        ) : null}
         <Control
           id={`answer-${field.id}`}
           name={`answer.${field.id}`}
@@ -120,7 +125,9 @@ function EditableAnswer({
           <span>
             <span className="font-medium">{field.label}</span>
             {field.helpText ? (
-              <span className="mt-1 block text-muted-foreground">{field.helpText}</span>
+              <span className="mt-1 block text-muted-foreground">
+                {field.helpText}
+              </span>
             ) : null}
           </span>
         </label>
@@ -133,9 +140,12 @@ function EditableAnswer({
   return (
     <FieldSet data-invalid={Boolean(errors?.length)}>
       <FieldLegend variant="label">
-        {field.label}{field.required ? " *" : ""}
+        {field.label}
+        {field.required ? " *" : ""}
       </FieldLegend>
-      {field.helpText ? <FieldDescription>{field.helpText}</FieldDescription> : null}
+      {field.helpText ? (
+        <FieldDescription>{field.helpText}</FieldDescription>
+      ) : null}
       <div className="grid gap-3">
         {field.choices.map((choice) => (
           <label
@@ -180,7 +190,11 @@ export function RegistrationManagementControls({
   unavailable: boolean;
 }) {
   const [editState, editAction, editPending] = useActionState(
-    updateRegistrationAction.bind(null, token, fields.map(({ id }) => id)),
+    updateRegistrationAction.bind(
+      null,
+      token,
+      fields.map(({ id }) => id),
+    ),
     initialManagementActionState,
   );
   const [resendState, resendAction, resendPending] = useActionState(
@@ -223,12 +237,20 @@ export function RegistrationManagementControls({
                   disabled={editPending}
                   aria-invalid={Boolean(editState.fieldErrors?.name)}
                 />
-                <FieldError errors={editState.fieldErrors?.name?.map((message) => ({ message }))} />
+                <FieldError
+                  errors={editState.fieldErrors?.name?.map((message) => ({
+                    message,
+                  }))}
+                />
               </Field>
               <Field>
-                <FieldLabel htmlFor="management-email">Verified email address</FieldLabel>
+                <FieldLabel htmlFor="management-email">
+                  Verified email address
+                </FieldLabel>
                 <Input id="management-email" value={email} disabled readOnly />
-                <FieldDescription>The verified email address cannot be changed.</FieldDescription>
+                <FieldDescription>
+                  The verified email address cannot be changed.
+                </FieldDescription>
               </Field>
               {fields.map((field) => (
                 <EditableAnswer
@@ -240,24 +262,42 @@ export function RegistrationManagementControls({
               ))}
             </FieldGroup>
             <Button type="submit" disabled={editPending}>
-              {editPending ? <Spinner data-icon="inline-start" /> : <IconEdit data-icon="inline-start" />}
+              {editPending ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <IconEdit data-icon="inline-start" />
+              )}
               {editPending ? "Saving…" : "Save changes"}
             </Button>
           </form>
         </section>
       ) : null}
 
-      <section aria-labelledby="ticket-actions-heading" className="border-t pt-8">
-        <h2 id="ticket-actions-heading" className="text-lg font-medium">Ticket actions</h2>
+      <section
+        aria-labelledby="ticket-actions-heading"
+        className="border-t pt-8"
+      >
+        <h2 id="ticket-actions-heading" className="text-lg font-medium">
+          Ticket actions
+        </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Resending keeps the current ticket unchanged. Replacement permanently invalidates it.
+          Resending keeps the current ticket unchanged. Replacement permanently
+          invalidates it.
         </p>
         <div className="mt-5 space-y-4">
           <Feedback state={resendState} />
           <Feedback state={replaceState} />
           <form action={resendAction}>
-            <Button type="submit" variant="outline" disabled={resendPending || unavailable}>
-              {resendPending ? <Spinner data-icon="inline-start" /> : <IconMailForward data-icon="inline-start" />}
+            <Button
+              type="submit"
+              variant="outline"
+              disabled={resendPending || unavailable}
+            >
+              {resendPending ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <IconMailForward data-icon="inline-start" />
+              )}
               {resendPending ? "Sending…" : "Resend existing ticket"}
             </Button>
           </form>
@@ -271,7 +311,8 @@ export function RegistrationManagementControls({
                 <AlertDialogHeader>
                   <AlertDialogTitle>Replace this ticket?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    The current QR code and ticket code stop working permanently. A new ticket is issued and emailed.
+                    The current QR code and ticket code stop working
+                    permanently. A new ticket is issued and emailed.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -289,8 +330,13 @@ export function RegistrationManagementControls({
       </section>
 
       {canReplaceOrCancel ? (
-        <section aria-labelledby="cancel-registration-heading" className="border-t pt-8">
-          <h2 id="cancel-registration-heading" className="text-lg font-medium">Cancel registration</h2>
+        <section
+          aria-labelledby="cancel-registration-heading"
+          className="border-t pt-8"
+        >
+          <h2 id="cancel-registration-heading" className="text-lg font-medium">
+            Cancel registration
+          </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             This frees up the place and stops the ticket working, for good.
           </p>
@@ -312,7 +358,11 @@ export function RegistrationManagementControls({
                 <AlertDialogFooter>
                   <AlertDialogCancel>Keep it</AlertDialogCancel>
                   <form action={cancelAction}>
-                    <AlertDialogAction type="submit" variant="destructive" disabled={cancelPending}>
+                    <AlertDialogAction
+                      type="submit"
+                      variant="destructive"
+                      disabled={cancelPending}
+                    >
                       Cancel registration
                     </AlertDialogAction>
                   </form>

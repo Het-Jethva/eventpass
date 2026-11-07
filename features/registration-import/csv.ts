@@ -1,5 +1,5 @@
 export const MAX_IMPORT_BYTES = 512 * 1024;
-export const MAX_IMPORT_ROWS = 500;
+const MAX_IMPORT_ROWS = 500;
 
 export class CsvFormatError extends Error {}
 
@@ -48,13 +48,16 @@ function parseCsvRecords(input: string) {
       finishRecord();
       lineNumber += 1;
     } else if (state === "after_quote") {
-      throw new CsvFormatError(`Unexpected text after a quoted field on line ${lineNumber}.`);
+      throw new CsvFormatError(
+        `Unexpected text after a quoted field on line ${lineNumber}.`,
+      );
     } else {
       field += character;
     }
   }
 
-  if (state === "quoted") throw new CsvFormatError("The CSV contains an unclosed quoted field.");
+  if (state === "quoted")
+    throw new CsvFormatError("The CSV contains an unclosed quoted field.");
   record.push(field);
   if (record.some((value) => value.length > 0) || records.length === 0) {
     records.push({ rowNumber: recordLineNumber, values: record });
@@ -72,8 +75,12 @@ export function parseBoundedCsv(input: string): ParsedCsv {
     throw new CsvFormatError("The CSV must be 512 KB or smaller.");
   }
 
-  const records = parseCsvRecords(input.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n"));
-  const headers = (records.shift()?.values ?? []).map((header) => header.trim());
+  const records = parseCsvRecords(
+    input.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n"),
+  );
+  const headers = (records.shift()?.values ?? []).map((header) =>
+    header.trim(),
+  );
   if (headers.length < 2 || headers.some((header) => !header)) {
     throw new CsvFormatError("The CSV needs a non-empty header row.");
   }
@@ -83,16 +90,20 @@ export function parseBoundedCsv(input: string): ParsedCsv {
     throw new CsvFormatError("CSV header names must be unique.");
   }
 
-  const rows = records
-    .filter(({ values }) => values.some((value) => value.trim().length > 0));
-  if (rows.length === 0) throw new CsvFormatError("The CSV has no attendee rows.");
+  const rows = records.filter(({ values }) =>
+    values.some((value) => value.trim().length > 0),
+  );
+  if (rows.length === 0)
+    throw new CsvFormatError("The CSV has no attendee rows.");
   if (rows.length > MAX_IMPORT_ROWS) {
     throw new CsvFormatError(
       `The CSV can contain at most ${MAX_IMPORT_ROWS.toLocaleString()} attendee rows.`,
     );
   }
   if (rows.some(({ values }) => values.length > headers.length)) {
-    throw new CsvFormatError("A CSV row contains more values than the header row.");
+    throw new CsvFormatError(
+      "A CSV row contains more values than the header row.",
+    );
   }
 
   return {
@@ -105,7 +116,9 @@ export function parseBoundedCsv(input: string): ParsedCsv {
 }
 
 function protectSpreadsheetCell(value: string) {
-  return /^\s*[=+\-@]/u.test(value) || /^[\t\r\n]/.test(value) ? `'${value}` : value;
+  return /^\s*[=+\-@]/u.test(value) || /^[\t\r\n]/.test(value)
+    ? `'${value}`
+    : value;
 }
 
 export function encodeCsv(rows: string[][]) {

@@ -13,7 +13,7 @@ import {
   type Icon,
 } from "@tabler/icons-react";
 
-import type { AdmissionOutcome } from "@/features/admission/server/admission-application";
+import type { AdmissionOutcome } from "@/features/admission/admission";
 import { cn } from "@/lib/utils";
 
 // The signature interaction. A volunteer reads this at arm's length, in a lit
@@ -27,7 +27,7 @@ import { cn } from "@/lib/utils";
 // boolean this replaced — which rendered "Checked in" and "Checked in
 // (provisional)" identically, and made "already checked in" look like a
 // malformed signature.
-export type ScanTone = "success" | "provisional" | "warning" | "destructive";
+type ScanTone = "success" | "provisional" | "warning" | "destructive";
 
 const TONE_STYLES: Record<
   ScanTone,
@@ -95,7 +95,8 @@ export const outcomePresentation: Record<AdmissionOutcome, Presentation> = {
   },
   conflict: {
     title: "Organizer review needed",
-    description: "Scanners disagree about this ticket. Ask an organizer to resolve it before admitting the guest.",
+    description:
+      "Scanners disagree about this ticket. Ask an organizer to resolve it before admitting the guest.",
     icon: IconAlertTriangle,
     tone: "warning",
   },
@@ -157,7 +158,8 @@ export const outcomePresentation: Record<AdmissionOutcome, Presentation> = {
   },
   snapshot_stale: {
     title: "Refresh this phone",
-    description: "The cached ticket list is out of date. Connect to the server and refresh the snapshot before scanning.",
+    description:
+      "The cached ticket list is out of date. Connect to the server and refresh the snapshot before scanning.",
     icon: IconRefresh,
     tone: "warning",
   },

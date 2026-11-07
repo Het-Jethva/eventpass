@@ -36,7 +36,7 @@ import { Spinner } from "@/components/ui/spinner";
 import type {
   AdmissionOutcome,
   AdmissionResult,
-} from "@/features/admission/server/admission-application";
+} from "@/features/admission/admission";
 import { cn } from "@/lib/utils";
 import { admitOffline } from "./offline-scan";
 import { admitWithOfflineFallback } from "./scanner-admission";
@@ -214,10 +214,7 @@ export function ScannerWorkspace({
       const cached = await offlineScannerStore.getCachedSnapshot();
       if (cached && cached.event.id === eventId) {
         const purged =
-          await offlineScannerStore.purgeEventIfClosedAndAcknowledged(
-            eventId,
-            cached.event.checkInClosesAt,
-          );
+          await offlineScannerStore.purgeEventIfClosedAndAcknowledged(eventId);
         if (purged) {
           setSyncMessage(
             "Check-in closed and all attempts acknowledged: cached event data purged.",

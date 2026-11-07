@@ -5,10 +5,7 @@ import { and, eq, inArray, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { event, eventStaff } from "@/lib/db/schema";
 
-import {
-  createDraftEventInputSchema,
-  type CreateDraftEventInput,
-} from "./create-draft-event";
+import { createDraftEventInputSchema } from "./create-draft-event";
 import { eventScheduleInstants } from "./event-schedule";
 import { lockEventForMutation } from "./event-suspension";
 import {
@@ -18,9 +15,7 @@ import {
 } from "./capacity-ledger";
 
 export const updateDraftEventInputSchema = createDraftEventInputSchema;
-export type UpdateDraftEventInput = CreateDraftEventInput;
-
-export class DraftEventNotEditableError extends Error {}
+class DraftEventNotEditableError extends Error {}
 export class EventSlugUnavailableError extends Error {}
 export class EventSlugImmutableError extends Error {}
 
@@ -35,7 +30,11 @@ export async function updateDraftEvent(
   return db.transaction(async (transaction) => {
     await lockEventForMutation(transaction, eventId);
     const [authorization] = await transaction
-      .select({ id: event.id, slug: event.slug, publishedAt: event.publishedAt })
+      .select({
+        id: event.id,
+        slug: event.slug,
+        publishedAt: event.publishedAt,
+      })
       .from(eventStaff)
       .innerJoin(event, eq(event.id, eventStaff.eventId))
       .where(
@@ -70,7 +69,11 @@ export async function updateDraftEvent(
       throw new EventSlugUnavailableError("That Event Slug is already in use.");
     }
 
-    const usage = await getActiveCapacityUsage(transaction, eventId, new Date());
+    const usage = await getActiveCapacityUsage(
+      transaction,
+      eventId,
+      new Date(),
+    );
     if (decreaseDisplacesClaims(usage.claimed, input.capacity)) {
       throw new EventCapacityConflictError(
         `Event Capacity cannot be lower than the ${usage.claimed} existing claims.`,

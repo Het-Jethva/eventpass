@@ -1,16 +1,13 @@
 import "server-only";
 
-import type { DatabaseClient } from "@/lib/db";
-
 import { and, eq } from "drizzle-orm";
 
+import type { DatabaseTransaction } from "@/lib/db";
 import { ticket } from "@/lib/db/schema";
-import { signTicket } from "../ticket-crypto";
 
-type TicketIssuanceDatabase = DatabaseClient;
-type TicketIssuanceTransaction = Parameters<
-  Parameters<TicketIssuanceDatabase["transaction"]>[0]
->[0];
+import { signTicket } from "../ticket-crypto";
+import { createTicketCode } from "./create-ticket-code";
+
 type TicketIssuanceKey = Parameters<typeof signTicket>[1];
 
 /**
@@ -20,14 +17,12 @@ type TicketIssuanceKey = Parameters<typeof signTicket>[1];
  * through this one seam, so uniqueness and the signed shape cannot drift
  * between the three callers.
  */
-export async function allocateTicketCode({
+async function allocateTicketCode({
   transaction,
   eventId,
-  createTicketCode,
 }: {
-  transaction: TicketIssuanceTransaction;
+  transaction: DatabaseTransaction;
   eventId: string;
-  createTicketCode: () => string;
 }): Promise<string> {
   for (let attempt = 0; attempt < 10; attempt += 1) {
     const candidate = createTicketCode();
@@ -41,24 +36,22 @@ export async function allocateTicketCode({
   throw new Error("Could not allocate a unique Ticket Code.");
 }
 
-export async function issueTicket({  transaction,
+export async function issueTicket({
+  transaction,
   eventId,
   registrationId,
   ticketId,
   signingKey,
-  createTicketCode,
 }: {
-  transaction: TicketIssuanceTransaction;
+  transaction: DatabaseTransaction;
   eventId: string;
   registrationId: string;
   ticketId: string;
   signingKey: TicketIssuanceKey;
-  createTicketCode: () => string;
 }): Promise<{ ticketCode: string; ticketJws: string }> {
   const ticketCode = await allocateTicketCode({
     transaction,
     eventId,
-    createTicketCode,
   });
   const ticketJws = signTicket({ eventId, ticketId }, signingKey);
   await transaction.insert(ticket).values({
@@ -86,16 +79,14 @@ export async function issueReplacementTicket({
   replacedAt,
   ticketId,
   signingKey,
-  createTicketCode,
 }: {
-  transaction: TicketIssuanceTransaction;
+  transaction: DatabaseTransaction;
   eventId: string;
   registrationId: string;
   activeTicketId: string;
   replacedAt: Date;
   ticketId: string;
   signingKey: TicketIssuanceKey;
-  createTicketCode: () => string;
 }): Promise<{ ticketCode: string; ticketJws: string }> {
   await transaction
     .update(ticket)
@@ -107,6 +98,5 @@ export async function issueReplacementTicket({
     registrationId,
     ticketId,
     signingKey,
-    createTicketCode,
   });
 }

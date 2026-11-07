@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { getOrganizerEvent } from "@/features/events/server/get-event";
 import { EventSuspendedError } from "@/features/events/server/event-suspension";
-import { reconcileOrganizerWaitlist } from "@/features/tickets/server/tickets";
+import { reconcileOrganizerWaitlist } from "@/features/tickets/server/registration-confirmation";
 import { getActiveStaffSession } from "@/lib/staff-session";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -34,7 +34,7 @@ export default async function EventWorkspaceSectionsLayout({
   const event = await getOrganizerEvent(eventId, staffSession.user.id);
   if (!event) notFound();
 
-  // Expiry-on-read (ADR 0005) has to run on organizer traffic, not only on
+  // Expiry-on-read has to run on organizer traffic, not only on
   // attendee mutations. The roster Expired filter is a status check, so a
   // lapsed Capacity Hold stays Unconfirmed until something expires it. Live
   // metrics polling is read-only on purpose — a five-second poll must not

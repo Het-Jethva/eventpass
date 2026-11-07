@@ -1,60 +1,51 @@
 "use client";
 
-import Dexie, { type EntityTable } from "dexie";
+import Dexie, { type EntityTable, type Table } from "dexie";
 
-import type {
-  OfflineEventSnapshot,
-  OfflineTicketValidityState,
+import type { AdmissionResult, OfflineScanAttemptInput } from "./admission";
+import {
+  decideSnapshotTicketOutcome,
+  parseStoredSnapshotValidity,
+} from "./check-in-validity";
+import {
+  getSnapshotReadiness,
+  type OfflineEventSnapshot,
 } from "./offline-snapshot";
-import { shouldPurgeCachedEvent } from "./pwa-update-policy";
+import type { StoredScanOutcome } from "./scan-outcomes";
 
-type ScannerProfileRecord = {
-  key: "current";
-  id: string;
-  label: string;
-};
-
+type ScannerProfileRecord = { key: "current"; id: string; label: string };
+type SnapshotMetadata = Omit<OfflineEventSnapshot, "tickets">;
+type SnapshotTicket = OfflineEventSnapshot["tickets"][number];
+type StoredTicket = SnapshotTicket & { eventId: string };
 type StoredSnapshot = {
   eventId: string;
-  snapshot: OfflineEventSnapshot;
+  snapshot: SnapshotMetadata;
   performanceTimeOrigin: number;
   performanceNow: number;
 };
 
-type SnapshotCache = {
-  stored: StoredSnapshot;
-  ticketsById: Map<string, OfflineEventSnapshot["tickets"][number]>;
-  ticketsByCode: Map<string, OfflineEventSnapshot["tickets"][number]>;
-  locallyAcceptedTicketIds: Set<string>;
+type PendingScanAttemptRecord = OfflineScanAttemptInput & {
+  authorization: string;
 };
 
-export type PendingScanAttemptRecord = {
-  id: string;
+type VerifiedOfflineCredential =
+  | { kind: "code"; code: string }
+  | { kind: "signed"; eventId: string; ticketId: string; signedTicket: string }
+  | { kind: "invalid" };
+
+type OfflineScan = {
   eventId: string;
-  ticketId: string | null;
+  clientAttemptId: string;
+  inputMethod: OfflineScanAttemptInput["inputMethod"];
   inputDigest: string;
-  inputMethod: "camera" | "manual";
-  capturedOutcome:
-    | "provisional"
-    | "duplicate"
-    | "invalid"
-    | "unknown"
-    | "canceled"
-    | "replaced"
-    | "expired"
-    | "outside_window";
-  deviceRecordedAt: string;
-  serverTimeAnchor: string;
-  monotonicElapsedMs: number;
-  timestampConfidence: "high" | "low";
-  signedTicket: string | null;
   authorization: string;
-  scannerDeviceId: string;
+  credential: VerifiedOfflineCredential;
 };
 
 class OfflineScannerDatabase extends Dexie {
   scannerProfile!: EntityTable<ScannerProfileRecord, "key">;
   snapshots!: EntityTable<StoredSnapshot, "eventId">;
+  tickets!: Table<StoredTicket, [string, string]>;
   pendingScanAttempts!: EntityTable<PendingScanAttemptRecord, "id">;
 
   constructor(databaseName: string) {
@@ -65,10 +56,31 @@ class OfflineScannerDatabase extends Dexie {
       pendingScanAttempts: "&id,eventId",
     });
     this.version(2).stores({
-      scannerProfile: "&key",
-      snapshots: "&eventId",
       pendingScanAttempts: "&id,eventId,[eventId+ticketId]",
     });
+    this.version(3)
+      .stores({
+        tickets: "&[eventId+ticketId],&[eventId+ticketCode],eventId",
+      })
+      .upgrade(async (transaction) => {
+        type PreviousSnapshot = Omit<StoredSnapshot, "snapshot"> & {
+          snapshot: OfflineEventSnapshot;
+        };
+        const previous = await transaction
+          .table<PreviousSnapshot>("snapshots")
+          .toArray();
+        for (const stored of previous) {
+          const { tickets, ...snapshot } = stored.snapshot;
+          await transaction
+            .table<StoredTicket>("tickets")
+            .bulkPut(
+              tickets.map((ticket) => ({ ...ticket, eventId: stored.eventId })),
+            );
+          await transaction
+            .table<StoredSnapshot>("snapshots")
+            .put({ ...stored, snapshot });
+        }
+      });
   }
 }
 
@@ -90,95 +102,41 @@ export class SnapshotReplacementRequiredError extends Error {
   }
 }
 
+function captureAttemptTiming(stored: StoredSnapshot) {
+  const sameMonotonicClock =
+    stored.performanceTimeOrigin === performance.timeOrigin;
+  const monotonicElapsedMs = sameMonotonicClock
+    ? Math.max(0, Math.round(performance.now() - stored.performanceNow))
+    : Math.max(
+        0,
+        Date.now() - new Date(stored.snapshot.serverTimeAnchor).getTime(),
+      );
+  const estimatedServerTime =
+    new Date(stored.snapshot.serverTimeAnchor).getTime() + monotonicElapsedMs;
+  const timestampConfidence: "high" | "low" =
+    sameMonotonicClock &&
+    Math.abs(Date.now() - estimatedServerTime) <= 2 * 60 * 1000
+      ? "high"
+      : "low";
+  return {
+    serverTimeAnchor: stored.snapshot.serverTimeAnchor,
+    monotonicElapsedMs,
+    timestampConfidence,
+  };
+}
+
 export function createOfflineScannerStore(
   databaseName = "eventpass-offline-scanner",
 ) {
   const database = new OfflineScannerDatabase(databaseName);
-  let snapshotCache: SnapshotCache | null = null;
-  let snapshotCacheLoaded = false;
-  let snapshotCacheLoad: Promise<SnapshotCache | null> | null = null;
-  let snapshotMutationQueue = Promise.resolve();
-
-  function createSnapshotCache(
-    stored: StoredSnapshot,
-    locallyAcceptedTicketIds: Set<string>,
-  ): SnapshotCache {
-    return {
-      stored,
-      ticketsById: new Map(
-        stored.snapshot.tickets.map((ticket) => [ticket.ticketId, ticket]),
-      ),
-      ticketsByCode: new Map(
-        stored.snapshot.tickets.map((ticket) => [ticket.ticketCode, ticket]),
-      ),
-      locallyAcceptedTicketIds,
-    };
-  }
-
-  async function readLocallyAcceptedTicketIds(eventId: string) {
-    const attempts = await database.pendingScanAttempts
-      .where("eventId")
-      .equals(eventId)
-      .filter(
-        (attempt) =>
-          attempt.capturedOutcome === "provisional" &&
-          attempt.ticketId !== null,
-      )
-      .toArray();
-    return new Set(
-      attempts.flatMap((attempt) =>
-        attempt.ticketId ? [attempt.ticketId] : [],
-      ),
-    );
-  }
-
-  async function ensureSnapshotCache() {
-    if (snapshotCacheLoaded) return snapshotCache;
-    if (snapshotCacheLoad) return snapshotCacheLoad;
-
-    snapshotCacheLoad = (async () => {
-      const stored = await database.snapshots.toCollection().first();
-      if (!stored) {
-        snapshotCache = null;
-        snapshotCacheLoaded = true;
-        return null;
-      }
-
-      snapshotCache = createSnapshotCache(
-        stored,
-        await readLocallyAcceptedTicketIds(stored.eventId),
-      );
-      snapshotCacheLoaded = true;
-      return snapshotCache;
-    })();
-
-    try {
-      return await snapshotCacheLoad;
-    } finally {
-      snapshotCacheLoad = null;
-    }
-  }
-
-  function enqueueSnapshotMutation<T>(mutation: () => Promise<T>) {
-    const next = snapshotMutationQueue.then(
-      () => mutation(),
-      () => mutation(),
-    );
-    snapshotMutationQueue = next.then(
-      () => undefined,
-      () => undefined,
-    );
-    return next;
-  }
 
   async function getOrCreateScannerDevice() {
-    await database.open();
     return database.transaction("rw", database.scannerProfile, async () => {
       const existing = await database.scannerProfile.get("current");
       if (existing) return { id: existing.id, label: existing.label };
       const created: ScannerProfileRecord = {
         key: "current",
-        id: globalThis.crypto.randomUUID(),
+        id: crypto.randomUUID(),
         label: "",
       };
       await database.scannerProfile.add(created);
@@ -191,118 +149,195 @@ export function createOfflineScannerStore(
     await database.scannerProfile.put({ key: "current", ...device, label });
   }
 
-  async function getCachedSnapshot() {
-    return (await ensureSnapshotCache())?.stored.snapshot ?? null;
+  async function getCachedSnapshot(): Promise<OfflineEventSnapshot | null> {
+    return database.transaction(
+      "r",
+      database.snapshots,
+      database.tickets,
+      async () => {
+        const stored = await database.snapshots.toCollection().first();
+        if (!stored) return null;
+        const tickets = await database.tickets
+          .where("eventId")
+          .equals(stored.eventId)
+          .toArray();
+        return {
+          ...stored.snapshot,
+          tickets: tickets.map((ticket) => ({
+            ticketId: ticket.ticketId,
+            ticketCode: ticket.ticketCode,
+            displayName: ticket.displayName,
+            validityState: ticket.validityState,
+            existingCheckInState: ticket.existingCheckInState,
+          })),
+        };
+      },
+    );
   }
 
-  async function getCachedTicket(eventId: string, ticketId: string) {
-    const cached = await ensureSnapshotCache();
-    if (!cached || cached.stored.eventId !== eventId) return undefined;
-    return cached.ticketsById.get(ticketId);
-  }
-
-  async function getCachedTicketByCode(eventId: string, ticketCode: string) {
-    const cached = await ensureSnapshotCache();
-    if (!cached || cached.stored.eventId !== eventId) return undefined;
-    return cached.ticketsByCode.get(ticketCode);
+  async function getVerificationContext(eventId: string) {
+    const stored = await database.snapshots.get(eventId);
+    return stored
+      ? {
+          authorization: stored.snapshot.authorization,
+          verificationKeys: stored.snapshot.verificationKeys,
+        }
+      : null;
   }
 
   async function countPendingScanAttempts(eventId: string) {
-    return database.pendingScanAttempts.where("eventId").equals(eventId).count();
+    return database.pendingScanAttempts
+      .where("eventId")
+      .equals(eventId)
+      .count();
   }
 
   async function cacheSnapshot(
     snapshot: OfflineEventSnapshot,
     options: { replaceExisting?: boolean } = {},
   ) {
-    await enqueueSnapshotMutation(async () => {
-      await ensureSnapshotCache();
-      const cached = await database.transaction(
-        "rw",
-        database.snapshots,
-        database.pendingScanAttempts,
-        async () => {
-          const existing = await database.snapshots.toCollection().first();
-          if (existing && existing.eventId !== snapshot.event.id) {
-            const pendingAttemptCount = await countPendingScanAttempts(
+    await database.transaction(
+      "rw",
+      database.snapshots,
+      database.tickets,
+      database.pendingScanAttempts,
+      async () => {
+        const existing = await database.snapshots.toCollection().first();
+        if (existing && existing.eventId !== snapshot.event.id) {
+          const pendingCount = await countPendingScanAttempts(existing.eventId);
+          if (!options.replaceExisting) {
+            throw new SnapshotReplacementRequiredError(
               existing.eventId,
+              existing.snapshot.event.name,
+              pendingCount,
             );
-            if (!options.replaceExisting) {
-              throw new SnapshotReplacementRequiredError(
-                existing.eventId,
-                existing.snapshot.event.name,
-                pendingAttemptCount,
-              );
-            }
-            await database.snapshots.delete(existing.eventId);
           }
-          const stored: StoredSnapshot = {
-            eventId: snapshot.event.id,
-            snapshot,
-            performanceTimeOrigin: performance.timeOrigin,
-            performanceNow: performance.now(),
-          };
-          await database.snapshots.put(stored);
-          return {
-            stored,
-            locallyAcceptedTicketIds: await readLocallyAcceptedTicketIds(
-              snapshot.event.id,
-            ),
-          };
-        },
-      );
-      snapshotCache = createSnapshotCache(
-        cached.stored,
-        cached.locallyAcceptedTicketIds,
-      );
-      snapshotCacheLoaded = true;
-    });
-  }
-
-  async function captureAttemptTiming(eventId: string) {
-    const cached = await ensureSnapshotCache();
-    if (!cached || cached.stored.eventId !== eventId) return null;
-    const stored = cached.stored;
-    const sameMonotonicClock =
-      stored.performanceTimeOrigin === performance.timeOrigin;
-    const monotonicElapsedMs = sameMonotonicClock
-      ? Math.max(0, Math.round(performance.now() - stored.performanceNow))
-      : Math.max(
-          0,
-          Date.now() - new Date(stored.snapshot.serverTimeAnchor).getTime(),
+          await database.snapshots.delete(existing.eventId);
+          await database.tickets
+            .where("eventId")
+            .equals(existing.eventId)
+            .delete();
+        }
+        const { tickets, ...metadata } = snapshot;
+        await database.tickets
+          .where("eventId")
+          .equals(snapshot.event.id)
+          .delete();
+        await database.tickets.bulkPut(
+          tickets.map((ticket) => ({ ...ticket, eventId: snapshot.event.id })),
         );
-    const estimatedServerTime =
-      new Date(stored.snapshot.serverTimeAnchor).getTime() + monotonicElapsedMs;
-    const clockDriftMs = Math.abs(Date.now() - estimatedServerTime);
-    return {
-      serverTimeAnchor: stored.snapshot.serverTimeAnchor,
-      monotonicElapsedMs,
-      timestampConfidence:
-        sameMonotonicClock && clockDriftMs <= 2 * 60 * 1000
-          ? ("high" as const)
-          : ("low" as const),
-    };
+        await database.snapshots.put({
+          eventId: snapshot.event.id,
+          snapshot: metadata,
+          performanceTimeOrigin: performance.timeOrigin,
+          performanceNow: performance.now(),
+        });
+      },
+    );
   }
 
-  async function savePendingScanAttempt(attempt: PendingScanAttemptRecord) {
-    await enqueueSnapshotMutation(async () => {
-      await ensureSnapshotCache();
-      await database.pendingScanAttempts.put(attempt);
-      if (
-        attempt.capturedOutcome === "provisional" &&
-        attempt.ticketId &&
-        snapshotCache?.stored.eventId === attempt.eventId
-      ) {
-        snapshotCache.locallyAcceptedTicketIds.add(attempt.ticketId);
-      }
-    });
-  }
-
-  async function hasLocallyAcceptedTicket(eventId: string, ticketId: string) {
-    const cached = await ensureSnapshotCache();
-    return (
-      cached?.stored.eventId === eventId &&
-      cached.locallyAcceptedTicketIds.has(ticketId)
+  async function recordScan(
+    input: OfflineScan,
+  ): Promise<AdmissionResult | { outcome: "snapshot_changed" }> {
+    return database.transaction(
+      "rw",
+      database.snapshots,
+      database.tickets,
+      database.pendingScanAttempts,
+      async () => {
+        const existing = await database.pendingScanAttempts.get(
+          input.clientAttemptId,
+        );
+        if (existing) {
+          if (
+            existing.eventId !== input.eventId ||
+            existing.inputDigest !== input.inputDigest ||
+            existing.inputMethod !== input.inputMethod
+          )
+            return { outcome: "invalid" };
+          const ticket = existing.ticketId
+            ? await database.tickets.get([input.eventId, existing.ticketId])
+            : undefined;
+          return {
+            outcome: existing.capturedOutcome,
+            attendeeName: ticket?.displayName,
+          };
+        }
+        const stored = await database.snapshots.get(input.eventId);
+        if (!stored) return { outcome: "unauthorized" };
+        if (stored.snapshot.authorization !== input.authorization)
+          return { outcome: "snapshot_changed" };
+        const timing = captureAttemptTiming(stored);
+        const attemptedAt = new Date(
+          new Date(timing.serverTimeAnchor).getTime() +
+            timing.monotonicElapsedMs,
+        );
+        const snapshot = stored.snapshot;
+        if (getSnapshotReadiness(snapshot, attemptedAt) === "refresh_required")
+          return { outcome: "snapshot_stale" };
+        const credential = input.credential;
+        const ticket =
+          credential.kind === "code"
+            ? await database.tickets
+                .where("[eventId+ticketCode]")
+                .equals([input.eventId, credential.code])
+                .first()
+            : credential.kind === "signed" &&
+                credential.eventId === input.eventId
+              ? await database.tickets.get([input.eventId, credential.ticketId])
+              : undefined;
+        let outcome: OfflineScanAttemptInput["capturedOutcome"];
+        if (
+          credential.kind === "invalid" ||
+          (credential.kind === "signed" && credential.eventId !== input.eventId)
+        ) {
+          outcome = "invalid";
+        } else if (!ticket) {
+          outcome = "unknown";
+        } else {
+          const validity = parseStoredSnapshotValidity(ticket.validityState);
+          const refusal =
+            validity === "invalid"
+              ? "invalid"
+              : decideSnapshotTicketOutcome({
+                  validityState: validity,
+                  attemptedAt,
+                  checkInOpensAt: new Date(snapshot.event.checkInOpensAt),
+                  checkInClosesAt: new Date(snapshot.event.checkInClosesAt),
+                });
+          if (refusal) outcome = refusal;
+          else if (ticket.existingCheckInState === "conflict") {
+            return { outcome: "conflict", attendeeName: ticket.displayName };
+          } else {
+            const locallyAccepted = await database.pendingScanAttempts
+              .where("[eventId+ticketId]")
+              .equals([input.eventId, ticket.ticketId])
+              .filter((attempt) => attempt.capturedOutcome === "provisional")
+              .first();
+            outcome =
+              ticket.existingCheckInState === "checked_in" || locallyAccepted
+                ? "duplicate"
+                : "provisional";
+          }
+        }
+        await database.pendingScanAttempts.add({
+          id: input.clientAttemptId,
+          eventId: input.eventId,
+          ticketId: ticket?.ticketId ?? null,
+          inputDigest: input.inputDigest,
+          inputMethod: input.inputMethod,
+          capturedOutcome: outcome,
+          deviceRecordedAt: new Date().toISOString(),
+          ...timing,
+          signedTicket:
+            ticket && credential.kind === "signed"
+              ? credential.signedTicket
+              : null,
+          authorization: snapshot.authorization,
+          scannerDeviceId: snapshot.scannerDevice.id,
+        });
+        return { outcome, attendeeName: ticket?.displayName };
+      },
     );
   }
 
@@ -315,168 +350,99 @@ export function createOfflineScannerStore(
 
   async function applyAdmissionResults(
     eventId: string,
-    results: Array<{
+    results: ReadonlyArray<{
       ticketId: string | null;
-      outcome: string;
+      outcome: StoredScanOutcome | AdmissionResult["outcome"];
     }>,
     acknowledgedAttemptIds: string[] = [],
   ) {
-    const conflictedTicketIds = new Set(
-      results
-        .filter((result) => result.outcome === "conflict")
-        .map((result) => result.ticketId),
-    );
-    const checkedInTicketIds = new Set(
-      results
-        .filter(
-          (result) =>
-            result.ticketId &&
-            (result.outcome === "accepted" ||
-              result.outcome === "duplicate"),
-        )
-        .map((result) => result.ticketId),
-    );
-    const notCheckedInTicketIds = new Set(
-      results
-        .filter(
-          (result) =>
-            result.ticketId && result.outcome === "not_checked_in",
-        )
-        .map((result) => result.ticketId),
-    );
-    const validityStateByTicketId = new Map<
+    const changesByTicket = new Map<
       string,
-      OfflineTicketValidityState
+      Partial<Pick<SnapshotTicket, "validityState" | "existingCheckInState">>
     >();
     for (const result of results) {
-      if (
-        !result.ticketId ||
-        (result.outcome !== "canceled" &&
-          result.outcome !== "replaced" &&
-          result.outcome !== "expired")
-      ) {
-        continue;
-      }
-      validityStateByTicketId.set(result.ticketId, result.outcome);
-    }
-    await enqueueSnapshotMutation(async () => {
-      await ensureSnapshotCache();
-      const acknowledgment = await database.transaction(
-        "rw",
-        database.snapshots,
-        database.pendingScanAttempts,
-        async () => {
-          const stored = await database.snapshots.get(eventId);
-          if (stored) {
-            if (
-              checkedInTicketIds.size > 0 ||
-              conflictedTicketIds.size > 0 ||
-              notCheckedInTicketIds.size > 0 ||
-              validityStateByTicketId.size > 0
-            ) {
-              stored.snapshot.tickets = stored.snapshot.tickets.map(
-                (ticket) => {
-                  let next = ticket;
-                  const validityState = validityStateByTicketId.get(
-                    ticket.ticketId,
-                  );
-                  if (validityState) {
-                    next = { ...next, validityState };
-                  }
-                  if (conflictedTicketIds.has(ticket.ticketId)) {
-                    next = { ...next, existingCheckInState: "conflict" };
-                  } else if (checkedInTicketIds.has(ticket.ticketId)) {
-                    next = { ...next, existingCheckInState: "checked_in" };
-                  } else if (notCheckedInTicketIds.has(ticket.ticketId)) {
-                    next = {
-                      ...next,
-                      existingCheckInState: "not_checked_in",
-                    };
-                  }
-                  return next;
-                },
-              );
-              await database.snapshots.put(stored);
-            }
+      if (!result.ticketId) continue;
+      const changes = changesByTicket.get(result.ticketId) ?? {};
+      switch (result.outcome) {
+        case "canceled":
+        case "replaced":
+        case "expired":
+          changes.validityState = result.outcome;
+          break;
+        case "conflict":
+          changes.existingCheckInState = "conflict";
+          break;
+        case "accepted":
+        case "duplicate":
+          if (changes.existingCheckInState !== "conflict") {
+            changes.existingCheckInState = "checked_in";
           }
-          await database.pendingScanAttempts.bulkDelete(acknowledgedAttemptIds);
-          return {
-            stored,
-            locallyAcceptedTicketIds: await readLocallyAcceptedTicketIds(
-              eventId,
-            ),
-          };
-        },
-      );
-
-      const cached = snapshotCache;
-      if (acknowledgment.stored && cached?.stored.eventId === eventId) {
-        snapshotCache = createSnapshotCache(
-          acknowledgment.stored,
-          acknowledgment.locallyAcceptedTicketIds,
-        );
+          break;
+        case "not_checked_in":
+          changes.existingCheckInState ??= "not_checked_in";
+          break;
+        default:
+          continue;
       }
-    });
-  }
-
-  async function countAllPendingScanAttempts() {
-    return database.pendingScanAttempts.count();
+      changesByTicket.set(result.ticketId, changes);
+    }
+    await database.transaction(
+      "rw",
+      database.tickets,
+      database.pendingScanAttempts,
+      async () => {
+        for (const [ticketId, changes] of changesByTicket) {
+          await database.tickets.update([eventId, ticketId], changes);
+        }
+        const pending = await database.pendingScanAttempts.bulkGet(
+          acknowledgedAttemptIds,
+        );
+        await database.pendingScanAttempts.bulkDelete(
+          pending.flatMap((attempt) =>
+            attempt?.eventId === eventId ? [attempt.id] : [],
+          ),
+        );
+      },
+    );
   }
 
   async function purgeEventIfClosedAndAcknowledged(
     eventId: string,
-    checkInClosesAt: string,
     now = new Date(),
   ) {
-    return enqueueSnapshotMutation(async () => {
-      const isClosed = now.getTime() >= new Date(checkInClosesAt).getTime();
-      const pendingCount = await countPendingScanAttempts(eventId);
-      if (
-        shouldPurgeCachedEvent({
-          checkInClosed: isClosed,
-          pendingAttemptCount: pendingCount,
-        })
-      ) {
-        const cached = await database.snapshots.get(eventId);
-        if (cached) {
-          await database.snapshots.delete(eventId);
-          if (snapshotCache?.stored.eventId === eventId) {
-            snapshotCache = null;
-            snapshotCacheLoaded = true;
-          }
-          return true;
-        }
-        if (snapshotCache?.stored.eventId === eventId) {
-          snapshotCache = null;
-          snapshotCacheLoaded = true;
-        }
-      }
-      return false;
-    });
-  }
-
-  function close() {
-    snapshotCache = null;
-    snapshotCacheLoaded = false;
-    database.close();
+    return database.transaction(
+      "rw",
+      database.snapshots,
+      database.tickets,
+      database.pendingScanAttempts,
+      async () => {
+        const stored = await database.snapshots.get(eventId);
+        if (
+          !stored ||
+          now < new Date(stored.snapshot.event.checkInClosesAt) ||
+          (await countPendingScanAttempts(eventId)) > 0
+        )
+          return false;
+        await database.snapshots.delete(eventId);
+        await database.tickets.where("eventId").equals(eventId).delete();
+        return true;
+      },
+    );
   }
 
   return {
     getOrCreateScannerDevice,
     updateScannerDeviceLabel,
     getCachedSnapshot,
-    getCachedTicket,
-    getCachedTicketByCode,
+    getVerificationContext,
     cacheSnapshot,
-    captureAttemptTiming,
+    recordScan,
     countPendingScanAttempts,
-    countAllPendingScanAttempts,
+    countAllPendingScanAttempts: () => database.pendingScanAttempts.count(),
     purgeEventIfClosedAndAcknowledged,
-    savePendingScanAttempt,
-    hasLocallyAcceptedTicket,
     listPendingScanAttempts,
     applyAdmissionResults,
-    close,
+    close: () => database.close(),
   };
 }
 

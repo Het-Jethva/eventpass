@@ -7,7 +7,7 @@ import { z } from "zod";
 import {
   CheckInConflictError,
   resolveCheckInConflict,
-} from "@/features/admission/server/synchronize-offline";
+} from "@/features/admission/server/check-in-conflict-resolution";
 import {
   CheckInCorrectionError,
   reverseCheckIn,

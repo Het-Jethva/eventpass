@@ -7,7 +7,7 @@ import { event, eventStaff, registration } from "@/lib/db/schema";
 
 import { lockEventForMutation } from "./event-suspension";
 
-export class EventCannotReturnToDraftError extends Error {}
+class EventCannotReturnToDraftError extends Error {}
 
 export async function returnEventToDraft(eventId: string, actorUserId: string) {
   return db.transaction(async (transaction) => {

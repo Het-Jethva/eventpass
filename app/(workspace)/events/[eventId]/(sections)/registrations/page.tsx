@@ -14,7 +14,7 @@ import {
   decodeRosterCursor,
   encodeRosterCursor,
 } from "@/features/registration/server/get-event-roster";
-import { queryEventRoster } from "@/features/registration/server/event-roster";
+import { getEventRoster } from "@/features/registration/server/get-event-roster";
 import { RegistrationImportWorkspace } from "@/features/registration-import/registration-import-workspace";
 import { getActiveStaffSession } from "@/lib/staff-session";
 
@@ -123,7 +123,7 @@ async function RosterResults({
   cursorParam: string | undefined;
   basePath: string;
 }) {
-  const roster = await queryEventRoster({
+  const roster = await getEventRoster({
     eventId,
     actorUserId,
     searchQuery,

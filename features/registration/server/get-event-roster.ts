@@ -14,7 +14,17 @@ import {
   sql,
 } from "drizzle-orm";
 
-import type { DatabaseClient } from "@/lib/db";
+import type { RosterFilter } from "@/features/registration/roster-filters";
+import {
+  parseAdmissionOfferStatus,
+  parseRegistrationSource,
+  parseRegistrationStatus,
+  parseTicketStatus,
+  resolveRosterStatus,
+  type RegistrationSource,
+  type RosterStatus,
+} from "@/features/registration/roster-status";
+import { db } from "@/lib/db";
 import {
   admissionOffer,
   capacityHold,
@@ -28,16 +38,6 @@ import {
   ticket,
 } from "@/lib/db/schema";
 import { escapeLikePattern } from "@/lib/like-pattern";
-import type { RosterFilter } from "@/features/registration/roster-filters";
-import {
-  parseAdmissionOfferStatus,
-  parseRegistrationSource,
-  parseRegistrationStatus,
-  parseTicketStatus,
-  resolveRosterStatus,
-  type RegistrationSource,
-  type RosterStatus,
-} from "@/features/registration/roster-status";
 
 /**
  * The Organizer's attendee roster.
@@ -55,14 +55,14 @@ import {
 
 export const ROSTER_PAGE_SIZE = 25;
 
-export type RosterAnswer = {
+type RosterAnswer = {
   fieldId: string;
   label: string;
   archived: boolean;
   value: string;
 };
 
-export type RosterRow = {
+type RosterRow = {
   registrationId: string;
   attendeeName: string;
   email: string;
@@ -129,7 +129,9 @@ function cursorTimestamp(value: string): string | null {
   return value;
 }
 
-export function decodeRosterCursor(value: string | undefined): RosterCursor | null {
+export function decodeRosterCursor(
+  value: string | undefined,
+): RosterCursor | null {
   if (!value) return null;
   try {
     const [timestamp, registrationId] = Buffer.from(value, "base64url")
@@ -174,28 +176,20 @@ function resolveChoiceAnswerValue(
   return value;
 }
 
-/**
- * Takes its database handle so integration tests can pass a transaction and
- * roll back, the way the application services in `features/*​/server` do.
- * `queryEventRoster` in this directory binds it to the real `db`.
- */
 export async function getEventRoster({
-  db,
   eventId,
   actorUserId,
   searchQuery,
   filter,
   cursor,
-  now = new Date(),
 }: {
-  db: DatabaseClient;
   eventId: string;
   actorUserId: string;
   searchQuery?: string;
   filter?: RosterFilter;
   cursor?: RosterCursor | null;
-  now?: Date;
 }): Promise<EventRoster | null> {
+  const now = new Date();
   const activeFilter = filter ?? "all";
   const trimmedQuery = searchQuery?.trim() ?? "";
 
@@ -284,9 +278,10 @@ export async function getEventRoster({
         status: registration.status,
         source: registration.source,
         createdAt: registration.createdAt,
-        registeredAtText: sql<string>`to_char(${registration.createdAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`.mapWith(
-          String,
-        ),
+        registeredAtText:
+          sql<string>`to_char(${registration.createdAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`.mapWith(
+            String,
+          ),
       })
       .from(registration)
       .where(pageCondition)
@@ -294,10 +289,7 @@ export async function getEventRoster({
       // One extra row tells us whether a further page exists without a second
       // count query.
       .limit(ROSTER_PAGE_SIZE + 1),
-    db
-      .select({ value: count() })
-      .from(registration)
-      .where(matchCondition),
+    db.select({ value: count() }).from(registration).where(matchCondition),
     db.select({ value: count() }).from(registration).where(scopeCondition),
   ]);
 
@@ -441,7 +433,9 @@ export async function getEventRoster({
       label: row.label,
       archived: row.archived,
       value: formatAnswerValue(
-        isChoice ? resolveChoiceAnswerValue(row.value, choiceLabels) : row.value,
+        isChoice
+          ? resolveChoiceAnswerValue(row.value, choiceLabels)
+          : row.value,
       ),
     });
     answersByRegistration.set(row.registrationId, bucket);

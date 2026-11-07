@@ -1,7 +1,6 @@
 import "server-only";
 
-import { randomBytes } from "node:crypto";
-import { drizzleAdapter } from "@better-auth/drizzle-adapter";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
@@ -11,14 +10,9 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { getConfiguredApplicationUrl } from "@/lib/application-url";
-import { digestTokenBase64Url } from "@/lib/bearer-token-digest";
-import {
-  sendStaffMagicLink,
-  StaffMagicLinkDeliveryError,
-} from "@/lib/email/send-staff-magic-link";
+import { sendStaffMagicLink } from "@/lib/email/send-staff-magic-link";
 
 const MAGIC_LINK_SECONDS = 60 * 15;
-const MAX_MAGIC_LINK_DELIVERIES = 3;
 
 export const auth = betterAuth({
   appName: "EventPass",
@@ -81,45 +75,7 @@ export const auth = betterAuth({
     magicLink({
       expiresIn: MAGIC_LINK_SECONDS,
       storeToken: "hashed",
-      sendMagicLink: async ({ email, token, url }, context) => {
-        let currentToken = token;
-        let currentUrl = url;
-
-        for (let attempt = 1; attempt <= MAX_MAGIC_LINK_DELIVERIES; attempt += 1) {
-          try {
-            await sendStaffMagicLink(email, currentUrl);
-            return;
-          } catch (error) {
-            if (
-              !(error instanceof StaffMagicLinkDeliveryError) ||
-              !error.retryable ||
-              !context ||
-              attempt === MAX_MAGIC_LINK_DELIVERIES
-            ) {
-              throw error;
-            }
-
-            const identifier = digestTokenBase64Url(currentToken);
-            const verification =
-              await context.context.internalAdapter.findVerificationValue(identifier);
-
-            if (!verification) {
-              throw error;
-            }
-
-            await context.context.internalAdapter.deleteVerificationByIdentifier(identifier);
-            currentToken = randomBytes(32).toString("base64url");
-            await context.context.internalAdapter.createVerificationValue({
-              expiresAt: new Date(Date.now() + MAGIC_LINK_SECONDS * 1_000),
-              identifier: digestTokenBase64Url(currentToken),
-              value: verification.value,
-            });
-            const nextUrl = new URL(currentUrl);
-            nextUrl.searchParams.set("token", currentToken);
-            currentUrl = nextUrl.toString();
-          }
-        }
-      },
+      sendMagicLink: ({ email, url }) => sendStaffMagicLink(email, url),
     }),
     nextCookies(),
   ],

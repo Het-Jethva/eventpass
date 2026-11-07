@@ -1,10 +1,7 @@
 export const OFFLINE_EVENT_SNAPSHOT_VERSION = 1 as const;
 
 export type OfflineTicketValidityState =
-  | "active"
-  | "canceled"
-  | "replaced"
-  | "expired";
+  "active" | "canceled" | "replaced" | "expired";
 
 export type OfflineEventSnapshot = {
   version: typeof OFFLINE_EVENT_SNAPSHOT_VERSION;
@@ -41,7 +38,7 @@ export type ScannerPreparationResult =
   | { outcome: "event_unavailable" };
 
 export function getSnapshotReadiness(
-  snapshot: OfflineEventSnapshot,
+  snapshot: Pick<OfflineEventSnapshot, "generatedAt" | "event">,
   now: Date,
 ): "ready" | "refresh_required" | "authorization_expired" {
   if (now >= new Date(snapshot.event.checkInClosesAt)) {
@@ -55,4 +52,3 @@ export function getSnapshotReadiness(
   }
   return "ready";
 }
-

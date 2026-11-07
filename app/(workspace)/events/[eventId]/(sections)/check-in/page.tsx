@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import { getOrganizerEvent } from "@/features/events/server/get-event";
-import { listCheckInConflicts } from "@/features/admission/server/synchronize-offline";
+import { listCheckInConflicts } from "@/features/admission/server/check-in-conflict-resolution";
 import { listActiveCheckIns } from "@/features/admission/server/check-in-corrections";
 import { ReasonedCheckInAction } from "@/features/admission/reasoned-check-in-action";
 import { ActiveCheckInSearch } from "@/features/admission/active-check-in-search";

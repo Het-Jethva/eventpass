@@ -19,7 +19,7 @@ import { formatEventRange } from "@/lib/format-event-range";
 import { PrintTicketButton } from "@/features/tickets/print-ticket-button";
 import { RegistrationManagementControls } from "@/features/tickets/registration-management-controls";
 import { TicketStub } from "@/features/tickets/ticket-stub";
-import { getManagementView } from "@/features/tickets/server/tickets";
+import { getManagementView } from "@/features/tickets/server/registration-management";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -50,7 +50,8 @@ export default async function TicketPage({
   const management = await getManagementView(token);
   if (!management) notFound();
 
-  const activeTicket = management.ticket?.status === "active" ? management.ticket : null;
+  const activeTicket =
+    management.ticket?.status === "active" ? management.ticket : null;
   const qrDataUrl = activeTicket
     ? await QRCode.toDataURL(activeTicket.signedPayload, {
         errorCorrectionLevel: "M",
@@ -58,7 +59,9 @@ export default async function TicketPage({
         width: 480,
       })
     : null;
-  const formattedCode = activeTicket ? formatTicketCode(activeTicket.code) : null;
+  const formattedCode = activeTicket
+    ? formatTicketCode(activeTicket.code)
+    : null;
   const deliveryFailed = query.delivery === "failed";
 
   return (
@@ -165,7 +168,10 @@ export default async function TicketPage({
             </div>
             <div className="grid gap-2 py-5 sm:grid-cols-[9rem_1fr]">
               <dt className="flex items-start gap-2 font-medium">
-                <IconMapPin aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+                <IconMapPin
+                  aria-hidden="true"
+                  className="mt-0.5 size-5 shrink-0"
+                />
                 Venue
               </dt>
               <dd className="text-muted-foreground">
@@ -181,8 +187,8 @@ export default async function TicketPage({
             <IconShieldCheck aria-hidden="true" />
             <AlertTitle>Keep this management link private</AlertTitle>
             <AlertDescription>
-              It provides access to this registration. Share only the QR
-              code or the ticket code when checking in.
+              It provides access to this registration. Share only the QR code or
+              the ticket code when checking in.
             </AlertDescription>
           </Alert>
 

@@ -5,7 +5,6 @@ import { IconDownload, IconRefresh } from "@tabler/icons-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { offlineScannerStore } from "./offline-snapshot-store";
-import { shouldDeferUpdate } from "./pwa-update-policy";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -28,7 +27,7 @@ export function PwaUpdateManager() {
   const [updateWaiting, setUpdateWaiting] = useState<ServiceWorker | null>(
     null,
   );
-  const [pendingAttempts, setPendingAttempts] = useState(0);
+  const [pendingAttempts, setPendingAttempts] = useState<number | null>(null);
 
   const [isStandalone] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
@@ -39,41 +38,54 @@ export function PwaUpdateManager() {
   });
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    let active = true;
+    let registration: ServiceWorkerRegistration | null = null;
+    let installingWorker: ServiceWorker | null = null;
+    let refreshing = false;
+    const handleControllerChange = () => {
+      if (!refreshing) {
+        refreshing = true;
+        window.location.reload();
+      }
+    };
+    const handleWorkerStateChange = () => {
+      if (
+        installingWorker?.state === "installed" &&
+        navigator.serviceWorker.controller
+      ) {
+        setUpdateWaiting(installingWorker);
+      }
+    };
+    const handleUpdateFound = () => {
+      installingWorker?.removeEventListener(
+        "statechange",
+        handleWorkerStateChange,
+      );
+      installingWorker = registration?.installing ?? null;
+      installingWorker?.addEventListener(
+        "statechange",
+        handleWorkerStateChange,
+      );
+    };
 
-    // Register service worker and handle updates
     if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
       navigator.serviceWorker
         .register("/sw.js")
-        .then((registration) => {
-          if (registration.waiting) {
-            setUpdateWaiting(registration.waiting);
-          }
-
-          registration.addEventListener("updatefound", () => {
-            const installingWorker = registration.installing;
-            if (!installingWorker) return;
-            installingWorker.addEventListener("statechange", () => {
-              if (
-                installingWorker.state === "installed" &&
-                navigator.serviceWorker.controller
-              ) {
-                setUpdateWaiting(installingWorker);
-              }
-            });
-          });
+        .then((registered) => {
+          if (!active) return;
+          registration = registered;
+          if (registered.waiting) setUpdateWaiting(registered.waiting);
+          registered.addEventListener("updatefound", handleUpdateFound);
+          handleUpdateFound();
         })
         .catch(() => {
           // Service worker registration error handled silently
         });
 
-      let refreshing = false;
-      navigator.serviceWorker.addEventListener("controllerchange", () => {
-        if (!refreshing) {
-          refreshing = true;
-          window.location.reload();
-        }
-      });
+      navigator.serviceWorker.addEventListener(
+        "controllerchange",
+        handleControllerChange,
+      );
     }
 
     // Capture install prompt
@@ -86,6 +98,16 @@ export function PwaUpdateManager() {
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
 
     return () => {
+      active = false;
+      registration?.removeEventListener("updatefound", handleUpdateFound);
+      installingWorker?.removeEventListener(
+        "statechange",
+        handleWorkerStateChange,
+      );
+      navigator.serviceWorker?.removeEventListener(
+        "controllerchange",
+        handleControllerChange,
+      );
       window.removeEventListener(
         "beforeinstallprompt",
         handleBeforeInstallPrompt,
@@ -93,15 +115,19 @@ export function PwaUpdateManager() {
     };
   }, []);
 
-  // Check pending attempt count periodically or when update waiting is set
   useEffect(() => {
     let active = true;
     async function checkPending() {
       try {
         const count = await offlineScannerStore.countAllPendingScanAttempts();
-        if (active) setPendingAttempts(count);
+        if (active) {
+          setPendingAttempts(count);
+          if (updateWaiting && count === 0) {
+            updateWaiting.postMessage({ type: "SKIP_WAITING" });
+          }
+        }
       } catch {
-        // Dexie access error handled safely
+        if (active) setPendingAttempts(null);
       }
     }
     void checkPending();
@@ -110,18 +136,9 @@ export function PwaUpdateManager() {
       active = false;
       window.clearInterval(interval);
     };
-  }, []);
+  }, [updateWaiting]);
 
-  const updateBlocked = shouldDeferUpdate({
-    pendingAttemptCount: pendingAttempts,
-  });
-
-  // Apply deferred update if 0 pending attempts remain
-  useEffect(() => {
-    if (updateWaiting && !updateBlocked) {
-      updateWaiting.postMessage({ type: "SKIP_WAITING" });
-    }
-  }, [updateWaiting, updateBlocked]);
+  const updateBlocked = pendingAttempts === null || pendingAttempts > 0;
 
   async function handleInstallClick() {
     if (!deferredPrompt) return;
@@ -132,9 +149,14 @@ export function PwaUpdateManager() {
     }
   }
 
-  function handleApplyUpdateNow() {
-    if (updateWaiting && !updateBlocked) {
-      updateWaiting.postMessage({ type: "SKIP_WAITING" });
+  async function handleApplyUpdateNow() {
+    if (!updateWaiting) return;
+    try {
+      const count = await offlineScannerStore.countAllPendingScanAttempts();
+      setPendingAttempts(count);
+      if (count === 0) updateWaiting.postMessage({ type: "SKIP_WAITING" });
+    } catch {
+      setPendingAttempts(null);
     }
   }
 
@@ -152,16 +174,18 @@ export function PwaUpdateManager() {
           </AlertTitle>
           <AlertDescription className="mt-1 text-sm flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <span>
-              {updateBlocked
-                ? `${pendingAttempts} scan${pendingAttempts === 1 ? "" : "s"} on this device have not synced yet. The update applies once they do.`
-                : "An update is ready for installation."}
+              {pendingAttempts === null
+                ? "Checking this device for unsynced scans. Updates wait until the queue is confirmed empty."
+                : updateBlocked
+                  ? `${pendingAttempts} scan${pendingAttempts === 1 ? "" : "s"} on this device have not synced yet. The update applies once they do.`
+                  : "An update is ready for installation."}
             </span>
             {!updateBlocked ? (
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
-                onClick={handleApplyUpdateNow}
+                onClick={() => void handleApplyUpdateNow()}
               >
                 Reload to update
               </Button>

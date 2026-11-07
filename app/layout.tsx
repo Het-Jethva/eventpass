@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { getConfiguredApplicationUrl } from "@/lib/application-url";
 import "./globals.css";
 
 // The whole product speaks in one face. Geist Sans is variable, so a headline
@@ -19,7 +20,7 @@ const geistMono = Geist_Mono({
   weight: ["400", "500"],
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://eventpass.hetjethva.tech";
+const siteUrl = getConfiguredApplicationUrl();
 const siteDescription =
   "Event registration, tickets, and door check-in, on a scanner that keeps working when the venue network does not.";
 
@@ -93,27 +94,6 @@ window.addEventListener('storage',function(e){if(!e.key||e.key===K)apply()});
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',apply);
 })();`;
 
-// Shipped in the page source for whoever opens view-source on the product.
-const DESIGN_CONTRACT = `<!--
-EventPass design contract.
-
-ONE VOICE: Geist Sans carries every heading, control, table cell and door
-decision. There is no display face. Hierarchy is size, weight and spacing;
-leading and letter-spacing are bound to each step of the type scale, never set
-per element. The mono face is for ticket codes, web addresses and timestamps
-only.
-
-SURFACE: Near-monochrome neutrals, flat, separated by hairlines. One elevation
-system. Unmodified shadcn primitives.
-
-COLOUR IS STATE: Saturated colour appears only where the product is reporting
-something — accepted, not yet confirmed, repeated, refused. Never decoration.
-An offline yes never renders in the colour of a confirmed one.
-
-TOKENS: Every colour, radius, weight and type size comes from globals.css.
-No raw values, no per-component palettes.
--->`;
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -128,12 +108,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
-      <body className="flex min-h-full flex-col">
-        {/* The design contract as a real HTML comment. A JSX comment is a
-            JavaScript comment. The compiler drops it. */}
-        <div hidden aria-hidden="true" dangerouslySetInnerHTML={{ __html: DESIGN_CONTRACT }} />
-        {children}
-      </body>
+      <body className="flex min-h-full flex-col">{children}</body>
     </html>
   );
 }

@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 
-import { verifyRegistration } from "@/features/tickets/server/tickets";
+import { verifyRegistration } from "@/features/tickets/server/registration-confirmation";
 
 export async function confirmRegistrationVerificationAction(
   slug: string,

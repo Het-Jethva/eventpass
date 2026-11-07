@@ -4,11 +4,31 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 
 import { parseRegistrationFieldAnswerType } from "@/features/registration/registration-form-schema";
 import type { PublicRegistrationField } from "@/features/registration/registration-submission";
-import { db } from "@/lib/db";
+import { db, type DatabaseClient } from "@/lib/db";
 import { registrationField, registrationFieldChoice } from "@/lib/db/schema";
 
-export async function getPublicRegistrationForm(eventId: string) {
-  const fields = await db
+type FormReader = Pick<DatabaseClient, "select">;
+
+export function getPublicRegistrationForm(
+  eventId: string,
+  reader: FormReader = db,
+) {
+  return readRegistrationForm(eventId, reader, false);
+}
+
+export function getHistoricalRegistrationForm(
+  eventId: string,
+  reader: FormReader = db,
+) {
+  return readRegistrationForm(eventId, reader, true);
+}
+
+async function readRegistrationForm(
+  eventId: string,
+  reader: FormReader,
+  includeArchived: boolean,
+) {
+  const fields = await reader
     .select({
       id: registrationField.id,
       answerType: registrationField.answerType,
@@ -18,17 +38,19 @@ export async function getPublicRegistrationForm(eventId: string) {
     })
     .from(registrationField)
     .where(
-      and(
-        eq(registrationField.eventId, eventId),
-        eq(registrationField.archived, false),
-      ),
+      includeArchived
+        ? eq(registrationField.eventId, eventId)
+        : and(
+            eq(registrationField.eventId, eventId),
+            eq(registrationField.archived, false),
+          ),
     )
     .orderBy(asc(registrationField.position), asc(registrationField.id));
 
   const choices =
     fields.length === 0
       ? []
-      : await db
+      : await reader
           .select({
             id: registrationFieldChoice.id,
             fieldId: registrationFieldChoice.fieldId,
@@ -36,23 +58,25 @@ export async function getPublicRegistrationForm(eventId: string) {
           })
           .from(registrationFieldChoice)
           .where(
-            and(
-              inArray(
-                registrationFieldChoice.fieldId,
-                fields.map(({ id }) => id),
-              ),
-              eq(registrationFieldChoice.archived, false),
-            ),
+            includeArchived
+              ? inArray(
+                  registrationFieldChoice.fieldId,
+                  fields.map(({ id }) => id),
+                )
+              : and(
+                  inArray(
+                    registrationFieldChoice.fieldId,
+                    fields.map(({ id }) => id),
+                  ),
+                  eq(registrationFieldChoice.archived, false),
+                ),
           )
           .orderBy(
             asc(registrationFieldChoice.position),
             asc(registrationFieldChoice.id),
           );
 
-  const choicesByField = new Map<
-    string,
-    PublicRegistrationField["choices"]
-  >();
+  const choicesByField = new Map<string, PublicRegistrationField["choices"]>();
   for (const choice of choices) {
     const fieldChoices = choicesByField.get(choice.fieldId) ?? [];
     fieldChoices.push({ id: choice.id, label: choice.label });

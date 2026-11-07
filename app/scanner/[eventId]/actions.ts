@@ -8,7 +8,7 @@ import {
   reverseCheckIn,
 } from "@/features/admission/server/check-in-corrections";
 import { EventSuspendedError } from "@/features/events/server/event-suspension";
-import type { AdmissionResult } from "@/features/admission/server/admission-application";
+import type { AdmissionResult } from "@/features/admission/admission";
 import type { ScannerPreparationResult } from "@/features/admission/offline-snapshot";
 import { prepareOfflineScanner } from "@/features/admission/server/prepare-scanner";
 import { getActiveStaffSession } from "@/lib/staff-session";

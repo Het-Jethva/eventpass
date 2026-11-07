@@ -1,14 +1,10 @@
 import { parseEnum } from "@/lib/parse-enum";
 
-export const eventStaffRoles = [
-  "owner",
-  "organizer",
-  "check_in_volunteer",
-] as const;
+const eventStaffRoles = ["owner", "organizer", "check_in_volunteer"] as const;
 
 export type EventStaffRole = (typeof eventStaffRoles)[number];
 
-export const inviteableStaffRoles = ["organizer", "check_in_volunteer"] as const;
+const inviteableStaffRoles = ["organizer", "check_in_volunteer"] as const;
 
 export type InviteableStaffRole = (typeof inviteableStaffRoles)[number];
 
@@ -39,7 +35,7 @@ function staffRoleRank(role: string | null | undefined) {
   return -1;
 }
 
-export function roleSatisfiesMinimum(
+function roleSatisfiesMinimum(
   role: string | null | undefined,
   minimum: EventStaffRole,
 ) {
@@ -58,12 +54,16 @@ export function canManageRole(
   actorRole: EventStaffRole,
   targetRole: InviteableStaffRole,
 ) {
-  return actorRole === "owner" ||
-    (actorRole === "organizer" && targetRole === "check_in_volunteer");
+  return (
+    actorRole === "owner" ||
+    (actorRole === "organizer" && targetRole === "check_in_volunteer")
+  );
 }
 
 export function staffEventHomePath(role: string, eventId: string) {
-  return role === "check_in_volunteer" ? `/scanner/${eventId}` : `/events/${eventId}`;
+  return role === "check_in_volunteer"
+    ? `/scanner/${eventId}`
+    : `/events/${eventId}`;
 }
 
 export function scannerExitPath(role: string, eventId: string) {

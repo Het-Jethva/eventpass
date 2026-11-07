@@ -29,8 +29,6 @@ const eventSelection = {
   suspended: event.suspended,
 };
 
-export type EventDetails = typeof event.$inferSelect;
-
 // Deduplicated per request: the event workspace layout and the page rendering
 // inside it both need the Event, and without this each render pass would issue
 // the same query twice.

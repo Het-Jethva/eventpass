@@ -3,7 +3,7 @@
  * the same Ticket synchronize from different offline devices, the earliest
  * high-confidence attempt becomes the Check-in on its own; low-confidence
  * collisions need a reasoned Organizer selection and stay visible as a
- * conflict. See ADR 0001.
+ * conflict.
  *
  * The arbiter answers what should happen as plain data. The synchronization
  * loop executes the directive: invalidating and creating Check-ins,
@@ -101,11 +101,11 @@ export function arbitrateCheckInConflict(values: {
 
   const hasLowConfidence =
     attempt.timestampConfidence === "low" ||
-    competing.some(
-      (candidate) => candidate.timestampConfidence === "low",
-    );
+    competing.some((candidate) => candidate.timestampConfidence === "low");
   if (
-    hasLowConfidence && activeCheckIn && currentConflictStatus === "resolved_auto"
+    hasLowConfidence &&
+    activeCheckIn &&
+    currentConflictStatus === "resolved_auto"
   ) {
     return {
       attemptOutcome: "duplicate",

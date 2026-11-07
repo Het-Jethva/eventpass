@@ -9,9 +9,8 @@ import {
 import { decodeCanonicalBase64Url, encodeBase64Url } from "@/lib/base64url";
 import { isRecord } from "@/lib/is-record";
 
-export const SCANNER_AUTHORIZATION_VERSION = 1 as const;
-export const SCANNER_AUTHORIZATION_JWS_TYPE =
-  "eventpass-scanner-authorization+jws";
+const SCANNER_AUTHORIZATION_VERSION = 1 as const;
+const SCANNER_AUTHORIZATION_JWS_TYPE = "eventpass-scanner-authorization+jws";
 
 export type ScannerAuthorizationPayload = {
   eventId: string;
@@ -52,7 +51,9 @@ function encodeJson(value: object) {
 }
 
 function decodeJson(segment: string): unknown {
-  return JSON.parse(new TextDecoder().decode(decodeCanonicalBase64Url(segment)));
+  return JSON.parse(
+    new TextDecoder().decode(decodeCanonicalBase64Url(segment)),
+  );
 }
 
 function hasExactKeys(value: object, expected: string[]) {
@@ -93,7 +94,8 @@ function parsePayload(value: unknown): ScannerAuthorizationPayload {
   ) {
     throw new Error("Unsupported Scanner Authorization payload.");
   }
-  const { eventId, expiresAt, issuedAt, scannerDeviceId, volunteerUserId } = value;
+  const { eventId, expiresAt, issuedAt, scannerDeviceId, volunteerUserId } =
+    value;
   if (
     typeof eventId !== "string" ||
     eventId.length === 0 ||

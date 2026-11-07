@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 
-import { claimAdmissionOffer } from "@/features/tickets/server/tickets";
+import { claimAdmissionOffer } from "@/features/tickets/server/registration-confirmation";
 
 export async function claimAdmissionOfferAction(token: string) {
   const result = await claimAdmissionOffer(token);

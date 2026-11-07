@@ -16,7 +16,7 @@ export const SAMPLE_EVENT = {
   ticketCode: "7QM4X-K3B9T",
 } as const;
 
-export type DemoScanVariant = "success" | "provisional" | "warning";
+type DemoScanVariant = "success" | "provisional" | "warning";
 
 export type DemoScan = {
   id: string;
@@ -83,12 +83,9 @@ export function getDashboardStats(state: {
 }) {
   const registeredCount =
     SAMPLE_EVENT.baseRegistered + (state.registered ? 1 : 0);
-  const checkedInCount =
-    SAMPLE_EVENT.baseCheckedIn + (state.admitted ? 1 : 0);
+  const checkedInCount = SAMPLE_EVENT.baseCheckedIn + (state.admitted ? 1 : 0);
   const remaining = SAMPLE_EVENT.capacity - registeredCount;
-  const percent = Math.round(
-    (checkedInCount / SAMPLE_EVENT.capacity) * 100,
-  );
+  const percent = Math.round((checkedInCount / SAMPLE_EVENT.capacity) * 100);
   return { registeredCount, checkedInCount, remaining, percent };
 }
 
@@ -107,8 +104,14 @@ export function getRecentScans(state: {
       variant: state.scan.kind === "offline" ? "provisional" : "success",
     });
     if (state.scan.repeated) {
-      rows.unshift({ id: "guest-repeat", name: state.guestName,
-        code: "7QM4X–K3B9T", time: "19:43:05", label: "Repeat scan", variant: "warning" });
+      rows.unshift({
+        id: "guest-repeat",
+        name: state.guestName,
+        code: "7QM4X–K3B9T",
+        time: "19:43:05",
+        label: "Repeat scan",
+        variant: "warning",
+      });
     }
   }
   return rows.slice(0, 5);
@@ -131,9 +134,10 @@ export function getAuditEntries(state: {
     rows.unshift({
       id: "check-in",
       time: "19:42:18",
-      text: state.scan.kind === "offline" || state.scan.kind === "synced"
-        ? `${state.guestName}'s check-in saved on this phone while offline.`
-        : `${state.guestName} checked in at the north entrance.`,
+      text:
+        state.scan.kind === "offline" || state.scan.kind === "synced"
+          ? `${state.guestName}'s check-in saved on this phone while offline.`
+          : `${state.guestName} checked in at the north entrance.`,
     });
   }
   if (state.scan.kind === "synced") {
@@ -144,7 +148,11 @@ export function getAuditEntries(state: {
     });
   }
   if (state.scan.kind !== "ready" && state.scan.repeated) {
-    rows.unshift({ id: "repeat", time: "19:43:05", text: "Repeat scan blocked. No additional arrival counted." });
+    rows.unshift({
+      id: "repeat",
+      time: "19:43:05",
+      text: "Repeat scan blocked. No additional arrival counted.",
+    });
   }
   return rows.slice(0, 5);
 }

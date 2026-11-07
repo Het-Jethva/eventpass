@@ -1,9 +1,8 @@
 import "server-only";
 
-import type { DatabaseClient } from "@/lib/db";
-
 import { eq } from "drizzle-orm";
 
+import type { DatabaseTransaction } from "@/lib/db";
 import { event } from "@/lib/db/schema";
 
 export class EventSuspendedError extends Error {
@@ -13,11 +12,8 @@ export class EventSuspendedError extends Error {
   }
 }
 
-type EventDatabase = DatabaseClient;
-type EventTransaction = Parameters<Parameters<EventDatabase["transaction"]>[0]>[0];
-
 export async function lockEvent(
-  transaction: EventTransaction,
+  transaction: DatabaseTransaction,
   eventId: string,
 ) {
   const [eventRecord] = await transaction
@@ -30,7 +26,7 @@ export async function lockEvent(
   return eventRecord ?? null;
 }
 
-export function assertEventNotSuspended(eventRecord: { suspended: boolean }) {
+function assertEventNotSuspended(eventRecord: { suspended: boolean }) {
   if (eventRecord.suspended) {
     throw new EventSuspendedError();
   }
@@ -41,7 +37,7 @@ export function isEventSuspended(eventRecord: { suspended: boolean }) {
 }
 
 export async function lockEventForMutation(
-  transaction: EventTransaction,
+  transaction: DatabaseTransaction,
   eventId: string,
 ) {
   const eventRecord = await lockEvent(transaction, eventId);

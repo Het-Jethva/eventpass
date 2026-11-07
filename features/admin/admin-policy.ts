@@ -7,8 +7,10 @@ export class PlatformAdminRequiredError extends PlatformAdminError {
   }
 }
 
-export class InvalidAdminReasonError extends PlatformAdminError {
-  constructor(message = "An explicit reason is required for administrator actions.") {
+class InvalidAdminReasonError extends PlatformAdminError {
+  constructor(
+    message = "An explicit reason is required for administrator actions.",
+  ) {
     super(message);
     this.name = "InvalidAdminReasonError";
   }
@@ -23,7 +25,7 @@ export class SupportAccessRequiredError extends PlatformAdminError {
   }
 }
 
-export function parsePlatformAdminEmails(envValue?: string): string[] {
+function parsePlatformAdminEmails(envValue?: string): string[] {
   if (!envValue) return [];
   return envValue
     .split(",")
@@ -50,7 +52,8 @@ export function isPlatformAdmin({
 
   const normalized = userEmail.trim().toLowerCase();
   const adminEmails =
-    configuredAdminEmails ?? parsePlatformAdminEmails(process.env.PLATFORM_ADMIN_EMAILS);
+    configuredAdminEmails ??
+    parsePlatformAdminEmails(process.env.PLATFORM_ADMIN_EMAILS);
 
   return adminEmails.includes(normalized);
 }

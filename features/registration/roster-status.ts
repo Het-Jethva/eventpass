@@ -18,7 +18,7 @@ import { parseEnum } from "@/lib/parse-enum";
 
 // Drizzle types these `text` columns as `string`. The database check
 // constraints are the enums, so each read parses back into that list.
-export const registrationStatuses = [
+const registrationStatuses = [
   "unconfirmed",
   "confirmed",
   "waitlisted",
@@ -28,15 +28,15 @@ export const registrationStatuses = [
 
 export type RegistrationStatus = (typeof registrationStatuses)[number];
 
-export const ticketStatuses = ["active", "replaced", "canceled"] as const;
+const ticketStatuses = ["active", "replaced", "canceled"] as const;
 
 export type TicketStatus = (typeof ticketStatuses)[number];
 
-export const admissionOfferStatuses = ["active", "claimed", "expired"] as const;
+const admissionOfferStatuses = ["active", "claimed", "expired"] as const;
 
 export type AdmissionOfferStatus = (typeof admissionOfferStatuses)[number];
 
-export const registrationSources = ["attendee", "imported"] as const;
+const registrationSources = ["attendee", "imported"] as const;
 
 export type RegistrationSource = (typeof registrationSources)[number];
 
@@ -71,9 +71,9 @@ export type RosterStatusKey =
  * forbidden, so these map onto existing Badge variants only. Every
  * status also carries a distinct label and icon, so none of them rely on colour.
  */
-export type RosterStatusEmphasis = "primary" | "muted" | "outline" | "destructive";
+type RosterStatusEmphasis = "primary" | "muted" | "outline" | "destructive";
 
-export type RosterStatusDeadline = {
+type RosterStatusDeadline = {
   kind: "capacity_hold" | "admission_offer";
   at: Date;
 };
@@ -127,7 +127,9 @@ export function resolveRosterStatus(
       key: "canceled",
       label: "Canceled",
       emphasis: "destructive",
-      qualifier: input.hasActiveCheckIn ? "Checked in before cancellation" : null,
+      qualifier: input.hasActiveCheckIn
+        ? "Checked in before cancellation"
+        : null,
       deadline: null,
     };
   }
@@ -165,7 +167,9 @@ export function resolveRosterStatus(
       key: "confirmed",
       label: "Confirmed",
       emphasis: "muted",
-      qualifier: ticketQualifier(input) ?? (input.hasReversedCheckIn ? "Check-in reversed" : null),
+      qualifier:
+        ticketQualifier(input) ??
+        (input.hasReversedCheckIn ? "Check-in reversed" : null),
       deadline: null,
     };
   }
@@ -204,6 +208,7 @@ export function resolveRosterStatus(
     label: "Unconfirmed",
     emphasis: "outline",
     qualifier: holdLapsed ? "Capacity Hold expired" : null,
-    deadline: holdIsLive && hold ? { kind: "capacity_hold", at: hold.expiresAt } : null,
+    deadline:
+      holdIsLive && hold ? { kind: "capacity_hold", at: hold.expiresAt } : null,
   };
 }

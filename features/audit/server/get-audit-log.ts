@@ -7,22 +7,18 @@ import {
   parseAuditPageRows,
   type AuditRow,
 } from "@/features/audit/audit-log-rows";
-import {
-  isSensitiveAuditField,
-  sanitizeAuditEntryMetadata,
-} from "@/features/audit/audit-privacy-policy";
-import type { DatabaseClient } from "@/lib/db";
+import { sanitizeAuditEntryMetadata } from "@/features/audit/audit-privacy-policy";
+import { db } from "@/lib/db";
 import { eventStaff } from "@/lib/db/schema";
 import { escapeLikePattern } from "@/lib/like-pattern";
 
-export { isSensitiveAuditField, sanitizeAuditEntryMetadata };
-
-export type AuditCategory = "all" | "privileged" | "scans" | "conflicts_reversals";
+export type AuditCategory =
+  "all" | "privileged" | "scans" | "conflicts_reversals";
 export type AuditSourceFilter = "all" | "online" | "offline";
 
 export const AUDIT_PAGE_SIZE = 50;
 
-export type FormattedAuditRecord = {
+type FormattedAuditRecord = {
   id: string;
   category: "privileged" | "scan";
   action: string;
@@ -87,7 +83,9 @@ function cursorTimestamp(value: string): string | null {
   return value;
 }
 
-export function decodeAuditCursor(value: string | undefined): AuditCursor | null {
+export function decodeAuditCursor(
+  value: string | undefined,
+): AuditCursor | null {
   if (!value) return null;
   try {
     const [timestamp, id] = Buffer.from(value, "base64url")
@@ -113,10 +111,8 @@ export function decodeAuditCursor(value: string | undefined): AuditCursor | null
  * around state. Filtering, searching and paging now all happen in Postgres over
  * the full log.
  *
- * Takes its database handle so integration tests can pass a transaction.
  */
 export async function getEventAuditLog({
-  db,
   eventId,
   actorUserId,
   category = "all",
@@ -124,7 +120,6 @@ export async function getEventAuditLog({
   searchQuery = "",
   cursor = null,
 }: {
-  db: DatabaseClient;
   eventId: string;
   actorUserId: string;
   category?: AuditCategory;
@@ -213,8 +208,7 @@ export async function getEventAuditLog({
     }
   })();
 
-  const sourceFilter =
-    source === "all" ? sql`` : sql`and source = ${source}`;
+  const sourceFilter = source === "all" ? sql`` : sql`and source = ${source}`;
 
   const trimmedQuery = searchQuery.trim();
   const likePattern = `%${escapeLikePattern(trimmedQuery)}%`;

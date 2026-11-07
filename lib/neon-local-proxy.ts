@@ -13,7 +13,7 @@ import { neonConfig } from "@neondatabase/serverless";
  * This is a no-op for any hosted database, so production is unaffected: a Neon
  * connection string never matches `isLocalPostgresUrl`.
  */
-export function isLocalPostgresUrl(databaseUrl: string | undefined): boolean {
+function isLocalPostgresUrl(databaseUrl: string | undefined): boolean {
   if (!databaseUrl) return false;
   return /@(localhost|127\.0\.0\.1|\[::1\]|[a-z0-9.-]*\blocaltest\.me)(:|\/)/i.test(
     databaseUrl,

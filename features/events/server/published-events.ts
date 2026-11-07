@@ -1,18 +1,396 @@
 import "server-only";
 
+import { and, eq, inArray, sql } from "drizzle-orm";
+import { z } from "zod";
+
+import { isOrganizerOrOwner } from "@/features/staffing/staffing-policy";
 import { db } from "@/lib/db";
-import { sendEventNotification } from "@/lib/email/send-event-notification";
+import { deliverAdmissionOfferMessages } from "@/lib/email/deliver-admission-offers";
 import { sendAdmissionOffer } from "@/lib/email/send-admission-offer";
+import { sendEventNotification } from "@/lib/email/send-event-notification";
+import { runBoundedTasks } from "@/lib/run-bounded-tasks";
 
-import { createPublishedEventApplicationService } from "./published-event-application";
+import {
+  admissionOffer,
+  auditEntry,
+  emailDelivery,
+  event,
+  eventStaff,
+  registration,
+  ticket,
+} from "../../../lib/db/schema";
+import { reconcileWaitlistInTransaction } from "../../registration/server/waitlist-reconciliation";
+import {
+  assertPostCheckInChangeAllowed,
+  PublishedEventChangeError,
+} from "../published-event-policy";
+import {
+  clampActiveOffersToRegistrationWindow,
+  decreaseDisplacesClaims,
+  EventCapacityConflictError,
+  getActiveCapacityUsage,
+} from "./capacity-ledger";
+import { createDraftEventInputSchema } from "./create-draft-event";
+import { eventScheduleInstants } from "./event-schedule";
+import { lockEventForMutation } from "./event-suspension";
 
-const application = createPublishedEventApplicationService({
-  database: db,
-  deliverNotification: async (deliveryId) => {
-    await sendEventNotification(deliveryId);
-  },
-  sendAdmissionOfferEmail: sendAdmissionOffer,
+export { PublishedEventChangeError } from "../published-event-policy";
+
+type MaterialChange = {
+  field: string;
+  before: string | number | null;
+  after: string | number | null;
+};
+
+const cancelPublishedEventInputSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(1, "Explain why this Event is being canceled.")
+    .max(1_000, "Keep the cancellation reason under 1,000 characters."),
 });
 
-export const updatePublishedEvent = application.updatePublishedEvent;
-export const cancelPublishedEvent = application.cancelPublishedEvent;
+class PublishedEventAuthorizationError extends Error {}
+class EventCancellationError extends Error {}
+
+function iso(value: Date) {
+  return value.toISOString();
+}
+
+function eventValues(input: z.output<typeof createDraftEventInputSchema>) {
+  return {
+    name: input.name,
+    description: input.description,
+    eventTimeZone: input.eventTimeZone,
+    venueName: input.venueName,
+    venueAddress: input.venueAddress,
+    venueMapUrl: input.venueMapUrl,
+    capacity: input.capacity,
+    ...eventScheduleInstants(input),
+  };
+}
+
+function materialChanges(
+  current: {
+    name: string;
+    description: string;
+    eventTimeZone: string;
+    startsAt: Date;
+    endsAt: Date;
+    venueName: string;
+    venueAddress: string;
+    venueMapUrl: string | null;
+    capacity: number;
+    registrationOpensAt: Date;
+    registrationClosesAt: Date;
+    checkInOpensAt: Date;
+    checkInClosesAt: Date;
+  },
+  next: ReturnType<typeof eventValues>,
+) {
+  const changes: MaterialChange[] = [];
+  const add = (
+    field: string,
+    before: string | number | null,
+    after: string | number | null,
+  ) => {
+    if (before !== after) changes.push({ field, before, after });
+  };
+
+  add("name", current.name, next.name);
+  add("description", current.description, next.description);
+  add("eventTimeZone", current.eventTimeZone, next.eventTimeZone);
+  add("startsAt", iso(current.startsAt), iso(next.startsAt));
+  add("endsAt", iso(current.endsAt), iso(next.endsAt));
+  add("venueName", current.venueName, next.venueName);
+  add("venueAddress", current.venueAddress, next.venueAddress);
+  add("venueMapUrl", current.venueMapUrl, next.venueMapUrl);
+  add("capacity", current.capacity, next.capacity);
+  add(
+    "registrationOpensAt",
+    iso(current.registrationOpensAt),
+    iso(next.registrationOpensAt),
+  );
+  add(
+    "registrationClosesAt",
+    iso(current.registrationClosesAt),
+    iso(next.registrationClosesAt),
+  );
+  add("checkInOpensAt", iso(current.checkInOpensAt), iso(next.checkInOpensAt));
+  add(
+    "checkInClosesAt",
+    iso(current.checkInClosesAt),
+    iso(next.checkInClosesAt),
+  );
+  return changes;
+}
+
+async function dispatch(deliveryIds: string[]) {
+  await runBoundedTasks(deliveryIds, async (deliveryId) => {
+    try {
+      await sendEventNotification(deliveryId);
+    } catch {
+      // Domain state is committed independently from delivery outcomes.
+    }
+  });
+}
+
+export async function updatePublishedEvent(
+  eventId: string,
+  actorUserId: string,
+  rawInput: unknown,
+) {
+  const input = createDraftEventInputSchema.parse(rawInput);
+  const changedAt = new Date();
+  const next = eventValues(input);
+
+  const result = await db.transaction(async (transaction) => {
+    await lockEventForMutation(transaction, eventId);
+    const [current] = await transaction
+      .select({
+        id: event.id,
+        name: event.name,
+        description: event.description,
+        slug: event.slug,
+        status: event.status,
+        eventTimeZone: event.eventTimeZone,
+        startsAt: event.startsAt,
+        endsAt: event.endsAt,
+        venueName: event.venueName,
+        venueAddress: event.venueAddress,
+        venueMapUrl: event.venueMapUrl,
+        capacity: event.capacity,
+        registrationOpensAt: event.registrationOpensAt,
+        registrationClosesAt: event.registrationClosesAt,
+        checkInOpensAt: event.checkInOpensAt,
+        checkInClosesAt: event.checkInClosesAt,
+        role: eventStaff.role,
+      })
+      .from(event)
+      .innerJoin(
+        eventStaff,
+        and(
+          eq(eventStaff.eventId, event.id),
+          eq(eventStaff.userId, actorUserId),
+        ),
+      )
+      .where(eq(event.id, eventId))
+      .limit(1);
+
+    if (
+      !current ||
+      !isOrganizerOrOwner(current.role) ||
+      current.status !== "published"
+    ) {
+      throw new PublishedEventAuthorizationError(
+        "Only an Organizer can change a Published Event.",
+      );
+    }
+    if (input.slug !== current.slug) {
+      throw new PublishedEventChangeError(
+        "The Event Slug cannot change after publication.",
+      );
+    }
+
+    if (changedAt >= current.checkInOpensAt) {
+      assertPostCheckInChangeAllowed(current, next);
+    }
+
+    await clampActiveOffersToRegistrationWindow({
+      transaction,
+      eventId,
+      registrationClosesAt: next.registrationClosesAt,
+    });
+
+    const usage = await getActiveCapacityUsage(transaction, eventId, changedAt);
+    if (decreaseDisplacesClaims(usage.claimed, next.capacity)) {
+      throw new EventCapacityConflictError(
+        `Event Capacity cannot be lower than the ${usage.claimed} existing claims.`,
+      );
+    }
+
+    const changes = materialChanges(current, next);
+    await transaction
+      .update(event)
+      .set({ ...next, updatedAt: changedAt })
+      .where(and(eq(event.id, eventId), eq(event.status, "published")));
+
+    const offerMessages = await reconcileWaitlistInTransaction({
+      transaction,
+      eventId,
+      reconciledAt: changedAt,
+    });
+
+    if (changes.length === 0) {
+      return { deliveryIds: [], changes, offerMessages };
+    }
+
+    await transaction.insert(auditEntry).values({
+      eventId,
+      actorUserId,
+      action: "event.material_change",
+      targetType: "event",
+      targetId: eventId,
+      metadata: { changes },
+      createdAt: changedAt,
+    });
+    const recipients = await transaction
+      .select({ email: registration.email })
+      .from(registration)
+      .where(
+        and(
+          eq(registration.eventId, eventId),
+          inArray(registration.status, ["confirmed", "waitlisted"]),
+        ),
+      );
+    if (recipients.length === 0) {
+      return { deliveryIds: [], changes, offerMessages };
+    }
+    const deliveries = await transaction
+      .insert(emailDelivery)
+      .values(
+        recipients.map(({ email }) => ({
+          template: "event-material-change-v1",
+          recipient: email,
+          provider: "resend",
+          eventId,
+          outcome: "pending",
+          metadata: {
+            kind: "material_change",
+            eventId,
+            eventName: current.name,
+            // The zone the Event is in after this change, so a changed
+            // schedule is read against the clock Attendees will actually use.
+            eventTimeZone: next.eventTimeZone,
+            changes,
+          },
+        })),
+      )
+      .returning({ id: emailDelivery.id });
+    return {
+      deliveryIds: deliveries.map(({ id }) => id),
+      changes,
+      offerMessages,
+    };
+  });
+
+  await Promise.all([
+    dispatch(result.deliveryIds),
+    deliverAdmissionOfferMessages(result.offerMessages, sendAdmissionOffer),
+  ]);
+  return { materialChanges: result.changes.length };
+}
+
+export async function cancelPublishedEvent(
+  eventId: string,
+  actorUserId: string,
+  rawInput: unknown,
+) {
+  const input = cancelPublishedEventInputSchema.parse(rawInput);
+  const canceledAt = new Date();
+  const result = await db.transaction(async (transaction) => {
+    await lockEventForMutation(transaction, eventId);
+    const [current] = await transaction
+      .select({
+        id: event.id,
+        name: event.name,
+        status: event.status,
+        role: eventStaff.role,
+      })
+      .from(event)
+      .innerJoin(
+        eventStaff,
+        and(
+          eq(eventStaff.eventId, event.id),
+          eq(eventStaff.userId, actorUserId),
+        ),
+      )
+      .where(eq(event.id, eventId))
+      .limit(1);
+    if (!current || current.role !== "owner") {
+      throw new PublishedEventAuthorizationError(
+        "Only the Event Owner can cancel this Event.",
+      );
+    }
+    if (current.status !== "published") {
+      throw new EventCancellationError(
+        current.status === "canceled"
+          ? "A canceled Event cannot be restored or canceled again."
+          : "Only a Published Event can be canceled.",
+      );
+    }
+
+    await transaction
+      .update(event)
+      .set({
+        status: "canceled",
+        canceledAt,
+        cancellationReason: input.reason,
+        updatedAt: canceledAt,
+      })
+      .where(and(eq(event.id, eventId), eq(event.status, "published")));
+    await transaction
+      .update(ticket)
+      .set({
+        status: "canceled",
+        invalidatedAt: canceledAt,
+      })
+      .where(and(eq(ticket.eventId, eventId), eq(ticket.status, "active")));
+    await transaction
+      .update(admissionOffer)
+      .set({ status: "expired" })
+      .where(
+        and(
+          eq(admissionOffer.status, "active"),
+          sql`exists (
+            select 1 from ${registration}
+            where ${registration.id} = ${admissionOffer.registrationId}
+              and ${registration.eventId} = ${eventId}
+          )`,
+        ),
+      );
+    await transaction.insert(auditEntry).values({
+      eventId,
+      actorUserId,
+      action: "event.canceled",
+      targetType: "event",
+      targetId: eventId,
+      reason: input.reason,
+      metadata: {},
+      createdAt: canceledAt,
+    });
+
+    const recipients = await transaction
+      .select({ email: registration.email })
+      .from(registration)
+      .where(
+        and(
+          eq(registration.eventId, eventId),
+          inArray(registration.status, ["confirmed", "waitlisted"]),
+        ),
+      );
+    if (recipients.length === 0) return [];
+    const deliveries = await transaction
+      .insert(emailDelivery)
+      .values(
+        recipients.map(({ email }) => ({
+          template: "event-canceled-v1",
+          recipient: email,
+          provider: "resend",
+          eventId,
+          outcome: "pending",
+          metadata: {
+            kind: "cancellation",
+            eventId,
+            eventName: current.name,
+            reason: input.reason,
+          },
+        })),
+      )
+      .returning({ id: emailDelivery.id });
+    return deliveries.map(({ id }) => id);
+  });
+
+  await dispatch(result);
+  return { outcome: "canceled" as const };
+}

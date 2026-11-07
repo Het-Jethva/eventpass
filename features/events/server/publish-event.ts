@@ -7,7 +7,7 @@ import { event, eventStaff } from "@/lib/db/schema";
 
 import { lockEventForMutation } from "./event-suspension";
 
-export class EventCannotBePublishedError extends Error {}
+class EventCannotBePublishedError extends Error {}
 
 export async function publishEvent(eventId: string, actorUserId: string) {
   return db.transaction(async (transaction) => {

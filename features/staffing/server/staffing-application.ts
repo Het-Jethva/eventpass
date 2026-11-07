@@ -1,20 +1,11 @@
 import "server-only";
 
 import { randomBytes } from "node:crypto";
-import {
-  and,
-  asc,
-  eq,
-  gt,
-  inArray,
-  isNull,
-  lte,
-  sql,
-} from "drizzle-orm";
+
+import { and, asc, eq, gt, inArray, isNull, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 
-import { digestTokenBase64Url } from "@/lib/bearer-token-digest";
-
+import { lockEventForMutation } from "@/features/events/server/event-suspension";
 import { normalizeStaffEmail } from "@/features/staff-identity/normalize-staff-email";
 import { evaluateStaffInvitationAcceptance } from "@/features/staffing/staff-invitation-policy";
 import {
@@ -25,7 +16,8 @@ import {
   type EventStaffRole,
   type InviteableStaffRole,
 } from "@/features/staffing/staffing-policy";
-import { db } from "@/lib/db";
+import { digestTokenBase64Url } from "@/lib/bearer-token-digest";
+import { db, type DatabaseTransaction } from "@/lib/db";
 import {
   auditEntry,
   event,
@@ -34,7 +26,6 @@ import {
   staffInvitation,
   user,
 } from "@/lib/db/schema";
-import { lockEventForMutation } from "@/features/events/server/event-suspension";
 
 const STAFF_INVITATION_TTL_MS = 24 * 60 * 60 * 1_000;
 const OWNERSHIP_TRANSFER_TTL_MS = 24 * 60 * 60 * 1_000;
@@ -44,20 +35,18 @@ export const inviteStaffInputSchema = z.object({
   role: z.enum(["organizer", "check_in_volunteer"]),
 });
 
-export type InviteStaffInput = z.input<typeof inviteStaffInputSchema>;
-
 export class StaffingAuthorizationError extends Error {}
 export class StaffingConflictError extends Error {}
-export class StaffInvitationUnavailableError extends Error {}
-export class StaffInvitationEmailMismatchError extends Error {}
-export class OwnershipTransferUnavailableError extends Error {}
+class StaffInvitationUnavailableError extends Error {}
+class StaffInvitationEmailMismatchError extends Error {}
+class OwnershipTransferUnavailableError extends Error {}
 
 function createStaffInvitationToken() {
   return randomBytes(32).toString("base64url");
 }
 
 async function findActorRole(
-  transaction: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  transaction: DatabaseTransaction,
   eventId: string,
   actorUserId: string,
 ) {
@@ -132,7 +121,9 @@ export async function createStaffInvitation(
       )
       .limit(1);
     if (existingStaff) {
-      throw new StaffingConflictError("That person already has access to this Event.");
+      throw new StaffingConflictError(
+        "That person already has access to this Event.",
+      );
     }
 
     const [pendingInvitation] = await transaction
@@ -224,9 +215,15 @@ export async function acceptStaffInvitation(
       .where(eq(user.id, actorUserId))
       .limit(1);
     if (!actor || actor.suspended) {
-      throw new StaffingAuthorizationError("This staff user cannot accept invitations.");
+      throw new StaffingAuthorizationError(
+        "This staff user cannot accept invitations.",
+      );
     }
-    const acceptance = evaluateStaffInvitationAcceptance(invitation, actor.email, now);
+    const acceptance = evaluateStaffInvitationAcceptance(
+      invitation,
+      actor.email,
+      now,
+    );
     if (acceptance === "unavailable") {
       throw new StaffInvitationUnavailableError(
         "This Staff Invitation is expired, revoked, or already used.",
@@ -302,7 +299,9 @@ export async function revokeStaffInvitation(
       .where(eq(staffInvitation.id, invitationId))
       .limit(1);
     if (!located) {
-      throw new StaffInvitationUnavailableError("That Staff Invitation is no longer pending.");
+      throw new StaffInvitationUnavailableError(
+        "That Staff Invitation is no longer pending.",
+      );
     }
     await lockEventForMutation(transaction, located.eventId);
     const [invitation] = await transaction
@@ -312,7 +311,9 @@ export async function revokeStaffInvitation(
       .for("update")
       .limit(1);
     if (!invitation || invitation.consumedAt || invitation.revokedAt) {
-      throw new StaffInvitationUnavailableError("That Staff Invitation is no longer pending.");
+      throw new StaffInvitationUnavailableError(
+        "That Staff Invitation is no longer pending.",
+      );
     }
 
     const actorRole = await findActorRole(
@@ -331,7 +332,10 @@ export async function revokeStaffInvitation(
       action: "staff_invitation.revoked",
       targetType: "staff_invitation",
       targetId: invitation.id,
-      metadata: { normalizedEmail: invitation.normalizedEmail, role: invitation.role },
+      metadata: {
+        normalizedEmail: invitation.normalizedEmail,
+        role: invitation.role,
+      },
     });
     return { eventId: invitation.eventId };
   });
@@ -348,7 +352,9 @@ export async function removeEventStaff(
       .where(eq(eventStaff.id, assignmentId))
       .limit(1);
     if (!located) {
-      throw new StaffingAuthorizationError("That staff assignment no longer exists.");
+      throw new StaffingAuthorizationError(
+        "That staff assignment no longer exists.",
+      );
     }
     await lockEventForMutation(transaction, located.eventId);
     const [assignment] = await transaction
@@ -358,11 +364,19 @@ export async function removeEventStaff(
       .for("update")
       .limit(1);
     if (!assignment || assignment.role === "owner") {
-      throw new StaffingAuthorizationError("The Event Owner cannot be removed.");
+      throw new StaffingAuthorizationError(
+        "The Event Owner cannot be removed.",
+      );
     }
-    const actorRole = await findActorRole(transaction, assignment.eventId, actorUserId);
+    const actorRole = await findActorRole(
+      transaction,
+      assignment.eventId,
+      actorUserId,
+    );
     assertCanManageRole(actorRole, parseInviteableStaffRole(assignment.role));
-    await transaction.delete(eventStaff).where(eq(eventStaff.id, assignment.id));
+    await transaction
+      .delete(eventStaff)
+      .where(eq(eventStaff.id, assignment.id));
     await transaction.insert(auditEntry).values({
       eventId: assignment.eventId,
       actorUserId,
@@ -441,7 +455,10 @@ export async function proposeOwnershipTransfer(
         proposedOwnerUserId,
         expiresAt: new Date(now.getTime() + OWNERSHIP_TRANSFER_TTL_MS),
       })
-      .returning({ id: ownershipTransfer.id, expiresAt: ownershipTransfer.expiresAt });
+      .returning({
+        id: ownershipTransfer.id,
+        expiresAt: ownershipTransfer.expiresAt,
+      });
     if (!transfer) {
       throw new Error("Could not propose Ownership Transfer.");
     }
@@ -493,7 +510,11 @@ export async function acceptOwnershipTransfer(
       );
     }
     const assignments = await transaction
-      .select({ id: eventStaff.id, userId: eventStaff.userId, role: eventStaff.role })
+      .select({
+        id: eventStaff.id,
+        userId: eventStaff.userId,
+        role: eventStaff.role,
+      })
       .from(eventStaff)
       .where(
         and(
@@ -504,10 +525,12 @@ export async function acceptOwnershipTransfer(
       .for("update");
     const currentOwner = assignments.find(
       (assignment) =>
-        assignment.userId === transfer.proposedByUserId && assignment.role === "owner",
+        assignment.userId === transfer.proposedByUserId &&
+        assignment.role === "owner",
     );
     const proposedOwner = assignments.find(
-      (assignment) => assignment.userId === actorUserId && assignment.role === "organizer",
+      (assignment) =>
+        assignment.userId === actorUserId && assignment.role === "organizer",
     );
     if (!currentOwner || !proposedOwner) {
       throw new OwnershipTransferUnavailableError(
@@ -624,7 +647,9 @@ export async function getEventStaffing(
     ? parseEventStaffRole(actorAssignment.role)
     : undefined;
   if (!actorAssignment || !actorRole || actorRole === "check_in_volunteer") {
-    throw new StaffingAuthorizationError("You cannot manage staffing for this Event.");
+    throw new StaffingAuthorizationError(
+      "You cannot manage staffing for this Event.",
+    );
   }
 
   // One transaction so staff, invitations, and transfers reflect the same

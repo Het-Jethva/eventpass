@@ -1,8 +1,8 @@
 import "server-only";
 
-import type { DatabaseClient } from "@/lib/db";
-
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+
+import { db } from "@/lib/db";
 
 import {
   auditEntry,
@@ -18,13 +18,6 @@ import {
 import { lockEventForMutation } from "../../events/server/event-suspension";
 import { decideTicketValidity } from "../check-in-validity";
 import { getLatestCheckInReversals } from "./check-in-history";
-
-type ConflictResolutionDatabase = DatabaseClient;
-
-type ConflictResolutionDependencies = {
-  database: ConflictResolutionDatabase;
-  now?: () => Date;
-};
 
 /**
  * A Check-in Conflict resolution the caller may report verbatim.
@@ -43,251 +36,246 @@ export class CheckInConflictError extends Error {}
  * owns everything after a conflict stays unresolved: listing what needs a
  * reasoned choice and recording that choice with its audit trail.
  */
-export function createCheckInConflictResolutionService({
-  database,
-  now = () => new Date(),
-}: ConflictResolutionDependencies) {
-  async function listCheckInConflicts(values: {
-    eventId: string;
-    actorUserId: string;
-  }) {
-    const [assignment] = await database
+export async function listCheckInConflicts(values: {
+  eventId: string;
+  actorUserId: string;
+}) {
+  const [assignment] = await db
+    .select({ role: eventStaff.role })
+    .from(eventStaff)
+    .where(
+      and(
+        eq(eventStaff.eventId, values.eventId),
+        eq(eventStaff.userId, values.actorUserId),
+        inArray(eventStaff.role, ["owner", "organizer"]),
+      ),
+    )
+    .limit(1);
+  if (!assignment) return [];
+
+  const conflicts = await db
+    .select({
+      id: checkInConflict.id,
+      eventId: checkInConflict.eventId,
+      ticketId: checkInConflict.ticketId,
+      status: checkInConflict.status,
+      attendeeName: registration.attendeeName,
+      createdAt: checkInConflict.createdAt,
+    })
+    .from(checkInConflict)
+    .innerJoin(ticket, eq(ticket.id, checkInConflict.ticketId))
+    .innerJoin(registration, eq(registration.id, ticket.registrationId))
+    .where(
+      and(
+        eq(checkInConflict.eventId, values.eventId),
+        eq(checkInConflict.status, "unresolved"),
+      ),
+    )
+    .orderBy(asc(checkInConflict.createdAt));
+
+  if (conflicts.length === 0) return [];
+  const latestReversals = await getLatestCheckInReversals(
+    db,
+    conflicts.map((conflict) => conflict.ticketId),
+  );
+
+  const attempts = await db
+    .select({
+      ticketId: scanAttempt.ticketId,
+      id: scanAttempt.id,
+      scannerDeviceId: scanAttempt.scannerDeviceId,
+      actorName: user.name,
+      attemptedAt: scanAttempt.attemptedAt,
+      rawDeviceTime: scanAttempt.rawDeviceTime,
+      timestampConfidence: scanAttempt.timestampConfidence,
+    })
+    .from(scanAttempt)
+    .innerJoin(user, eq(user.id, scanAttempt.actorUserId))
+    .where(
+      and(
+        inArray(
+          scanAttempt.ticketId,
+          conflicts.map((conflict) => conflict.ticketId),
+        ),
+        eq(scanAttempt.source, "offline"),
+        inArray(scanAttempt.outcome, ["accepted", "conflict"]),
+      ),
+    )
+    .orderBy(asc(scanAttempt.attemptedAt), asc(scanAttempt.id));
+
+  const attemptsByTicket = new Map<
+    string,
+    Array<Omit<(typeof attempts)[number], "ticketId">>
+  >();
+  for (const { ticketId, ...attempt } of attempts) {
+    if (!ticketId) continue;
+    const reversedAt = latestReversals.get(ticketId);
+    if (reversedAt && attempt.attemptedAt <= reversedAt) continue;
+    const groupedAttempts = attemptsByTicket.get(ticketId);
+    if (groupedAttempts) {
+      groupedAttempts.push(attempt);
+    } else {
+      attemptsByTicket.set(ticketId, [attempt]);
+    }
+  }
+
+  return conflicts.map((conflict) => ({
+    ...conflict,
+    attempts: attemptsByTicket.get(conflict.ticketId) ?? [],
+  }));
+}
+
+export async function resolveCheckInConflict(values: {
+  conflictId: string;
+  actorUserId: string;
+  authoritativeAttemptId: string;
+  reason: string;
+}) {
+  const reason = values.reason.trim();
+  if (!reason) {
+    throw new CheckInConflictError("A resolution reason is required.");
+  }
+
+  return db.transaction(async (transaction) => {
+    const [located] = await transaction
+      .select({ eventId: checkInConflict.eventId })
+      .from(checkInConflict)
+      .where(eq(checkInConflict.id, values.conflictId))
+      .limit(1);
+    if (!located) {
+      throw new CheckInConflictError(
+        "This Check-in Conflict no longer exists.",
+      );
+    }
+    await lockEventForMutation(transaction, located.eventId);
+    const [conflict] = await transaction
+      .select()
+      .from(checkInConflict)
+      .where(eq(checkInConflict.id, values.conflictId))
+      .for("update")
+      .limit(1);
+    if (!conflict || conflict.status !== "unresolved") {
+      throw new CheckInConflictError(
+        "This Check-in Conflict is no longer unresolved.",
+      );
+    }
+    const [assignment] = await transaction
       .select({ role: eventStaff.role })
       .from(eventStaff)
       .where(
         and(
-          eq(eventStaff.eventId, values.eventId),
+          eq(eventStaff.eventId, conflict.eventId),
           eq(eventStaff.userId, values.actorUserId),
           inArray(eventStaff.role, ["owner", "organizer"]),
         ),
       )
       .limit(1);
-    if (!assignment) return [];
-
-    const conflicts = await database
+    if (!assignment) {
+      throw new CheckInConflictError(
+        "Only an Organizer can resolve Check-in Conflicts.",
+      );
+    }
+    const [selectedAttempt] = await transaction
       .select({
-        id: checkInConflict.id,
-        eventId: checkInConflict.eventId,
-        ticketId: checkInConflict.ticketId,
-        status: checkInConflict.status,
-        attendeeName: registration.attendeeName,
-        createdAt: checkInConflict.createdAt,
-      })
-      .from(checkInConflict)
-      .innerJoin(ticket, eq(ticket.id, checkInConflict.ticketId))
-      .innerJoin(registration, eq(registration.id, ticket.registrationId))
-      .where(
-        and(
-          eq(checkInConflict.eventId, values.eventId),
-          eq(checkInConflict.status, "unresolved"),
-        ),
-      )
-      .orderBy(asc(checkInConflict.createdAt));
-
-    if (conflicts.length === 0) return [];
-    const latestReversals = await getLatestCheckInReversals(
-      database,
-      conflicts.map((conflict) => conflict.ticketId),
-    );
-
-    const attempts = await database
-      .select({
-        ticketId: scanAttempt.ticketId,
         id: scanAttempt.id,
-        scannerDeviceId: scanAttempt.scannerDeviceId,
-        actorName: user.name,
+        actorUserId: scanAttempt.actorUserId,
         attemptedAt: scanAttempt.attemptedAt,
-        rawDeviceTime: scanAttempt.rawDeviceTime,
-        timestampConfidence: scanAttempt.timestampConfidence,
       })
       .from(scanAttempt)
-      .innerJoin(user, eq(user.id, scanAttempt.actorUserId))
       .where(
         and(
-          inArray(
-            scanAttempt.ticketId,
-            conflicts.map((conflict) => conflict.ticketId),
-          ),
+          eq(scanAttempt.id, values.authoritativeAttemptId),
+          eq(scanAttempt.eventId, conflict.eventId),
+          eq(scanAttempt.ticketId, conflict.ticketId),
           eq(scanAttempt.source, "offline"),
           inArray(scanAttempt.outcome, ["accepted", "conflict"]),
         ),
       )
-      .orderBy(asc(scanAttempt.attemptedAt), asc(scanAttempt.id));
-
-    const attemptsByTicket = new Map<
-      string,
-      Array<Omit<(typeof attempts)[number], "ticketId">>
-    >();
-    for (const { ticketId, ...attempt } of attempts) {
-      if (!ticketId) continue;
-      const reversedAt = latestReversals.get(ticketId);
-      if (reversedAt && attempt.attemptedAt <= reversedAt) continue;
-      const groupedAttempts = attemptsByTicket.get(ticketId);
-      if (groupedAttempts) {
-        groupedAttempts.push(attempt);
-      } else {
-        attemptsByTicket.set(ticketId, [attempt]);
-      }
+      .limit(1);
+    const latestReversals = await getLatestCheckInReversals(transaction, [
+      conflict.ticketId,
+    ]);
+    const reversedAt = latestReversals.get(conflict.ticketId);
+    if (
+      !selectedAttempt ||
+      (reversedAt && selectedAttempt.attemptedAt <= reversedAt)
+    ) {
+      throw new CheckInConflictError(
+        "Select a Scan Attempt from this Check-in Conflict.",
+      );
     }
 
-    return conflicts.map((conflict) => ({
-      ...conflict,
-      attempts: attemptsByTicket.get(conflict.ticketId) ?? [],
-    }));
-  }
-
-  async function resolveCheckInConflict(values: {
-    conflictId: string;
-    actorUserId: string;
-    authoritativeAttemptId: string;
-    reason: string;
-  }) {
-    const reason = values.reason.trim();
-    if (!reason) {
-      throw new CheckInConflictError("A resolution reason is required.");
+    const [presentedTicket] = await transaction
+      .select({
+        status: ticket.status,
+        registrationStatus: registration.status,
+        eventStatus: event.status,
+        checkInOpensAt: event.checkInOpensAt,
+        checkInClosesAt: event.checkInClosesAt,
+      })
+      .from(ticket)
+      .innerJoin(registration, eq(registration.id, ticket.registrationId))
+      .innerJoin(event, eq(event.id, ticket.eventId))
+      .where(eq(ticket.id, conflict.ticketId))
+      .for("update")
+      .limit(1);
+    if (!presentedTicket) {
+      throw new CheckInConflictError(
+        "This Ticket can no longer be checked in.",
+      );
     }
-
-    return database.transaction(async (transaction) => {
-      const [located] = await transaction
-        .select({ eventId: checkInConflict.eventId })
-        .from(checkInConflict)
-        .where(eq(checkInConflict.id, values.conflictId))
-        .limit(1);
-      if (!located) {
-        throw new CheckInConflictError("This Check-in Conflict no longer exists.");
-      }
-      await lockEventForMutation(transaction, located.eventId);
-      const [conflict] = await transaction
-        .select()
-        .from(checkInConflict)
-        .where(eq(checkInConflict.id, values.conflictId))
-        .for("update")
-        .limit(1);
-      if (!conflict || conflict.status !== "unresolved") {
-        throw new CheckInConflictError(
-          "This Check-in Conflict is no longer unresolved.",
-        );
-      }
-      const [assignment] = await transaction
-        .select({ role: eventStaff.role })
-        .from(eventStaff)
-        .where(
-          and(
-            eq(eventStaff.eventId, conflict.eventId),
-            eq(eventStaff.userId, values.actorUserId),
-            inArray(eventStaff.role, ["owner", "organizer"]),
-          ),
-        )
-        .limit(1);
-      if (!assignment) {
-        throw new CheckInConflictError(
-          "Only an Organizer can resolve Check-in Conflicts.",
-        );
-      }
-      const [selectedAttempt] = await transaction
-        .select({
-          id: scanAttempt.id,
-          actorUserId: scanAttempt.actorUserId,
-          attemptedAt: scanAttempt.attemptedAt,
-        })
-        .from(scanAttempt)
-        .where(
-          and(
-            eq(scanAttempt.id, values.authoritativeAttemptId),
-            eq(scanAttempt.eventId, conflict.eventId),
-            eq(scanAttempt.ticketId, conflict.ticketId),
-            eq(scanAttempt.source, "offline"),
-            inArray(scanAttempt.outcome, ["accepted", "conflict"]),
-          ),
-        )
-        .limit(1);
-      const latestReversals = await getLatestCheckInReversals(transaction, [
-        conflict.ticketId,
-      ]);
-      const reversedAt = latestReversals.get(conflict.ticketId);
-      if (
-        !selectedAttempt ||
-        (reversedAt && selectedAttempt.attemptedAt <= reversedAt)
-      ) {
-        throw new CheckInConflictError(
-          "Select a Scan Attempt from this Check-in Conflict.",
-        );
-      }
-
-      const [presentedTicket] = await transaction
-        .select({
-          status: ticket.status,
-          registrationStatus: registration.status,
-          eventStatus: event.status,
-          checkInOpensAt: event.checkInOpensAt,
-          checkInClosesAt: event.checkInClosesAt,
-        })
-        .from(ticket)
-        .innerJoin(registration, eq(registration.id, ticket.registrationId))
-        .innerJoin(event, eq(event.id, ticket.eventId))
-        .where(eq(ticket.id, conflict.ticketId))
-        .for("update")
-        .limit(1);
-      if (!presentedTicket) {
-        throw new CheckInConflictError(
-          "This Ticket can no longer be checked in.",
-        );
-      }
-      const decision = decideTicketValidity({
-        statuses: {
-          eventStatus: presentedTicket.eventStatus,
-          registrationStatus: presentedTicket.registrationStatus,
-          ticketStatus: presentedTicket.status,
-        },
-        credentialValid: true,
-        attemptedAt: now(),
-        checkInOpensAt: presentedTicket.checkInOpensAt,
-        checkInClosesAt: presentedTicket.checkInClosesAt,
-        canOverrideWindow: true,
-      });
-      if (decision.verdict !== "admit") {
-        throw new CheckInConflictError(
-          "This Ticket can no longer be checked in.",
-        );
-      }
-
-      await transaction
-        .update(checkIn)
-        .set({ invalidatedAt: now() })
-        .where(
-          and(
-            eq(checkIn.ticketId, conflict.ticketId),
-            isNull(checkIn.invalidatedAt),
-          ),
-        );
-      await transaction.insert(checkIn).values({
-        eventId: conflict.eventId,
-        ticketId: conflict.ticketId,
-        actorUserId: selectedAttempt.actorUserId,
-        checkedInAt: selectedAttempt.attemptedAt,
-      });
-      await transaction
-        .update(checkInConflict)
-        .set({
-          status: "resolved_manual",
-          authoritativeScanAttemptId: selectedAttempt.id,
-          resolvedByUserId: values.actorUserId,
-          resolutionReason: reason,
-          resolvedAt: now(),
-        })
-        .where(eq(checkInConflict.id, conflict.id));
-      await transaction.insert(auditEntry).values({
-        eventId: conflict.eventId,
-        actorUserId: values.actorUserId,
-        action: "check_in_conflict.resolved",
-        targetType: "check_in_conflict",
-        targetId: conflict.id,
-        reason,
-        metadata: { authoritativeScanAttemptId: selectedAttempt.id },
-      });
-      return { eventId: conflict.eventId };
+    const decision = decideTicketValidity({
+      statuses: {
+        eventStatus: presentedTicket.eventStatus,
+        registrationStatus: presentedTicket.registrationStatus,
+        ticketStatus: presentedTicket.status,
+      },
+      credentialValid: true,
+      attemptedAt: new Date(),
+      checkInOpensAt: presentedTicket.checkInOpensAt,
+      checkInClosesAt: presentedTicket.checkInClosesAt,
+      canOverrideWindow: true,
     });
-  }
+    if (decision.verdict !== "admit") {
+      throw new CheckInConflictError(
+        "This Ticket can no longer be checked in.",
+      );
+    }
 
-  return { listCheckInConflicts, resolveCheckInConflict };
+    await transaction
+      .update(checkIn)
+      .set({ invalidatedAt: new Date() })
+      .where(
+        and(
+          eq(checkIn.ticketId, conflict.ticketId),
+          isNull(checkIn.invalidatedAt),
+        ),
+      );
+    await transaction.insert(checkIn).values({
+      eventId: conflict.eventId,
+      ticketId: conflict.ticketId,
+      actorUserId: selectedAttempt.actorUserId,
+      checkedInAt: selectedAttempt.attemptedAt,
+    });
+    await transaction
+      .update(checkInConflict)
+      .set({
+        status: "resolved_manual",
+        authoritativeScanAttemptId: selectedAttempt.id,
+        resolvedByUserId: values.actorUserId,
+        resolutionReason: reason,
+        resolvedAt: new Date(),
+      })
+      .where(eq(checkInConflict.id, conflict.id));
+    await transaction.insert(auditEntry).values({
+      eventId: conflict.eventId,
+      actorUserId: values.actorUserId,
+      action: "check_in_conflict.resolved",
+      targetType: "check_in_conflict",
+      targetId: conflict.id,
+      reason,
+      metadata: { authoritativeScanAttemptId: selectedAttempt.id },
+    });
+    return { eventId: conflict.eventId };
+  });
 }

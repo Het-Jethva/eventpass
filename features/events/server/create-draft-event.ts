@@ -37,7 +37,10 @@ export const createDraftEventInputSchema = z
       .string()
       .trim()
       .min(1, "Enter an Event Time Zone.")
-      .refine(isIanaTimeZone, "Enter a valid IANA time zone, such as Asia/Kolkata."),
+      .refine(
+        isIanaTimeZone,
+        "Enter a valid IANA time zone, such as Asia/Kolkata.",
+      ),
     startsAtLocal: localDateTime,
     endsAtLocal: localDateTime,
     venueName: z.string().trim().min(1, "Enter a Venue name.").max(160),
@@ -101,7 +104,11 @@ export const createDraftEventInputSchema = z
       }
     }
 
-    if (dates.startsAtLocal && dates.endsAtLocal && dates.startsAtLocal >= dates.endsAtLocal) {
+    if (
+      dates.startsAtLocal &&
+      dates.endsAtLocal &&
+      dates.startsAtLocal >= dates.endsAtLocal
+    ) {
       context.addIssue({
         code: "custom",
         path: ["endsAtLocal"],
@@ -172,12 +179,9 @@ export const createDraftEventInputSchema = z
 
 export type CreateDraftEventInput = z.input<typeof createDraftEventInputSchema>;
 
-export class StaffCannotCreateEventError extends Error {}
+class StaffCannotCreateEventError extends Error {}
 
-export async function createDraftEvent(
-  actorUserId: string,
-  rawInput: unknown,
-) {
+export async function createDraftEvent(actorUserId: string, rawInput: unknown) {
   const input = createDraftEventInputSchema.parse(rawInput);
   const schedule = eventScheduleInstants(input);
 
@@ -195,7 +199,9 @@ export async function createDraftEvent(
       .limit(1);
 
     if (!actor) {
-      throw new StaffCannotCreateEventError("The staff user cannot create Events.");
+      throw new StaffCannotCreateEventError(
+        "The staff user cannot create Events.",
+      );
     }
 
     const [createdEvent] = await transaction

@@ -9,12 +9,7 @@ export const getActiveStaffSession = cache(async () => {
   const requestHeaders = await headers();
   const session = await auth.api.getSession({ headers: requestHeaders });
 
-  if (!session || !session.user.suspended) {
-    return session;
-  }
-
-  await auth.api.signOut({ headers: requestHeaders });
-  return null;
+  return session?.user.suspended ? null : session;
 });
 
 export async function signOutCurrentStaff() {

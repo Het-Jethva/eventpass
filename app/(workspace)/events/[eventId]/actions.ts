@@ -26,7 +26,7 @@ import {
   cancelPublishedEvent,
   updatePublishedEvent,
 } from "@/features/events/server/published-events";
-import { PublishedEventChangeError } from "@/features/events/server/published-event-application";
+import { PublishedEventChangeError } from "@/features/events/server/published-events";
 import { EventCapacityConflictError } from "@/features/events/server/capacity-ledger";
 import { EventSuspendedError } from "@/features/events/server/event-suspension";
 

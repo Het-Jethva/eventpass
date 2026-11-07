@@ -1,9 +1,8 @@
 import "server-only";
 
-import type { DatabaseClient } from "@/lib/db";
-
 import { and, eq, inArray, sql } from "drizzle-orm";
 
+import type { DatabaseClient, DatabaseTransaction } from "@/lib/db";
 import {
   admissionOffer,
   capacityHold,
@@ -12,11 +11,7 @@ import {
   registrationVerification,
 } from "@/lib/db/schema";
 
-type CapacityLedgerDatabase = DatabaseClient;
-type CapacityLedgerTransaction = Parameters<
-  Parameters<CapacityLedgerDatabase["transaction"]>[0]
->[0];
-type CapacityLedgerReader = Pick<CapacityLedgerDatabase, "select">;
+type CapacityLedgerReader = Pick<DatabaseClient, "select">;
 
 export class EventCapacityConflictError extends Error {}
 
@@ -24,7 +19,7 @@ export class EventCapacityConflictError extends Error {}
  * Claimed Event Capacity: confirmed Registrations plus unexpired Capacity
  * Holds plus active Admission Offers. Every capacity decision in the product
  * reads this one shape, so "what counts as active" can only drift in one
- * module. See ADR 0005.
+ * module.
  */
 export type ActiveCapacityUsage = {
   confirmed: number;
@@ -95,10 +90,7 @@ export function hasCapacityForNewClaim(
  * place, once claimed, is not taken back by editing a number. Callers raise
  * their own domain error; the ledger only answers the question.
  */
-export function decreaseDisplacesClaims(
-  claimed: number,
-  nextCapacity: number,
-) {
+export function decreaseDisplacesClaims(claimed: number, nextCapacity: number) {
   return nextCapacity < claimed;
 }
 
@@ -107,7 +99,7 @@ export async function clampActiveOffersToRegistrationWindow({
   eventId,
   registrationClosesAt,
 }: {
-  transaction: CapacityLedgerTransaction;
+  transaction: DatabaseTransaction;
   eventId: string;
   registrationClosesAt: Date;
 }) {
@@ -139,7 +131,7 @@ export async function expireLapsedCapacityClaims({
   eventId,
   at,
 }: {
-  transaction: CapacityLedgerTransaction;
+  transaction: DatabaseTransaction;
   eventId: string;
   at: Date;
 }) {
@@ -193,5 +185,9 @@ export async function expireLapsedCapacityClaims({
         ),
       );
   }
-  return { expiredOfferRegistrationIds: expiredOffers.map(({ registrationId }) => registrationId) };
+  return {
+    expiredOfferRegistrationIds: expiredOffers.map(
+      ({ registrationId }) => registrationId,
+    ),
+  };
 }

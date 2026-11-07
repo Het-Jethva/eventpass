@@ -7,7 +7,7 @@ import { FormSubmitButton } from "@/components/form-submit-button";
 import { PendingLink } from "@/components/pending-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
-import { getAdmissionOfferView } from "@/features/tickets/server/tickets";
+import { getAdmissionOfferView } from "@/features/tickets/server/registration-confirmation";
 import { formatAdmissionOfferDeadline } from "@/lib/email/send-admission-offer";
 import { cn } from "@/lib/utils";
 
@@ -50,27 +50,35 @@ export default async function AdmissionOfferPage({
         <section className="w-full rounded-2xl border bg-background p-6 sm:p-10">
           {offer && !offer.suspended ? (
             <>
-              <p className="text-sm font-medium text-muted-foreground">{offer.eventName}</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                {offer.eventName}
+              </p>
               <h1 className="mt-2 text-3xl font-headline text-balance">
                 A place is ready for you
               </h1>
               <p className="mt-4 max-w-2xl text-muted-foreground">
-                {offer.attendeeName}, you reached the front of the verified waitlist. Claiming
-                this offer confirms your registration and issues your ticket.
+                {offer.attendeeName}, you reached the front of the verified
+                waitlist. Claiming this offer confirms your registration and
+                issues your ticket.
               </p>
               <Alert className="mt-8">
                 <IconClock aria-hidden="true" />
                 <AlertTitle>Time-limited offer</AlertTitle>
                 <AlertDescription>
-                  Claim by {formatAdmissionOfferDeadline(offer.expiresAt, offer.eventTimeZone)}.
-                  After this deadline the place goes to the next person waiting.
+                  Claim by{" "}
+                  {formatAdmissionOfferDeadline(
+                    offer.expiresAt,
+                    offer.eventTimeZone,
+                  )}
+                  . After this deadline the place goes to the next person
+                  waiting.
                 </AlertDescription>
               </Alert>
-              <form action={claimAdmissionOfferAction.bind(null, token)} className="mt-8">
-                <FormSubmitButton
-                  size="lg"
-                  pendingLabel="Issuing ticket"
-                >
+              <form
+                action={claimAdmissionOfferAction.bind(null, token)}
+                className="mt-8"
+              >
+                <FormSubmitButton size="lg" pendingLabel="Issuing ticket">
                   <IconTicket aria-hidden="true" />
                   Claim place and issue ticket
                 </FormSubmitButton>

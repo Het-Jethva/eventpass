@@ -1,7 +1,6 @@
 import "server-only";
 
-import { eq, sql } from "drizzle-orm";
-import { Resend } from "resend";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/lib/db";
@@ -9,15 +8,13 @@ import { emailDelivery } from "@/lib/db/schema";
 import { EMAIL_BODY_STYLE } from "./shell";
 import { escapeHtml } from "./escape-html";
 import { formatEventInstant } from "@/lib/format-event-range";
-import { isTransientDeliveryStatusCode } from "./delivery-failure";
+import { EmailDeliveryError, sendEmail } from "./send-email";
 
 const materialChangeSchema = z.object({
   kind: z.literal("material_change"),
   eventId: z.string(),
   eventName: z.string(),
-  // Optional only because pending deliveries written before the zone was
-  // recorded still have to send; those fall back to UTC.
-  eventTimeZone: z.string().optional(),
+  eventTimeZone: z.string(),
   changes: z.array(
     z.object({
       field: z.string(),
@@ -61,7 +58,7 @@ const FIELD_LABELS: Record<string, string> = {
  * Attendee will experience it; the zone abbreviation is included because the
  * zone itself can be one of the changed fields.
  */
-export function displayMaterialChangeValue(
+function displayMaterialChangeValue(
   value: string | number | null,
   eventTimeZone: string,
 ) {
@@ -82,7 +79,7 @@ function content(metadata: z.infer<typeof notificationSchema>) {
     };
   }
 
-  const eventTimeZone = metadata.eventTimeZone ?? "UTC";
+  const eventTimeZone = metadata.eventTimeZone;
   const rows = metadata.changes.map((change) => {
     const label = FIELD_LABELS[change.field] ?? change.field;
     const before = displayMaterialChangeValue(change.before, eventTimeZone);
@@ -121,56 +118,23 @@ export async function sendEventNotification(deliveryId: string) {
 
   const metadata = notificationSchema.parse(delivery.metadata);
   const message = content(metadata);
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) throw new Error("RESEND_API_KEY is required to send Event notifications.");
-  const attempt = delivery.attemptCount + 1;
-  let response;
   try {
-    response = await new Resend(apiKey).emails.send(
-      {
-        from:
-          process.env.RESEND_FROM_EMAIL ??
-          "EventPass <events@mail.hetjethva.tech>",
-        to: delivery.recipient,
-        ...message,
+    await sendEmail({
+      delivery: {
+        kind: "existing",
+        id: delivery.id,
+        attemptCount: delivery.attemptCount,
       },
-      { idempotencyKey: `email-delivery/${delivery.id}/attempt/${attempt}` },
-    );
-  } catch {
-    await db
-      .update(emailDelivery)
-      .set({
-        attemptCount: sql`${emailDelivery.attemptCount} + 1`,
-        failureKind: "transient",
-        outcome: "transient_failure",
-      })
-      .where(eq(emailDelivery.id, delivery.id));
-    return { outcome: "transient_failure" as const };
-  }
-
-  if (!response.error) {
-    await db
-      .update(emailDelivery)
-      .set({
-        attemptCount: sql`${emailDelivery.attemptCount} + 1`,
-        failureKind: null,
-        outcome: "submitted",
-        providerMessageId: response.data.id,
-      })
-      .where(eq(emailDelivery.id, delivery.id));
+      message: { to: delivery.recipient, ...message },
+      failureMessage: "The Event notification could not be sent.",
+    });
     return { outcome: "submitted" as const };
+  } catch (error) {
+    if (!(error instanceof EmailDeliveryError)) throw error;
+    return {
+      outcome: error.retryable
+        ? ("transient_failure" as const)
+        : ("permanent_failure" as const),
+    };
   }
-
-  const transient = isTransientDeliveryStatusCode(response.error.statusCode);
-  await db
-    .update(emailDelivery)
-    .set({
-      attemptCount: sql`${emailDelivery.attemptCount} + 1`,
-      failureKind: transient ? "transient" : "permanent",
-      outcome: transient ? "transient_failure" : "permanent_failure",
-    })
-    .where(eq(emailDelivery.id, delivery.id));
-  return {
-    outcome: transient ? ("transient_failure" as const) : ("permanent_failure" as const),
-  };
 }

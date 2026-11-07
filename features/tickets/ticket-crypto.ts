@@ -17,7 +17,6 @@ import {
   type TicketProtectedHeader,
 } from "./parse-ticket-jws";
 
-export { TICKET_JWS_TYPE, TICKET_PROTOCOL_VERSION };
 export type { TicketPayload, TicketProtectedHeader };
 
 function encodeJson(value: TicketPayload | TicketProtectedHeader) {
@@ -25,11 +24,15 @@ function encodeJson(value: TicketPayload | TicketProtectedHeader) {
 }
 
 function asPrivateKey(key: KeyObject | string | Buffer) {
-  return typeof key === "string" || Buffer.isBuffer(key) ? createPrivateKey(key) : key;
+  return typeof key === "string" || Buffer.isBuffer(key)
+    ? createPrivateKey(key)
+    : key;
 }
 
 function asPublicKey(key: KeyObject | string | Buffer) {
-  return typeof key === "string" || Buffer.isBuffer(key) ? createPublicKey(key) : key;
+  return typeof key === "string" || Buffer.isBuffer(key)
+    ? createPublicKey(key)
+    : key;
 }
 
 export function signTicket(
@@ -41,7 +44,10 @@ export function signTicket(
     kid: key.id,
     typ: TICKET_JWS_TYPE,
   };
-  const completePayload: TicketPayload = { v: TICKET_PROTOCOL_VERSION, ...payload };
+  const completePayload: TicketPayload = {
+    v: TICKET_PROTOCOL_VERSION,
+    ...payload,
+  };
   const protectedSegment = encodeJson(header);
   const payloadSegment = encodeJson(completePayload);
   const signingInput = `${protectedSegment}.${payloadSegment}`;

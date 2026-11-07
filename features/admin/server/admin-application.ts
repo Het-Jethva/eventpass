@@ -1,16 +1,6 @@
 import "server-only";
 
-import {
-  and,
-  desc,
-  eq,
-  gt,
-  inArray,
-  isNull,
-  lt,
-  or,
-  sql,
-} from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
 
 import {
   isPlatformAdmin,
@@ -33,7 +23,7 @@ import {
 import { escapeLikePattern } from "@/lib/like-pattern";
 import { lockEvent } from "@/features/events/server/event-suspension";
 
-export async function assertPlatformAdmin(
+async function assertPlatformAdmin(
   actorUserId: string,
   transactionOrDb: DatabaseClient = db,
 ) {
@@ -162,7 +152,9 @@ export async function suspendStaffAccount({
       .where(and(eq(user.id, targetUserId), eq(user.suspended, false)))
       .returning({ id: user.id });
     if (!updated) {
-      throw new PlatformAdminError("That account is not an active staff account.");
+      throw new PlatformAdminError(
+        "That account is not an active staff account.",
+      );
     }
 
     // Flagging the account is not enough on its own: Better Auth database
@@ -298,9 +290,9 @@ export async function reactivateEvent({
   });
 }
 
-export const DEFAULT_SUPPORT_ACCESS_DURATION_MINUTES = 60;
-export const MAX_SUPPORT_ACCESS_DURATION_MINUTES = 480;
-export const SUPPORT_ATTENDEE_PAGE_SIZE = 200;
+const DEFAULT_SUPPORT_ACCESS_DURATION_MINUTES = 60;
+const MAX_SUPPORT_ACCESS_DURATION_MINUTES = 480;
+const SUPPORT_ATTENDEE_PAGE_SIZE = 200;
 
 export type SupportAttendeeCursor = { createdAt: string; id: string };
 
@@ -384,10 +376,15 @@ export async function revokeSupportAccess({
 
   return db.transaction(async (tx) => {
     await assertPlatformAdmin(actorUserId, tx);
-    const [located] = await tx.select({ eventId: supportAccess.eventId })
-      .from(supportAccess).where(eq(supportAccess.id, supportAccessId)).limit(1);
+    const [located] = await tx
+      .select({ eventId: supportAccess.eventId })
+      .from(supportAccess)
+      .where(eq(supportAccess.id, supportAccessId))
+      .limit(1);
     if (!located) {
-      throw new SupportAccessRequiredError("That Support Access grant is already closed.");
+      throw new SupportAccessRequiredError(
+        "That Support Access grant is already closed.",
+      );
     }
     await lockEvent(tx, located.eventId);
 
@@ -463,7 +460,14 @@ export async function getEventAttendeeDataForSupport({
       .orderBy(desc(supportAccess.expiresAt))
       .limit(1);
 
-    if (!activeAccess || !isSupportAccessActive({ expiresAt: activeAccess.expiresAt, revokedAt: activeAccess.revokedAt, now })) {
+    if (
+      !activeAccess ||
+      !isSupportAccessActive({
+        expiresAt: activeAccess.expiresAt,
+        revokedAt: activeAccess.revokedAt,
+        now,
+      })
+    ) {
       throw new SupportAccessRequiredError();
     }
 
@@ -521,9 +525,10 @@ export async function getEventAttendeeDataForSupport({
         attendeeEmail: registration.email,
         status: registration.status,
         createdAt: registration.createdAt,
-        createdAtText: sql<string>`to_char(${registration.createdAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`.mapWith(
-          String,
-        ),
+        createdAtText:
+          sql<string>`to_char(${registration.createdAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`.mapWith(
+            String,
+          ),
       })
       .from(registration)
       .where(pageFilter)

@@ -8,7 +8,7 @@ import {
   parseAuditCategory,
   parseAuditSource,
 } from "@/features/audit/audit-filters";
-import { queryEventAuditLog } from "@/features/audit/server/audit-log";
+import { getEventAuditLog } from "@/features/audit/server/get-audit-log";
 import {
   decodeAuditCursor,
   encodeAuditCursor,
@@ -101,7 +101,7 @@ async function AuditResults({
   cursorParam: string | undefined;
   basePath: string;
 }) {
-  const log = await queryEventAuditLog({
+  const log = await getEventAuditLog({
     eventId,
     actorUserId,
     searchQuery,

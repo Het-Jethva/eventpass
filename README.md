@@ -1,123 +1,76 @@
 # EventPass
 
-EventPass handles registration, tickets, and door check-in for in-person events. The scanner keeps working when the venue network does not. Guests need no account and install nothing.
+Event registration, QR tickets, and door check-in that continues when the venue loses its network.
 
-## What it does
+Guests register without accounts. Organizers manage capacity, custom forms, waitlists, staff, and audit history. Volunteers scan signed tickets online or prepare a phone for offline admission. Offline scans stay visibly provisional until reconciliation, and conflicts remain available for review.
 
-EventPass covers the full door workflow for small to mid-size events.
+## Run locally
 
-- Organizers create events with capacity and check-in windows.
-- Organizers build a custom registration form with fields and choices.
-- Guests register through a public link and confirm by email.
-- Each guest gets a signed QR ticket that works on screen and on paper.
-- Volunteers scan tickets with a phone camera at the door.
-- Organizers see arrivals, capacity, and pending confirmations on one screen.
-- Staff can undo a check-in, reissue a ticket, and transfer event ownership.
-- Every correction keeps the name, time, and reason in the audit log.
+Use Node 24, npm, and Docker.
 
-## How the door flow works
+1. Run `npm ci`.
+2. Run `docker compose up -d`.
+3. Copy `.env.example` to `.env.local`.
+4. Set `BETTER_AUTH_SECRET` to a random secret of at least 32 characters.
+5. Run `npm run keys:generate` and copy its three ticket-key variables into `.env.local`.
+6. Configure `RESEND_API_KEY` and `RESEND_FROM_EMAIL` to use signup and guest email.
+7. Run `npm run db:migrate`.
+8. Run `npm run dev` and open [EventPass](http://localhost:3000).
 
-The flow has four stages.
+The [demo](http://localhost:3000/demo) needs no account and sends no email. To create a real event, sign in with your email. First-time organizers get an account after confirming their link.
 
-1. Set up the event with capacity, times, form, and door team.
-2. Register guests by link and send each guest a ticket by email.
-3. Load the guest list onto the scanner phone before doors open.
-4. Scan each ticket and admit the guest with one clear answer.
+Local Postgres uses port `54432`. The Neon WebSocket bridge uses `54444`, so the application exercises the same database driver locally and in production.
 
-Unusual cases show plain language. Repeats, wrong doors, and canceled tickets each get their own message.
+## Configure the application
 
-## How offline mode works
+Keep secrets in `.env.local` or your deployment environment.
 
-The scanner is a PWA built with Serwist. The guest list and scan queue live in IndexedDB through Dexie. A scan with a signal settles at once. A scan without a signal stays on the phone as unconfirmed. The same phone catches a repeat scan at once. Separate phones reconcile after they reconnect. Conflicts stay visible until staff resolve them.
+| Variable                         | Purpose                                                                                    |
+| -------------------------------- | ------------------------------------------------------------------------------------------ |
+| `DATABASE_URL`                   | Postgres connection string. The example defaults to local Docker.                          |
+| `NEXT_PUBLIC_APP_URL`            | Public HTTP or HTTPS origin, without a path, query, or fragment.                           |
+| `BETTER_AUTH_SECRET`             | Session secret with at least 32 random characters.                                         |
+| `BETTER_AUTH_URL`                | Auth origin. Used as the application-origin fallback when `NEXT_PUBLIC_APP_URL` is absent. |
+| `PLATFORM_ADMIN_EMAILS`          | Optional comma-separated platform-admin allowlist.                                         |
+| `RESEND_API_KEY`                 | Transactional email credential.                                                            |
+| `RESEND_FROM_EMAIL`              | Sender address on a verified Resend domain.                                                |
+| `RESEND_WEBHOOK_SECRET`          | Signature secret for `/api/webhooks/resend`.                                               |
+| `TICKET_SIGNING_KEY_ID`          | Active signing-key identifier.                                                             |
+| `TICKET_SIGNING_PRIVATE_KEY_PEM` | P-256 private key used for ticket and scanner signatures.                                  |
+| `TICKET_PUBLIC_KEYS_JSON`        | Map of signing-key identifiers to retained PEM public keys.                                |
+| `NEON_WS_PROXY`                  | Optional local bridge address. Defaults to `localhost:54444`.                              |
+| `THROTTLE_SECRET`                | Optional throttle HMAC secret. Defaults to `BETTER_AUTH_SECRET`.                           |
 
-## Ticket security
+For production, use a hosted Postgres connection string and your public origin. Retain previous public keys when rotating the signing key so existing tickets continue to verify. Restart the application after changing deployment configuration.
 
-Each ticket carries an ECDSA signature. The private key signs at issue time. The public keys verify at scan time. Key rotation uses the `TICKET_SIGNING_KEY_ID` and `TICKET_PUBLIC_KEYS_JSON` pair. Bearer ticket paths use `no-referrer` and `no-store` headers. The paths are `/tickets/[token]`, `/offers/[token]`, `/staff-invitations/[token]`, and `/e/[slug]/verify`.
+## Verify changes
 
-## Stack
+Run `npm run verify` for lint, route types, TypeScript, focused tests, and the production build. Run `npm audit` to check the installed dependency tree.
 
-The app uses the following tools.
+With local Postgres and its bridge running, run `npm run test:db` for the full database workflow. This command creates and removes its own temporary database, uses a local fake email provider, and refuses hosted database connections. It reads `.env.local`; the Postgres user needs permission to create databases.
 
-- `next` 16.3.6 with the App Router and `react` 19.3.0
-- `drizzle-orm` 0.45.2 with Postgres on Neon through `@neondatabase/serverless`
-- `better-auth` 1.6.33 for email OTP sign-in and sessions
-- `@serwist/next` 9.5.12 for the offline service worker
-- `dexie` 4.4.4 for the on-device guest list and scan queue
-- `@zxing/browser` 0.2.1 for camera scanning and `qrcode` 1.5.4 for ticket codes
-- `resend` 6.18.0 for transactional email
-- `tailwindcss` 4 with `@base-ui/react` 1.6.0 and `@tabler/icons-react` 3.45.0
-- `zod` 4.4.3 for input validation
+For a manual check, register a guest in the demo, open the door scanner, simulate an offline scan, scan again, and reconnect. The confirmed count increases once after synchronization.
 
-Auth runs on email OTP. There are no passwords. Platform admins are set by email allowlist.
+## Commands
 
-## Project structure
+| Command                 | Action                                                        |
+| ----------------------- | ------------------------------------------------------------- |
+| `npm run dev`           | Start Next.js with webpack.                                   |
+| `npm run build`         | Build the production app and service worker.                  |
+| `npm start`             | Serve the production build.                                   |
+| `npm run check`         | Run lint and TypeScript checks.                               |
+| `npm test`              | Run focused behavioral tests without external services.       |
+| `npm run test:db`       | Verify the complete workflow against isolated local Postgres. |
+| `npm run verify`        | Run checks, tests, and the production build.                  |
+| `npm run keys:generate` | Print matching P-256 key variables for an environment file.   |
+| `npm run db:generate`   | Generate a migration from the Drizzle schema.                 |
+| `npm run db:migrate`    | Apply database migrations.                                    |
+| `npm run vercel-build`  | Apply migrations and build for deployment.                    |
 
-The repo follows feature folders over the App Router.
+## Code
 
-- `app` holds routes, layouts, and API handlers.
-- `app/scanner` holds the volunteer scanning client.
-- `app/tickets/[token]` holds the guest ticket page.
-- `app/admin` holds moderation and operations screens.
-- `app/api/events` holds event and registration endpoints.
-- `app/api/scanner` holds check-in sync endpoints.
-- `features` holds one folder per domain.
-- `features/tickets` holds issue, reissue, and verify logic.
-- `features/admission` holds check-in, undo, and conflict logic.
-- `features/registration` holds form, answers, and capacity holds.
-- `features/staffing` holds invites and door roles.
-- `lib/db/schema.ts` holds the Drizzle schema.
-- `drizzle` holds generated migrations.
-- `compose.yaml` holds local Postgres plus the Neon WebSocket proxy.
+The app uses Next.js App Router, React, Drizzle with Postgres, Better Auth magic links, Resend, Serwist, Dexie, ZXing, Tailwind, and Base UI.
 
-## Run it locally
+`app` contains routes and transport adapters. `features` contains domain operations, shared policies, and product components. `lib` contains database, identity, configuration, and email infrastructure. `components/ui` contains the shared UI components.
 
-You need Node 24, Docker, and npm. The repo pins Node 24 in `engines`.
-
-Follow these steps in order.
-
-1. Install dependencies with `npm install`.
-2. Start local Postgres with `docker compose up -d`.
-3. Copy `.env.example` to `.env.local` and fill in the values below.
-4. Point `DATABASE_URL` at local Postgres with `postgresql://postgres:postgres@localhost:54432/eventpass`.
-5. Run migrations with `npm run db:migrate`.
-6. Start the app with `npm run dev`.
-7. Open `http://localhost:3000` and use the demo link on the home page.
-
-The local proxy on port `54444` lets the Neon serverless driver talk to local Postgres. You do not need a Neon account for local work.
-
-## Environment variables
-
-Set the following values in `.env.local`.
-
-| Name | Purpose |
-| ---- | ------- |
-| `DATABASE_URL` | Postgres connection string for Drizzle and the app |
-| `PLATFORM_ADMIN_EMAILS` | Comma separated admin allowlist |
-| `BETTER_AUTH_SECRET` | Session signing secret with at least 32 random characters |
-| `BETTER_AUTH_URL` | Public auth origin for local work, such as `http://localhost:3000` |
-| `NEXT_PUBLIC_APP_URL` | Public app origin used in links and email |
-| `RESEND_API_KEY` | API key for transactional email |
-| `RESEND_FROM_EMAIL` | From address shown on ticket and OTP mail |
-| `RESEND_WEBHOOK_SECRET` | Signing secret for Resend delivery webhooks |
-| `TICKET_SIGNING_KEY_ID` | Active ECDSA key id, such as `2026-01` |
-| `TICKET_SIGNING_PRIVATE_KEY_PEM` | PEM private key used to sign new tickets |
-| `TICKET_PUBLIC_KEYS_JSON` | JSON map of key id to PEM public key used to verify scans |
-
-## Scripts
-
-Use the following commands.
-
-| Command | Action |
-| ------- | ------ |
-| `npm run dev` | Start the dev server with webpack |
-| `npm run build` | Build for production with webpack |
-| `npm run start` | Serve the production build |
-| `npm run check` | Run lint plus typecheck |
-| `npm run lint` | Run ESLint with zero warnings allowed |
-| `npm run typecheck` | Run Next typegen plus `tsc --noEmit` |
-| `npm run db:generate` | Generate a migration from `lib/db/schema.ts` |
-| `npm run db:migrate` | Apply migrations from `drizzle` |
-
-## Notes for reviewers
-
-I built this to show full stack product work. The hard parts are the door states and the offline sync. Online scans settle at once. Offline scans stay marked until they land. Reconciliation never hides a conflict. The audit trail keeps who changed what and why. If you run it, try the demo, kill the network, scan twice, and reconnect.
+Read [the architecture notes](docs/architecture.md) for transaction ownership, capacity rules, offline reconciliation, and verification details.

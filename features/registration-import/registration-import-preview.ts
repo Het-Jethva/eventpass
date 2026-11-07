@@ -35,7 +35,7 @@ export const registrationImportPreviewPayloadSchema = z.object({
   }),
 });
 
-export const registrationImportPreviewResponseSchema =
+const registrationImportPreviewResponseSchema =
   registrationImportPreviewPayloadSchema.extend({
     id: z.string(),
     expiresAt: z.string(),

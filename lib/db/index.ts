@@ -5,9 +5,10 @@ import { drizzle } from "drizzle-orm/neon-serverless";
 
 import { configureNeonForLocalPostgres } from "@/lib/neon-local-proxy";
 
-const databaseUrl =
-  process.env.DATABASE_URL ||
-  "postgresql://placeholder:placeholder@localhost:5432/placeholder";
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) {
+  throw new Error("DATABASE_URL is required to connect to Postgres.");
+}
 
 // Inert unless DATABASE_URL points at a local Postgres, which is the only case
 // the driver cannot reach on its own. Must run before the Pool is constructed.
@@ -23,3 +24,7 @@ export type DatabaseClient = Pick<
   typeof db,
   "select" | "insert" | "update" | "delete" | "execute" | "transaction"
 >;
+
+export type DatabaseTransaction = Parameters<
+  Parameters<typeof db.transaction>[0]
+>[0];

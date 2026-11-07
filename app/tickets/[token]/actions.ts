@@ -8,7 +8,7 @@ import {
   replaceTicket,
   resendTicket,
   updateRegistration,
-} from "@/features/tickets/server/tickets";
+} from "@/features/tickets/server/registration-management";
 
 import type { ManagementActionState } from "./form-state";
 
@@ -85,12 +85,18 @@ export async function resendTicketAction(
   try {
     result = await resendTicket(token);
   } catch {
-    return { status: "error", message: "The Ticket email could not be sent. Try again." };
+    return {
+      status: "error",
+      message: "The Ticket email could not be sent. Try again.",
+    };
   }
 
   if (result.outcome === "sent") {
     if (!result.managementToken) {
-      return { status: "error", message: "The Ticket email could not be sent. Try again." };
+      return {
+        status: "error",
+        message: "The Ticket email could not be sent. Try again.",
+      };
     }
     const suffix = result.deliveryStatus === "failed" ? "?delivery=failed" : "";
     redirect(`/tickets/${encodeURIComponent(result.managementToken)}${suffix}`);
@@ -133,7 +139,10 @@ export async function replaceTicketAction(
                 : "This Ticket can no longer be replaced.",
     };
   } catch {
-    return { status: "error", message: "The Ticket could not be replaced. Try again." };
+    return {
+      status: "error",
+      message: "The Ticket could not be replaced. Try again.",
+    };
   }
 }
 
@@ -148,7 +157,8 @@ export async function cancelRegistrationAction(
       refreshManagementPage(token);
       return {
         status: "success",
-        message: "Your Registration was canceled and this Ticket is no longer valid.",
+        message:
+          "Your Registration was canceled and this Ticket is no longer valid.",
       };
     }
     return {
@@ -163,6 +173,9 @@ export async function cancelRegistrationAction(
               : "This Registration can no longer be canceled.",
     };
   } catch {
-    return { status: "error", message: "The Registration could not be canceled. Try again." };
+    return {
+      status: "error",
+      message: "The Registration could not be canceled. Try again.",
+    };
   }
 }

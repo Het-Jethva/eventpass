@@ -1,36 +1,24 @@
 import "server-only";
 
-import type { DatabaseClient } from "@/lib/db";
-
 import { randomBytes } from "node:crypto";
 
 import { and, asc, eq, sql } from "drizzle-orm";
 
 import {
-  admissionOffer,
-  event,
-  registration,
-} from "../../../lib/db/schema";
-import { digestBearerToken } from "@/lib/bearer-token-digest";
-import {
   expireLapsedCapacityClaims,
   getActiveCapacityUsage,
   getAdmissionOfferExpiry,
 } from "@/features/events/server/capacity-ledger";
+import { digestBearerToken } from "@/lib/bearer-token-digest";
+import type { DatabaseTransaction } from "@/lib/db";
 
-export { getAdmissionOfferExpiry } from "@/features/events/server/capacity-ledger";
-
-type Database = DatabaseClient;
-export type DatabaseTransaction = Parameters<
-  Parameters<Database["transaction"]>[0]
->[0];
+import { admissionOffer, event, registration } from "../../../lib/db/schema";
 
 export type AdmissionOfferMessage = {
   email: string;
   attendeeName: string;
   eventId: string;
   eventName: string;
-  eventSlug: string;
   eventTimeZone: string;
   expiresAt: Date;
   token: string;
@@ -51,7 +39,6 @@ export async function reconcileWaitlistInTransaction({
     .select({
       id: event.id,
       name: event.name,
-      slug: event.slug,
       eventTimeZone: event.eventTimeZone,
       status: event.status,
       capacity: event.capacity,
@@ -117,7 +104,6 @@ export async function reconcileWaitlistInTransaction({
         attendeeName: candidate.attendeeName,
         eventId: lockedEvent.id,
         eventName: lockedEvent.name,
-        eventSlug: lockedEvent.slug,
         eventTimeZone: lockedEvent.eventTimeZone,
         expiresAt,
         token,

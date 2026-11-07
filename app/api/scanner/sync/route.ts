@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { synchronizeOfflineAttempts } from "@/features/admission/server/synchronize-offline";
+import { synchronizeOfflineAttempts } from "@/features/admission/server/offline-synchronization";
 import { readRequestJson, RequestBodyError } from "@/lib/request-body";
 
 const attemptSchema = z.object({

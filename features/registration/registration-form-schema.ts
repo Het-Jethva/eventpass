@@ -16,16 +16,20 @@ export type RegistrationFieldAnswerType =
 export function parseRegistrationFieldAnswerType(
   value: string,
 ): RegistrationFieldAnswerType {
-  return parseEnum(value, registrationFieldAnswerTypes, "registration field answer type");
+  return parseEnum(
+    value,
+    registrationFieldAnswerTypes,
+    "registration field answer type",
+  );
 }
 
-export const registrationFieldChoiceSchema = z.object({
+const registrationFieldChoiceSchema = z.object({
   id: z.uuid(),
   label: z.string().trim().min(1, "Enter a choice label.").max(200),
   archived: z.boolean(),
 });
 
-export const registrationFieldDefinitionSchema = z
+const registrationFieldDefinitionSchema = z
   .object({
     id: z.uuid(),
     answerType: z.enum(registrationFieldAnswerTypes),
@@ -57,7 +61,10 @@ export const registrationFieldDefinitionSchema = z
       });
     }
 
-    if (new Set(field.choices.map((choice) => choice.id)).size !== field.choices.length) {
+    if (
+      new Set(field.choices.map((choice) => choice.id)).size !==
+      field.choices.length
+    ) {
       context.addIssue({
         code: "custom",
         path: ["choices"],
@@ -105,7 +112,9 @@ export function assertRegistrationFormUpdate(
   existingFields: ExistingRegistrationFieldDefinition[],
   definition: RegistrationFieldDefinition[],
 ) {
-  const existingById = new Map(existingFields.map((field) => [field.id, field]));
+  const existingById = new Map(
+    existingFields.map((field) => [field.id, field]),
+  );
   const hasResponses = existingFields.some((field) => field.responseCount > 0);
 
   for (const existing of existingFields) {
@@ -122,8 +131,12 @@ export function assertRegistrationFormUpdate(
       );
     }
 
-    const incomingChoiceIds = new Set(incoming.choices.map((choice) => choice.id));
-    if (existing.choiceIds.some((choiceId) => !incomingChoiceIds.has(choiceId))) {
+    const incomingChoiceIds = new Set(
+      incoming.choices.map((choice) => choice.id),
+    );
+    if (
+      existing.choiceIds.some((choiceId) => !incomingChoiceIds.has(choiceId))
+    ) {
       throw new RegistrationFormDefinitionInvariantError(
         "Choices used by answers must be archived, not removed.",
       );

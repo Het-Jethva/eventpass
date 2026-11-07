@@ -1,4 +1,4 @@
-export type EventMetricsOverview = {
+type EventMetricsOverview = {
   confirmedRegistrations: number;
   eventCapacity: number;
   capacityUtilization: {
@@ -126,7 +126,9 @@ export function formatCheckInsTimeline({
 
   return buckets.map(({ hourStart, count }, index) => {
     const localHourKey = localHourKeys[index];
-    const occurrences = localHourKey ? (localHourKeyCounts.get(localHourKey) ?? 0) : 0;
+    const occurrences = localHourKey
+      ? (localHourKeyCounts.get(localHourKey) ?? 0)
+      : 0;
     const label =
       occurrences > 1
         ? disambiguatedHourLabelFormatter.format(hourStart)
@@ -153,6 +155,7 @@ export function computeCapacityUtilization({
 }) {
   const claimed = confirmedCount + activeHoldsCount + activeOffersCount;
   const remaining = Math.max(0, capacity - claimed);
-  const percentage = capacity > 0 ? Math.min(100, Math.round((claimed / capacity) * 100)) : 0;
+  const percentage =
+    capacity > 0 ? Math.min(100, Math.round((claimed / capacity) * 100)) : 0;
   return { claimed, remaining, percentage };
 }
